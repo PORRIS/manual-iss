@@ -196,6 +196,16 @@ SELECT (SELECT COUNT(*) FROM v_tarifas) || '|' || (SELECT COUNT(*) FROM v_labora
        (SELECT COUNT(*) FROM v_paquete_componentes) || '|' ||
        (SELECT COUNT(*) FROM v_agrupadores_ruta) || '|' || (SELECT COUNT(*) FROM v_honorarios_cirugia);
 
+-- @prueba Manual completo | valores con novedad | novedades cuyo valor en BD no es el del PDF
+-- @esperado 8282|37|0
+SELECT (SELECT COUNT(*) FROM v_manual_completo) || '|' || (SELECT COUNT(*) FROM v_ajustes_valor) || '|' ||
+       (SELECT COUNT(*) FROM v_ajustes_valor WHERE valor_en_bd <> valor_pdf);
+
+-- @prueba Componente 791703: paquete, valor del paquete
+-- @esperado C40467|1121360
+SELECT paquete || '|' || CAST(valor_paquete AS INTEGER) FROM v_manual_completo
+WHERE codigo = '791703' AND tipo_fila = 'COMPONENTE';
+
 -- @prueba Honorarios de 020101 (380 UVR): cirujano 1.270, anestesia 960, ayudante 360 por UVR
 -- @esperado 482600|364800|136800
 SELECT CAST(cirujano AS INTEGER) || '|' || CAST(anestesia_si_aplica AS INTEGER) || '|' ||

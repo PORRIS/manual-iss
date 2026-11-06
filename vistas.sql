@@ -86,3 +86,53 @@ FROM procedimientos c
 JOIN procedimientos p ON p.id = c.padre_id
 LEFT JOIN v_agrupadores_ruta r ON r.id = p.agrupador_id
 WHERE p.articulo = 95;
+
+-- Manual completo en el orden del Excel: artículos, agrupadores, procedimientos, componentes
+-- (con código, descripción y valor de su paquete) y notas. Las 3 notas agregadas desde el PDF
+-- no tienen fila del Excel: van después de su procedimiento (orden = fila + 0.5).
+CREATE VIEW v_manual_completo AS
+SELECT * FROM (
+    SELECT a.fila_excel AS orden, 'ARTICULO' AS tipo_fila, a.numero AS articulo,
+           NULL AS nivel, NULL AS agrupador_ruta, NULL AS ref, NULL AS pb, NULL AS codigo,
+           a.texto AS descripcion, NULL AS ref_nota, NULL AS valor, NULL AS unidad,
+           NULL AS paquete, NULL AS desc_paquete, NULL AS valor_paquete, a.fila_excel
+    FROM articulos a
+    UNION ALL
+    SELECT g.fila_excel, 'AGRUPADOR', g.articulo, g.nivel, r.ruta, NULL, NULL, NULL,
+           g.nombre, NULL, NULL, NULL, NULL, NULL, NULL, g.fila_excel
+    FROM agrupadores g LEFT JOIN v_agrupadores_ruta r ON r.id = g.id
+    UNION ALL
+    SELECT p.fila_excel,
+           CASE p.tipo WHEN 'componente' THEN 'COMPONENTE' ELSE 'PROCEDIMIENTO' END,
+           p.articulo, NULL, r.ruta, p.codigo_manual, p.marca, p.codigo,
+           p.descripcion, p.ref_nota, p.valor, p.unidad,
+           pa.codigo, pa.descripcion, pa.valor, p.fila_excel
+    FROM procedimientos p
+    LEFT JOIN v_agrupadores_ruta r ON r.id = p.agrupador_id
+    LEFT JOIN procedimientos pa ON pa.id = p.padre_id
+    UNION ALL
+    SELECT COALESCE(n.fila_excel, n.despues_de_fila + 0.5), UPPER(n.tipo), n.articulo, NULL,
+           r.ruta, NULL, NULL, NULL, n.texto, NULL, NULL, NULL, NULL, NULL, NULL, n.fila_excel
+    FROM notas n LEFT JOIN v_agrupadores_ruta r ON r.id = n.agrupador_id
+)
+ORDER BY orden;
+
+-- Valores con novedad: procedimientos cuyo valor del Excel se corrigió con el del PDF
+-- (correcciones.csv -> ajustes_pdf), de mayor a menor diferencia absoluta.
+CREATE VIEW v_ajustes_valor AS
+SELECT
+    p.codigo,
+    p.codigo_manual                                            AS ref,
+    p.descripcion,
+    p.articulo,
+    p.unidad,
+    CAST(a.antes AS REAL)                                      AS valor_excel,
+    CAST(a.despues AS REAL)                                    AS valor_pdf,
+    ROUND(CAST(a.despues AS REAL) - CAST(a.antes AS REAL), 4)  AS diferencia,
+    p.valor                                                    AS valor_en_bd,  -- = valor_pdf
+    a.motivo,
+    p.fila_excel
+FROM ajustes_pdf a
+JOIN procedimientos p ON p.fila_excel = CAST(a.fila_excel AS INTEGER)
+WHERE a.campo = 'valor'
+ORDER BY ABS(CAST(a.despues AS REAL) - CAST(a.antes AS REAL)) DESC;

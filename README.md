@@ -25,8 +25,14 @@ uv run extraer_pdf.py        # PDF -> pdf_tablas.csv y pdf_textos.csv (~45 s; so
 uv run etl.py                # XLS + correcciones.csv -> salida/manual_iss.db y CSV
 uv run validar_completo.py   # informe BD vs PDF -> validacion_completa.csv
 uv run cotizar.py 903801 871112x2 C40402   # cotización rápida con tarifas en pesos
-uv run probar_bd.py          # 46 pruebas de la BD (consultas_prueba.sql); --ejemplos muestra filas
+uv run probar_bd.py          # 48 pruebas de la BD (consultas_prueba.sql); --ejemplos muestra filas
 uv run consultar.py consultas_ver.sql --vertical   # ficha de códigos, paquetes, búsquedas (editar los WITH)
+```
+
+Consulta web (buscar por código o texto en todas las vistas y exportar a Excel):
+
+```bash
+./web.sh                     # http://localhost:8000 (también desde el navegador de Windows); Ctrl+C para detener
 ```
 
 `extraer_pdf.py` solo hace falta la primera vez o si cambia el PDF o el extractor; el ETL lee los
@@ -76,6 +82,7 @@ Lo que se regenera solo (`salida/`, informes de validación) está en `.gitignor
 | `proponer_correcciones.py` | Genera `correcciones_propuestas.csv` a partir de `validacion_completa.csv`, para revisarlo antes de fusionarlo. |
 | `auditoria_visual.py` | Muestreo reproducible de 10 páginas (semilla 256): imágenes en `salida/auditoria/` y filas de la BD en `auditoria_filas.csv`. Resultado de la revisión en `auditoria_visual.csv`. |
 | `actualizar.sh` | Regenera la BD, corre las validaciones y copia la BD a `C:\Users\Porris\Documents` para Navicat. Se detiene en el primer error. |
+| `web.sh`, `web/` | Interfaz web de consulta (FastAPI, solo lectura): un menú por vista, búsqueda por código (varios, o prefijo con `*`) o por texto (sin tildes, palabras en cualquier orden), detalle de cada fila y exportación a Excel filtrada o completa. Las vistas del menú y sus columnas de búsqueda se configuran en `VISTAS` de `web/app.py`. |
 | `rutas.py` | Ruta del proyecto y de la BD, para que los scripts funcionen desde cualquier carpeta; si la BD no existe, avisa en vez de crear una vacía. |
 | `liquidar.py` | Liquidación de honorarios quirúrgicos (arts. 59-67). |
 | `vistas.sql` | Vista `v_honorarios_cirugia`. |
@@ -156,6 +163,8 @@ Clasificación de las diferencias:
 | `v_paquete_componentes` | Qué conjunto cubre cada procedimiento (CUPS → paquete). |
 | `v_agrupadores_ruta` | Ruta completa de cada agrupador, p. ej. `RADIOLOGIA > HUESOS > EXTREMIDADES Y PELVIS`. |
 | `v_honorarios_cirugia` | Honorarios de cirugía (arts. 1-18) en pesos por profesional. |
+| `v_manual_completo` | Todo el Manual en el orden del Excel (artículos, agrupadores, procedimientos, componentes y notas); los componentes traen código, descripción y valor de su paquete. |
+| `v_ajustes_valor` | Valores con novedad: valor del Excel, valor del PDF, diferencia y motivo, de mayor a menor diferencia. |
 
 Ejemplo: `SELECT * FROM v_paquete_componentes WHERE componente_codigo = '512104';`
 

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manual Tarifario ISS 2001 · SIAIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Raleway:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__marca">
+      <img src="/static/logo_blanco.png" alt="SIAIS" width="120" height="45">
+    </div>
+    <nav class="menu" id="menu"></nav>
+    <div class="sidebar__pie">Acuerdo 256 de 2001</div>
+  </aside>
+  <div class="velo" id="velo"></div>
+
+  <div class="principal">
+    <header class="topbar">
+      <button class="boton-icono menu-movil" id="abrirMenu" aria-label="Abrir menú"></button>
+      <div class="topbar__titulo">
+        <span class="topbar__sistema">Manual Tarifario ISS 2001</span>
+        <span class="topbar__sep">/</span>
+        <span id="migaVista">Inicio</span>
+      </div>
+      <img class="topbar__logo" src="/static/logo.png" alt="SIAIS" width="120" height="45">
+    </header>
+
+    <main class="contenido" id="contenido"></main>
+  </div>
+
+  <aside class="cajon" id="cajon" aria-hidden="true">
+    <div class="cajon__cabecera">
+      <h3 id="cajonTitulo">Detalle</h3>
+      <button class="boton-icono" id="cerrarCajon" aria-label="Cerrar"></button>
+    </div>
+    <div class="cajon__cuerpo" id="cajonCuerpo"></div>
+  </aside>
+
+  <div class="aviso" id="aviso"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

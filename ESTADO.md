@@ -22,7 +22,7 @@
    tabla `abreviaturas`. Ajustes manuales revisados contra el PDF (2026-11-05): 5 títulos
    (págs. 13, 43, 119, 148, 169); la TAC (pág. 116) va bajo RADIOLOGIA por su numeración REF.
 9. Vistas: v_tarifas, v_laboratorio, v_imagenes, v_paquetes, v_paquete_componentes,
-   v_agrupadores_ruta. Cotizador: cotizar.py (suma tarifas en pesos; avisa, sin aplicar,
+   v_agrupadores_ruta (y desde el punto 14: v_manual_completo, v_ajustes_valor). Cotizador: cotizar.py (suma tarifas en pesos; avisa, sin aplicar,
    parágrafos de recargos/descuentos, notas y paquetes).
 
 10. cotizar.py aplica recargos/descuentos con opción explícita, desde reglas_tarifas.csv
@@ -41,6 +41,11 @@
 13. `actualizar.sh` (todo en un comando), `rutas.py` (scripts desde cualquier carpeta; error
     claro si falta la BD), columna `procedimientos.descripcion_busqueda` (búsqueda sin tildes)
     y `validar.py` termina con error si hay hallazgos.
+14. Vistas `v_manual_completo` (manual en el orden del Excel, componentes con su paquete) y
+    `v_ajustes_valor` (valores con novedad Excel → PDF).
+15. Interfaz web `./web.sh` (web/app.py + web/static): menú por vista, búsqueda por código o texto,
+    búsqueda global con conteo por vista, detalle por fila y Excel filtrado o completo. Paleta y
+    logo SIAIS (#1dbb99, #6d5eac).
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
