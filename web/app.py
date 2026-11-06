@@ -71,6 +71,10 @@ ETIQUETAS = {
     "clase": "Clase", "departamento": "Departamento",
     "cups": "CUPS 2026", "descripcion_cups": "Descripción CUPS", "codigo_iss": "Código ISS",
     "descripcion_iss": "Descripción ISS",
+    "codigo_iss_actual": "ISS actual", "descripcion_iss_actual": "Descripción ISS actual",
+    "parecido_actual": "Parecido actual", "codigo_sugerido": "ISS sugerido",
+    "descripcion_sugerida": "Descripción sugerida", "parecido_sugerido": "Parecido sugerido",
+    "estado_revision": "Estado", "codigo_en_homologacion": "En homologacion.csv",
 }
 
 # vista -> configuración. codigo: columnas comparadas con el código; lista: columnas con códigos
@@ -178,6 +182,13 @@ VISTAS = {
         descripcion="Códigos ISS de la relación CUPS 2026 que no existen en el Manual (PDF): de "
                     "dónde salen (Excel o ninguno) y por qué no se pueden usar para comparar.",
         codigo=["cups", "codigo_iss"], texto=["descripcion_cups", "texto_excel", "motivo"]),
+    "v_novedades_relacion_revision": dict(
+        titulo="Relación CUPS por revisar", grupo="Novedades (Excel → PDF)", icono="alerta",
+        descripcion="Posibles errores de la relación CUPS 2026 → ISS: el código ISS actual, el "
+                    "sugerido, qué tanto se parecen las descripciones y por qué. Las sugerencias "
+                    "están en homologacion.csv como «por_revisar» y no se aplican hasta aprobarlas.",
+        codigo=["cups", "codigo_iss_actual", "codigo_sugerido"],
+        texto=["descripcion_cups", "descripcion_iss_actual", "descripcion_sugerida", "tipo"]),
     "v_novedades_aceptadas": dict(
         titulo="Diferencias aceptadas", grupo="Novedades (Excel → PDF)", icono="check",
         descripcion="Diferencias revisadas que se dejaron como están: falsos positivos de la "

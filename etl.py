@@ -20,6 +20,7 @@ from rutas import al_proyecto
 
 al_proyecto()
 from control_extraccion import controlar
+from revision_relacion_cups import leer_homologacion, proponer_homologaciones, revisar
 from validar_completo import PDF_TABLAS, PDF_TEXTOS, cargar_pdf, comparar, fuerte
 
 try:
@@ -498,6 +499,19 @@ if os.path.exists(RELACION_CUPS):
                        "pagina_pdf", "motivo"])
     tablas["novedades_relacion_cups"]["pagina_pdf"] = \
         tablas["novedades_relacion_cups"]["pagina_pdf"].astype("Int64")
+
+    # Posibles inconsistencias de la relación (descripción CUPS vs. ISS): novedad para revisar.
+    # Las sugerencias se agregan a homologacion.csv como "por_revisar" (no se aplican hasta aprobarlas).
+    _rev = revisar(_rel, pr[pr.tipo == "con_valor"][["codigo", "descripcion"]])
+    _n = proponer_homologaciones(_rev)
+    _est = leer_homologacion().set_index("codigo_factura")
+    _rev["estado_revision"] = [_est.estado.get(c, "") if c in _est.index else "" for c in _rev.cups]
+    _rev["codigo_en_homologacion"] = [_est.codigo_manual.get(c, "") if c in _est.index else ""
+                                      for c in _rev.cups]
+    tablas["relacion_cups_revision"] = _rev
+    print(f"relación CUPS: {len(_rev)} posibles inconsistencias "
+          f"({', '.join(f'{k} {v}' for k, v in _rev.tipo.value_counts().items())}); "
+          f"nuevas en homologacion.csv: {_n}")
     print(f"relación CUPS -> ISS: {len(_rel)} filas, {int(_rel.existe_en_manual.sum())} con código ISS "
           f"en el Manual, sin pareja: {', '.join(_rel[_rel.existe_en_manual == 0].codigo_iss)}")
 

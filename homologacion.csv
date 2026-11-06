@@ -1,1 +1,211 @@
-codigo_factura,codigo_manual,observacion
+codigo_factura,codigo_manual,estado,observacion
+010204,010202,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 819101 (ASPIRACIÓN ARTICULAR); sugerido 010202 (PUNCION [ASPIRACION DE LIQUIDO] VENTRICULAR POR TREPANACION )
+013204,013202,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 920101 (GAMAGRAFIA CEREBRAL ESTATICA); sugerido 013202 (SECCION DE TEJIDO CEREBRAL (TRACTOS CEREBRALES) , POR CRANEO)"
+016302,016301,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 017401 (RESECCION DE TUMOR DE LINEA MEDIA SUPRATENTORIAL, POR CRANEO); sugerido 016301 (RESECCION TUMOR DEL TENTORIO, POR CRANEOTOMIA)"
+017003,017001,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 488101 (DRENAJE DE COLECCION RECTAL); sugerido 017001 (DRENAJE DE COLECCIONES INTRACEREBRALES , POR CRANEOTOMIA)"
+017807,017805,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 300101 (RESECCION DE QUISTE VENTRICULAR VIA EXTERNA); sugerido 017805 (DRENAJE DE QUISTE TUMORAL DE LINEA MEDIA INTRAVENTICULAR)
+028302,028302,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 377800 (INSERCION DE MARCAPASO TRANSVENOSO TEMPORAL (TRANSITORIO) O ); sugerido 028302 (COLOCACION EPIDURAL DEL ELECTRODO DE NEUROESTIMULACION INTRA)
+028312,028303,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 039301 (IMPLANTACION DE ELECTRODOS O RECEPTOR DE NEUROESTIMULACION E); sugerido 028303 (IMPLANTACION PARENQUIMATOSA DEL ELECTRODO DE NEUROESTIMULACI)
+028313,028303,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 891401 (ELECTROENCEFALOGRAMA CONVENCIONAL); sugerido 028303 (IMPLANTACION PARENQUIMATOSA DEL ELECTRODO DE NEUROESTIMULACI)
+032003,032200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 805125 (DISCECTOMIA ENDOSCOPICA O TRANSARTROSCOPICA TORACICA); sugerido 032200 (CORDOTOMIA ABIERTA SOD *)
+037101,037100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 541503 (RESECCIÓN DE TUMOR RETROPERITONEAL CON DISECCION DE ESTRUCTU); sugerido 037100 (DERIVACION SIRINGO PERITONEAL ESPINAL SOD)
+039203,038200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 042301 (NEUROLISIS DE NERVIO EN BRAZO); sugerido 038200 (NEUROLISIS DE RAICES ESPINALES SOD *)
+040601,053110,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 039302 (IMPLANTACION DE ELECTRODOS O RECEPTOR DE NEUROESTIMULACION E); sugerido 053110 (BLOQUEO DE NERVIO VAGO)
+072002,072200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 653102 (OOFORECTOMÍA UNILATERAL POR LAPAROSCOPIA); sugerido 072200 (SUPRARRENALECTOMÍA (ADRENALECTOMÍA) UNILATERAL SOD)
+072402,072300,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 655102 (OOFORECTOMÍA BILATERAL POR LAPAROSCOPIA); sugerido 072300 (SUPRARRENALECTOMÍA (ADRENALECTOMÍA), PARCIAL SOD)"
+072502,072200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 653102 (OOFORECTOMÍA UNILATERAL POR LAPAROSCOPIA); sugerido 072200 (SUPRARRENALECTOMÍA (ADRENALECTOMÍA) UNILATERAL SOD)
+094202,094200,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 094400 (INTUBACIÓN DE VIAS LAGRIMALES SOD); sugerido 094200 (SONDEO Y LAVADO DE VIAS LAGRIMALES SOD)
+110A01,S12500,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 871061 (RADIOGRAFIA PANORAMICA DE COLUMNA (GONIOMETRIA U ORTOGRAMA) ); sugerido S12500 (INTERNACION EN UNIDAD DE CUIDADO PALIATIVO SOD)
+111201,111200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 488101 (DRENAJE DE COLECCION RECTAL); sugerido 111200 (DRENAJE DE ABSCESO EN CORNEA SOD)
+121101,121200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 549801 (DIALISIS PERITONEAL MANUAL (309)); sugerido 121200 (IRIDOTOMÍA CON LASER SOD)
+126603,126603,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 107100 (INYECCION SUBCONJUNTIVAL SOD); sugerido 126603 (SUTUROLISIS SUBCONJUNTIVAL DE FLAP ESCLERAL CON LASER)
+126705,126705,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 786930 (EXTRACCIÓN DE DISPOSITIVO IMPLANTADO EN COLUMNA VERTEBRAL, P); sugerido 126705 (REVISION ANTERIOR DE TUBO DE IMPLANTE)"
+131A01,S12600,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 990212 (EDUCACION INDIVIDUAL EN SALUD, POR HIGIENE ORAL); sugerido S12600 (UNIDAD DE AISLAMIENTO)"
+131M01,S12600,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 990212 (EDUCACION INDIVIDUAL EN SALUD, POR HIGIENE ORAL); sugerido S12600 (UNIDAD DE AISLAMIENTO)"
+218404,218801,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 558701 (PIELOPLASTIA VIA ABIERTA); sugerido 218801 (SEPTORRINOPLASTIA FUNCIONAL PRIMARIA NCOC **)
+218605,218301,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 352400 (REEMPLAZO O RECONSTRUCCION DE DOS O TRES VALVULAS SOD); sugerido 218301 (RECONSTRUCCIÓN NASAL TOTAL CON INJERTO)
+223901,223901,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 223902 (ANTROTOMIA MAXILAR EXPLORATORIA VIA FOSA CANINA CON RESECCIO); sugerido 223901 (ANTROTOMIA MAXILAR EXPLORATORIA VIA MEATO INFERIOR)
+225006,226400,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 226401 (ESFENOIDECTOMÍA ENDOSCOPICA TRANSNASAL); sugerido 226400 (ESFENOIDECTOMÍA SOD)
+227001,965302,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 226001 (RESECCIÓN DE TUMOR MALIGNO DE SENO PARANASAL, POR VIA ENDOSC); sugerido 965302 (CURACION ENDOSCOPICA DE SENOS PARANASALES)"
+234402,234402,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 247401 (FERULIZACION RIGIDA ( SUPERIOR Y/O INFERIOR)); sugerido 234402 (COLOCACION O INSERCIÓN DE PRÓTESIS TOTAL (SUPERIOR E INFERIO)
+260101,260100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 562201 (URETEROLITOTOMÍA POR URETEROTOMIA (VIA ABIERTA)); sugerido 260100 (SIALOLITOTOMÍA SOD)
+264008,264901,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 558720 (PIELOPLASTIA ENDOSCOPICA); sugerido 264901 (SIALOPLASTIA (REPARACIÓN DEL CONDUCTO) CON INJERTO)
+271101,271100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 600110 (DRENAJE DE COLECCIÓN EN PROSTATA VIA ABIERTA); sugerido 271100 (DRENAJE DE COLECCIÓN DE PALADAR SOD)
+273402,273203,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 273204 (PALATECTOMIA TOTAL); sugerido 273203 (PALATECTOMIA PARCIAL NCOC)
+277301,M16231,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 798105 (CAPSULORRAFIA POR ARTROSCOPIA); sugerido M16231 (UVULORRAFIA)
+282101,282100,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 042201 (NEUROLISIS DE NERVIO XI, POR AMIGDALECTOMIA ESTEREOTAXICA); sugerido 282100 (AMIGDALECTOMÍA SOD)"
+285103,285101,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 798501 (REDUCCIÓN ABIERTA DE LUXACIÓN CONGÉNITA DE PELVIS); sugerido 285101 (RESECCIÓN DE AMÍGDALA LINGUAL, BANDAS FARÍNGEAS LATERALES Y )"
+285104,285101,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 300202 (RESECCIÓN ENDOSCOPICA DE LESIÓN EN LARINGE); sugerido 285101 (RESECCIÓN DE AMÍGDALA LINGUAL, BANDAS FARÍNGEAS LATERALES Y )"
+295201,295201,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 575102 (RESECCIÓN DE FISTULA URACAL); sugerido 295201 (CIERRE DE FÍSTULA BRANQUIAL)
+302407,316501,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 147402 (VITRECTOMÍA VIA POSTERIOR CON RETINOPEXIA); sugerido 316501 (ARITENOPEXIA VIA EXTERNA)
+306503,310102,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 774911 (BIOPSIA DE VERTEBRA, POR VIA PERCUTÁNEA); sugerido 310102 (INYECCION ENDOSCOPICA EN PLIEGUE VOCAL LATERAL CON MATERIAL )"
+322101,322100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 358207 (REPARACION DE DRENAJE VENOSO PULMONAR ANOMALO PARCIAL DE VEN); sugerido 322100 (RESECCIÓN O PLICATURA DE BULAS SOD)
+325401,325500,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 828102 (TRASPLANTE DE DEDO DEL PIE A MANO); sugerido 325500 (OBTENCIÓN DE CORAZÓN-PULMON SOD)
+328001,325500,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 828102 (TRASPLANTE DE DEDO DEL PIE A MANO); sugerido 325500 (OBTENCIÓN DE CORAZÓN-PULMON SOD)
+340910,347802,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 764301 (RECONSTRUCCIÓN MANDIBULAR (TOTAL O PARCIAL) CON MATERIAL DE ); sugerido 347802 (RECONSTRUCCION DEL ESTERNON CON INTERPOSICION DE PROTESIS)
+348002,342700,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 332700 (BIOPSIA CERRADA [ENDOSCOPICA] [TORACOSCOPIA] DE PULMON SOD); sugerido 342700 (BIOPSIA DE DIAFRAGMA SOD)
+358902,358303,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 893818 (MEDICION NO INVASIVA DE CO2 O CAPNOGRAFIA); sugerido 358303 (CIERRE DE DUCTUS ARTERIOSO PERSISTENTE POR VIA ENDOVASCULAR )
+361807,361501,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 383801 (ANASTOMOSIS ARTERIAL PRIMARIA SUPRAPATELAR); sugerido 361501 (ANASTOMOSIS SIMPLE O SECUENCIAL DE ARTERIA MAMARIA-ARTERIA C)
+372101,372101,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 372501 (ESTUDIO ELECTROFISIOLOGICO CARDIACO TRANS ESOFAGICO); sugerido 372101 (CATETERISMO CARDIACO DEL LADO DERECHO DEL CORAZON CON ESTUDI)
+372301,372301,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 372300 (CATETERISMO COMBINADO DE LOS LADOS DERECHO E IZQUIERDO DEL C); sugerido 372301 (CATETERISMO COMBINADO DE LOS LADOS DERECHO E IZQUIERDO DEL C)
+373308,373302,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 893818 (MEDICION NO INVASIVA DE CO2 O CAPNOGRAFIA); sugerido 373302 (RESECCION ABIERTA DE HACES ANOMALOS DEL SISTEMA DE CONDUCCIO)
+375201,375200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 828102 (TRASPLANTE DE DEDO DEL PIE A MANO); sugerido 375200 (OBTENCIÓN DEL CORAZON ( DONANTE) SOD)
+378201,378200,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 377800 (INSERCION DE MARCAPASO TRANSVENOSO TEMPORAL (TRANSITORIO) O ); sugerido 378200 (IMPLANTACION DE MARCAPASO UNICAMERAL SOD *)
+378301,378300,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 377800 (INSERCION DE MARCAPASO TRANSVENOSO TEMPORAL (TRANSITORIO) O ); sugerido 378300 (INSERCION DE MARCAPASOS BICAMERAL SOD *)
+378702,377401,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 893818 (MEDICION NO INVASIVA DE CO2 O CAPNOGRAFIA); sugerido 377401 (INSERCION O SUSTITUCION DE ELECTRODO EPICARDICO POR ESTERNOT)
+380111,380110,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 360401 (INFUSION ARTERIAL INTRACORONARIA DE TROMBOLITICOS (TROMBOLIS); sugerido 380110 (TROMBOLISIS DE VASOS INTRACRANEALES POR VIA ENDOVASCULAR (24)
+395010,395010,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 028202 (IMPLANTACION DE DISPOSITIVO EXTRADURAL); sugerido 395010 (ANGIOPLASTIA CON BALON DE VASOS INTRACRANEALES (246))
+406201,406400,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 565200 (FORMACIÓN DE CONDUCTO COLÓNICO CON TUNELIZACIÓN DE URETER SO); sugerido 406400 (LIGADURA DEL CONDUCTO TORACICO SOD)
+410603,410400,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 534000 (HERNIORRAFIA UMBILICAL SOD); sugerido 410400 (TRASPLANTE AUTOLOGO DE CELULAS MADRES HEMATOPOYETICAS SOD)
+413201,413201,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 774911 (BIOPSIA DE VERTEBRA, POR VIA PERCUTÁNEA); sugerido 413201 (BIOPSIA CERRADA [POR ASPIRACION] (PERCUTANEA) DE BAZO)"
+414401,414400,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 786602 (EXTRACCIÓN DE CUERPO EXTRAÑO EN ROTULA, VÍA ABIERTA); sugerido 414400 (EXTRACCION DE CUERPO EXTRAÑO DEL BAZO SOD)"
+424101,424100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 576000 (CISTECTOMIA PARCIAL POR VIA ABIERTA SOD); sugerido 424100 (ESOFAGECTOMIA PARCIAL SOD)
+424203,424200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido 424200 (ESOFAGECTOMÍA TOTAL SOD (191))
+425204,S55209,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 446601 (CIRUGIA ANTIRREFLUJO GASTROESOFAGICO CON RECONSTRUCCIÓN DEL ); sugerido S55209 (Tubo en ""T"")"
+434104,434101,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 429102 (LIGADURA DE VARICES ESOFAGICAS POR TRANSECCION GASTRICA); sugerido 434101 (LIGADURA ENDOSCOPICA DE VARICES GASTRICAS)
+434201,434200,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 434500 (MUCOSECTOMIA ENDOSCOPICA GASTRICA SOD); sugerido 434200 (EXTRACCIÓN ENDOSCOPICA DE TUMOR SUBMUCOSO GASTRICO SOD)
+436101,436100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460101 (DUODENOSTOMÍA); sugerido 436100 (GASTRODUODENOSTOMÍA SOD)
+436102,436100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460101 (DUODENOSTOMÍA); sugerido 436100 (GASTRODUODENOSTOMÍA SOD)
+437101,437100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460102 (YEYUNOSTOMIA); sugerido 437100 (GASTROYEYUNOSTOMÍA SOD)
+437102,437100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460102 (YEYUNOSTOMIA); sugerido 437100 (GASTROYEYUNOSTOMÍA SOD)
+437103,437100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460102 (YEYUNOSTOMIA); sugerido 437100 (GASTROYEYUNOSTOMÍA SOD)
+439002,439100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido 439100 (GASTRECTOMIA TOTAL CON INTERPOSICION INTESTINAL SOD)
+439004,438100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido 438100 (GASTRECTOMÍA SUBTOTAL RADICAL SOD)
+439201,439200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 706000 (RECONSTRUCCIÓN DE VAGINA SOD); sugerido 439200 (DERIVACION GASTROINTESTINAL EN Y DE ROUX SOD)
+441303,451600,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 436100 (GASTRODUODENOSTOMÍA SOD); sugerido 451600 (ESOFAGOGASTRODUODENOSCOPIA [EGD] CON BIOPSIA CERRADA SOD)
+441502,441500,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 651202 (BIOPSIA EN OVARIO POR LAPAROSCOPIA); sugerido 441500 (BIOPSIA ABIERTA DEL ESTOMAGO SOD)
+445102,445100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 567460 (REANASTOMOSIS URETERO-VESICAL); sugerido 445100 (REANASTOMOSIS DEL ESTÓMAGO POR DESHISCENCIA DE LA SUTURA SOD)
+458101,458100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 577005 (CISTECTOMIA TOTAL CON URETRECTOMIA); sugerido 458100 (COLECTOMÍA TOTAL CON ILEOSTOMÍA Y PROTECTOMÍA SOD)
+458102,458100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido 458100 (COLECTOMÍA TOTAL CON ILEOSTOMÍA Y PROTECTOMÍA SOD)
+458302,458200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido 458200 (COLECTOMÍA TOTAL MÁS RESERVORIO SOD)
+471102,471100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 471300 (APENDICECTOMÍA CON DRENAJE DE PERITONITIS GENERALIZADA SOD); sugerido 471100 (APENDICECTOMÍA SOD)
+486202,486200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 652302 (RESECCIÓN DE TUMOR DE OVARIO POR LAPAROSCOPIA); sugerido 486200 (RESECCION ANTERIOR DE RECTO CON COLOSTOMIA SIMULTANEA SOD)
+487707,487703,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 706103 (VAGINOPLASTIA POR VIA ABDOMINOPERINEAL); sugerido 487703 (DESCENSO RECTAL ABDOMINOPERINEAL POR AGANGLIOSIS)
+487708,487703,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 706103 (VAGINOPLASTIA POR VIA ABDOMINOPERINEAL); sugerido 487703 (DESCENSO RECTAL ABDOMINOPERINEAL POR AGANGLIOSIS)
+492101,492100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 573302 (BIOPSIA MULTIPLE O MAPEO VESICAL POR CISTOSCOPIA); sugerido 492100 (ANOSCOPIA SOD)
+513601,513600,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460101 (DUODENOSTOMÍA); sugerido 513600 (COLEDOCODUODENOSTOMIA SOD)
+513602,513600,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 460101 (DUODENOSTOMÍA); sugerido 513600 (COLEDOCODUODENOSTOMIA SOD)
+514401,514400,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 044508 (DESCOMPRESION DE NERVIO EN PIE); sugerido 514400 (INSERCION DE TUBO COLEDOCOHEPATICO PARA DESCOMPRESION SOD)
+514402,514400,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 044508 (DESCOMPRESION DE NERVIO EN PIE); sugerido 514400 (INSERCION DE TUBO COLEDOCOHEPATICO PARA DESCOMPRESION SOD)
+518301,518300,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 558701 (PIELOPLASTIA VIA ABIERTA); sugerido 518300 (ESFINTEROPLASTIA SOD)
+518402,518400,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 877816 (PIELOGRAFIA PERCUTANEA); sugerido 518400 (DILATACION ENDOSCOPICA DE AMPOLLA Y CONDUCTO BILIAR SOD)
+521003,521200,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 521400 (BIOPSIA CERRADA [ENDOSCOPICA] DE DUCTO PANCREATICO SOD); sugerido 521200 (BIOPSIA ABIERTA DE PANCREAS SOD)
+522201,522200,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 521200 (BIOPSIA ABIERTA DE PANCREAS SOD); sugerido 522200 (RESECCIÓN DE LESIÓN O TEJIDO DE PÁNCREAS SOD)
+522203,522200,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 521200 (BIOPSIA ABIERTA DE PANCREAS SOD); sugerido 522200 (RESECCIÓN DE LESIÓN O TEJIDO DE PÁNCREAS SOD)
+524003,524200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 652802 (RESECCIÓN DE QUISTE PARA-OVÁRICO POR LAPAROSCOPIA); sugerido 524200 (DRENAJE PERCUTANEO DE SEUDOQUISTE PANCREATICO SOD)
+526102,526100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido 526100 (PANCREATECTOMÍA TOTAL POR NECIDIOBLASTOSIS SOD)
+527101,527100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 456201 (DUODENECTOMIA); sugerido 527100 (PANCREATICODUODENECTOMÍA TOTAL SOD)
+527102,527100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 456201 (DUODENECTOMIA); sugerido 527100 (PANCREATICODUODENECTOMÍA TOTAL SOD)
+527201,527200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 456201 (DUODENECTOMIA); sugerido 527200 (PANCREATICODUODENECTOMÍA PROXIMAL [WHIPPLE] SOD)
+527202,527200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 456201 (DUODENECTOMIA); sugerido 527200 (PANCREATICODUODENECTOMÍA PROXIMAL [WHIPPLE] SOD)
+529603,529602,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 513000 (ANASTOMOSIS DE VESICULA BILIAR O VIA BILIAR CON PANCREATOGRA); sugerido 529602 (ANASTOMOSIS DEL PÁNCREAS POR LAPAROTOMÍA)
+535205,535200,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 536000 (HERNIORRAFIA LUMBAR SOD); sugerido 535200 (HERNIORRAFIA EPIGÁSTRICA SOD)
+536102,536100,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 536000 (HERNIORRAFIA LUMBAR SOD); sugerido 536100 (HERNIORRAFIA OBTURADORA SOD)
+542403,542400,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 651202 (BIOPSIA EN OVARIO POR LAPAROSCOPIA); sugerido 542400 (BIOPSIA CERRADA [PERCUTANEA] [CON AGUJA] DE MASA INTRAABDOMI)
+552101,552100,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 550301 (EXTRACCION PERCUTÁNEA [NEFROSCOPICA] DE CALCULOS EN RIÑON (N); sugerido 552100 (NEFROSCOPIA DIAGNOSTICA SOD)
+552102,552100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 651202 (BIOPSIA EN OVARIO POR LAPAROSCOPIA); sugerido 552100 (NEFROSCOPIA DIAGNOSTICA SOD)
+552202,552200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 651202 (BIOPSIA EN OVARIO POR LAPAROSCOPIA); sugerido 552200 (PIELOSCOPIA DIAGNOSTICA SOD)
+552605,552320,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 651202 (BIOPSIA EN OVARIO POR LAPAROSCOPIA); sugerido 552320 (BIOPSIA ENDOSCÓPICA DE RIÑON)
+555703,M09143,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 655101 (OOFORECTOMÍA BILATERAL POR LAPAROTOMÍA); sugerido M09143 (NEFRECTOMÍA RADICAL)
+555721,M09143,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 684020 (HISTERECTOMÍA TOTAL POR LAPAROSCOPIA); sugerido M09143 (NEFRECTOMÍA RADICAL)
+556201,556200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 828102 (TRASPLANTE DE DEDO DEL PIE A MANO); sugerido 556200 (TRANSPLANTE DE RIÑON DE DONANTE SOD)
+556202,556200,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 828102 (TRASPLANTE DE DEDO DEL PIE A MANO); sugerido 556200 (TRANSPLANTE DE RIÑON DE DONANTE SOD)
+563401,563400,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 582301 (BIOPSIA DE URETRA VIA ABIERTA); sugerido 563400 (BIOPSIA ABIERTA DE URETER SOD)
+573301,573301,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 570200 (REMOCIÓN TRANSURETRAL [ENDOSCOPICA] DE CALCULO, CUERPO EXTRA); sugerido 573301 (BIOPSIA UNICA O SIMPLE DE VEJIGA POR CISTOSCOPIA)"
+578502,E09321,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 597920 (URETROPLASTIA DE AMPLIACIÓN); sugerido E09321 (PLASTIA VY CUELLO VESICAL)
+579201,576060,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 586200 (DILATACIÓN DE UNIÓN URETROVESICAL SOD (198)); sugerido 576060 (RESECCION DE CUELLO VESICAL TRANSVESICAL)
+580051,580050,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 580100 (URETROSTOMÍA SOD); sugerido 580050 (URETROTOMIA INTERNA ENDOSCOPICA)
+672001,672001,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 673401 (CONIZACION CON RADIOCIRUGIA (LETZ) BAJO COLPOSCOPIA); sugerido 672001 (CONIZACION NCOC)
+753710,S55209,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 431200 (GASTROSTOMÍA POR LAPAROTOMÍA SOD); sugerido S55209 (Tubo en ""T"")"
+755003,755200,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 756200 (REPARACION DE LACERACIONES O DESGARROS OBSTÉTRICOS RECIENTES); sugerido 755200 (REPARACION DE DESGARRO OBSTÉTRICO ACTUAL DE CUERPO UTERINO S)
+772601,772600,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 785600 (FIJACIÓN INTERNA SIN REDUCCIÓN DE FRACTURA DE RÓTULA SOD); sugerido 772600 (OSTEOTOMÍA EN RÓTULA SOD)
+779402,779401,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 807502 (SINOVECTOMÍA DE CADERA TOTAL VIA ABIERTA); sugerido 779401 (CARPECTOMÍA (UNO O MAS HUESOS))
+791701,791701,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 792702 (REDUCCIÓN ABIERTA, SIN FIJACIÓN INTERNA, DE FRACTURA DE PILÓ); sugerido 791701 (REDUCCIÓN CERRADA DE PILÓN CON FIJACIÓN INTERNA Y EXTERNA)"
+799202,799202,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 767501 (REDUCCION CERRADA FRACTURA DE CONDILO); sugerido 799202 (REDUCCION CERRADA DE FRACTURA DE CODO NCOC)
+7DS001,S22223,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 549801 (DIALISIS PERITONEAL MANUAL (309)); sugerido S22223 (SALA DE DIALISIS PERITONEAL)
+7DS002,S22220,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 549002 (INSERCION DE CATETER PERMANENTE PARA HEMODIALISIS); sugerido S22220 (SALA DE HEMODIALISIS)
+805904,805102,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 774911 (BIOPSIA DE VERTEBRA, POR VIA PERCUTÁNEA); sugerido 805102 (ESCISIÓN DE DISCO INTERVERTEBRAL EN SEGMENTO CERVICAL VIA PO)"
+805907,805122,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 774911 (BIOPSIA DE VERTEBRA, POR VIA PERCUTÁNEA); sugerido 805122 (ESCISIÓN DE DISCO INTERVERTEBRAL EN SEGMENTO TORACICO VIA PO)"
+805910,805132,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 774911 (BIOPSIA DE VERTEBRA, POR VIA PERCUTÁNEA); sugerido 805132 (ESCISIÓN DE DISCO INTERVERTEBRAL EN SEGMENTO LUMBAR VIA POST)"
+811101,811101,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 812400 (ARTRODESIS DE CODO SOD); sugerido 811101 (FUSIÓN TIBIO-TALAR O TIBIOASTRAGALINA VIA ABIERTA)
+838830,838830,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 828501 (TENODESIS EN MANO (UNO O MAS)); sugerido 838830 (TENODESIS NCOC)
+849701,849501,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 837602 (TRANSFERENCIAS MIOTENDINOSAS DE ANTEBRAZO); sugerido 849501 (CIRUGÍA RECONSTRUCTIVA MULTIPLE: OSTEOTOMIAS Y/O FIJACION IN)
+857101,857100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 764301 (RECONSTRUCCIÓN MANDIBULAR (TOTAL O PARCIAL) CON MATERIAL DE ); sugerido 857100 (RECONSTRUCCIÓN DE MAMA CON PRÓTESIS SOD)
+857102,857100,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 764301 (RECONSTRUCCIÓN MANDIBULAR (TOTAL O PARCIAL) CON MATERIAL DE ); sugerido 857100 (RECONSTRUCCIÓN DE MAMA CON PRÓTESIS SOD)
+860203,901407,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 892002 (URODINAMIA CON PRUEBA DE MEDICAMENTO); sugerido 901407 (PRUEBAS INTRADERMICAS DE ALERGIAS CON AEROALERGENOS, ALIMENT)"
+881131,881131,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 920601 (GAMAGRAFÍA DE GLANDULAS SALIVARES); sugerido 881131 (ULTRASONOGRAFIA DIAGNOSTICA DE GLANDULAS SALIVALES CON TRANS)
+881141,881141,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 881601 (ULTRASONOGRAFÍA DE TEJIDOS BLANDOS EN LAS EXTREMIDADES SUPER); sugerido 881141 (ULTRASONOGRAFIA DIAGNOSTICA DE TIROIDES CON TRANSDUCTOR DE 7)
+881301,881301,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 839906 (EXTRACCIÓN DE CUERPO EXTRAÑO EN TEJIDOS BLANDOS DE PELVIS (M); sugerido 881301 (ULTRASONOGRAFIA DIAGNOSTICA DE TEJIDOS BLANDOS DE PARED ABDO)
+881313,881313,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 879420 (TOMOGRAFIA AXIAL COMPUTADA DE ABDOMEN Y PELVIS (ABDOMEN TOTA); sugerido 881313 (ULTRASONOGRAFIA DE ABDOMEN: PILORO)
+881360,881360,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 882202 (DUPLEX SCANNING [DOPPLER- ECOGRAFIA] DE VASOS ABDOMINALES Y/); sugerido 881360 (ULTRASONOGRAFIA PELVICA CON ANALISIS DOPPLER ACR)
+881435,882298,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 950100 (EVALUACION ORTOPTICA SOD); sugerido 882298 (DOPPLER OBSTETRICO CON EVALUACION DE CIRCULACION PLACENTARIA)
+881501,881501,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 881332 (ULTRASONOGRAFIA DE VIAS URINARIAS (RIÑONES, VEJIGA Y PROSTAT); sugerido 881501 (ULTRASONOGRAFÍA DE PROSTATA TRANSABDOMINAL)"
+881502,881502,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 601101 (BIOPSIA CERRADA [PERCUTÁNEA] [CON AGUJA] DE PRÓSTATA POR ABO); sugerido 881502 (ULTRASONOGRAFÍA DE PROSTATA TRANSRECTAL)
+892903,641200,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 702110 (VAGINOSCOPIA CON INSTRUMENTO OPTICO (EN NIÑAS)); sugerido 641200 (PENOSCOPIA SOD)
+893110,893107,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 275301 (RESECCIÓN INTRAORAL DE FÍSTULA DE BOCA); sugerido 893107 (ELABORACIÓN Y ADAPTACIÓN DE APARATO ORTOPEDICO)
+895913,893818,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 649500 (INSERCIÓN O REEMPLAZO DE PRÓTESIS INTERNA DE PENE NO INFLABL); sugerido 893818 (MEDICION NO INVASIVA DE CO2 O CAPNOGRAFIA)
+898002,898002,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 898101 (ESTUDIO DE COLORACION BASICA EN BIOPSIA); sugerido 898002 (ESTUDIO DE COLORACION BASICA EN CITOLOGIA DE LIQUIDO CORPORA)
+898004,898004,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 413101 (BIOPSIA POR ASPIRACION DE MEDULA OSEA); sugerido 898004 (ESTUDIO DE COLORACION BASICA DE ASPIRADO DE MEDULA OSEA (MIE)
+898014,898002,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 906713 (LINFOCITOS T CD3 POR INMUNOFLUORESCENCIA); sugerido 898002 (ESTUDIO DE COLORACION BASICA EN CITOLOGIA DE LIQUIDO CORPORA)
+901004,901007,por_revisar,"Grupo de procedimiento distinto: hoy la relación lo lleva a 893910 (PRUEBAS VIA ORAL DE SENSIBILIZACION CON ALERGENOS ( PROVOCAC); sugerido 901007 (Mycobacterium, PRUEBAS DE SENSIBILIDAD)"
+901222,901222,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 904704 (INSULINA [CADA MUESTRA]); sugerido 901222 (HEMOCULTIVO AEROBIO POR MÉTODO MANUAL)
+901224,901224,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 901218 (CULTIVO PARA MICROORGANISMOS ANAEROBIOS DE CUALQUIER MUESTRA); sugerido 901224 (HEMOCULTIVO ANAEROBIO POR MÉTODO MANUAL)
+902105,902104,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 549801 (DIALISIS PERITONEAL MANUAL (309)); sugerido 902104 (DÍMERO D POR EIA)
+903110,903110,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 903801 (ACIDO ÚRICO); sugerido 903110 (ACIDO LÁCTICO [L-LACTATO] POR FLUOROMETRÍA)
+903111,903111,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 903801 (ACIDO ÚRICO); sugerido 903111 (ACIDO LÁCTICO [L-LACTATO] POR MÉTODO ENZIMÁTICO)
+903409,903411,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 903431 (LIPOPROTEÍNA A [LpA]); sugerido 903411 (APOLIPOPROTEÍNAS A1 POR NEFELOMETRÍA)
+903411,903411,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 903431 (LIPOPROTEÍNA A [LpA]); sugerido 903411 (APOLIPOPROTEÍNAS A1 POR NEFELOMETRÍA)
+903608,903608,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 903609 (ZINC EN ORINA DE 24H); sugerido 903608 (ZINC)
+903703,903705,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 903703 (VITAMINA B 12); sugerido 903705 (VITAMINA B 6)
+903711,903705,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 903701 (VITAMINA A [RETINOL]); sugerido 903705 (VITAMINA B 6)
+903814,903814,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 903813 (CLORO [CLORURO]); sugerido 903814 (CLORO [CLORURO] EN ORINA DE 24 H)
+903819,903819,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 903821 (CREATIN QUINASA TOTAL CK- CPK); sugerido 903819 (CREATIN QUINASA [FRACCIÓN MB] POR ESPECTOFOTOMETRÍA)
+903844,903844,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 908302 (GALACTOSA, CURVA DE TOLERANCIA); sugerido 903844 (GLUCOSA, CURVA DE TOLERANCIA (POR MUESTRA))"
+903869,903869,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 903841 (GLUCOSA EN SUERO, LCR U OTRO FLUIDO DIFERENTE A ORINA); sugerido 903869 (UREA)"
+903880,903814,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 643100 (AMPUTACIÓN PARCIAL DEL PENE O PENECTOMÍA PARCIAL SOD); sugerido 903814 (CLORO [CLORURO] EN ORINA DE 24 H)
+903883,M19275,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 903840 (GLUCOSA EN ORINA); sugerido M19275 (GLUCOMETRÍA)
+904301,904301,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 904805 (CORTISOL); sugerido 904301 (CORTISOL PRE Y POST ESTIMULACIÓN)
+904402,904402,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 904510 (PROGESTERONA); sugerido 904402 (HIDROXIPROGESTERONA 17 ALFA, PRE Y POST ACTH)"
+905107,902025,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 906834 (INMUNOGLOBULINA E [Ig E] ESPECÍFICA [DOSIFICACIÓN CADA ALERG); sugerido 902025 (HEPARINA, DOSIFICACIÓN POR COAGULACIÓN)"
+905302,905302,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 905702 (ACETAMINOFEN, SEMICUANTITATIVA POR INMUNOENSAYO); sugerido 905302 (ANFETAMINAS Y METANFETAMINAS, SEMICUANTITATIVA POR INMUNOENS)"
+905725,905725,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 905502 (CICLOSPORINA A Y METABOLITOS); sugerido 905725 (COCAÍNA, METABOLITOS EN ORINA)"
+905737,905738,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 902213 (HEMOGLOBINA); sugerido 905738 (MONÓXIDO DE CARBONO [CARBOXIHEMOGLOBINA] SEMICUANTITATIVA PO)
+905738,905738,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 902213 (HEMOGLOBINA); sugerido 905738 (MONÓXIDO DE CARBONO [CARBOXIHEMOGLOBINA] SEMICUANTITATIVA PO)
+906102,906102,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906456 (SM, ANTICUERPOS POR EIA); sugerido 906102 (Aspergillus, ANTICUERPOS POR LÁTEX)"
+906264,M19861,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 906244 (Rubeola, ANTICUERPOS Ig M POR RIA); sugerido M19861 (Rubeola, ANTICUERPOS M)"
+906448,906448,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906447 (PM/SCL, ANTICUERPOS); sugerido 906448 (PM1, ANTICUERPOS ASOCIADOS A POLIOMELITIS)"
+906502,906502,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906501 (HISTOCOMPATIBILIDAD, ANTÍGENO A, B, C [CLASE I]); sugerido 906502 (HISTOCOMPATIBILIDAD, ANTÍGENO A, B, C, DR, DQ [CLASE I Y II])"
+906506,906502,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 901312 (Listeria, SEROTIPIFICACIÓN); sugerido 906502 (HISTOCOMPATIBILIDAD, ANTÍGENO A, B, C, DR, DQ [CLASE I Y II])"
+906625,906625,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 904401 (ESTRADIOL PRE Y POST GONADOTROPINA CORIÓNICA); sugerido 906625 (GONADOTROPINA CORIÓNICA, SUBUNIDAD BETA CUANTITATIVA [BHCG])"
+906706,906706,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 911204 (SEPARACION DE CELULAS PROGENITORAS PARA TRANSPLANTE); sugerido 906706 (LEUCOCITOS CD34 CÉLULAS PROGENITORAS POR CITOMETRÍA DE FLUJO)
+906707,902101,por_revisar,Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 906725 (LINFOCITOS CD11 POR INMUNOHISTOQUÍMICA); sugerido 902101 (CÉLULAS L.E.)
+906708,906709,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 920505 (GAMAGRAFÍA CON LEUCOCITOS MARCADOS); sugerido 906709 (LEUCOCITOS CD45 LEUCOCITOS TOTALES POR INMUNOHISTOQUÍMICA)
+906736,906736,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906718 (LINFOCITOS CD7 LINFOCITOS T Y NK POR CITOMETRÍA DE FLUJO); sugerido 906736 (LINFOCITOS CD38 LINFOCITOS T ACTIVADOS Y B, LINFOCITOS NK PO)"
+906744,906744,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906720 (LINFOCITOS T CD8 POR CITOMETRÍA DE FLUJO); sugerido 906744 (LINFOCITOS T, CUANTIFICACIÓN CD3, CD4, CD8 POR CITOMETRÍA DE)"
+906751,906750,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 898012 (ESTUDIO DE COLORACION INMUNOHISTOQUIMICA DE ASPIRADO DE MEDU); sugerido 906750 (PLAQUETAS CD41 POR CITOMETRÍA DE FLUJO)
+906913,906913,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 902034 (PROTEÍNA C DE LA COAGULACIÓN); sugerido 906913 (PROTEÍNA C REACTIVA, CUANTITATIVO DE ALTA PRECISION)"
+906915,906915,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906039 (Treponema pallidum, ANTICUERPOS (FTA-ABS O TPHA-PRUEBA TREPO); sugerido 906915 (SEROLOGÍA [PRUEBA NO TREPONEMICA] RPR)"
+907204,E19773,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 444200 (SUTURA DE ULCERA DUODENAL SOD); sugerido E19773 (PARÁSITOS EN BILIS, JUGO DUODENAL, EXPECTORACIONES U OTRAS S)"
+908343,908001,por_revisar,Descripción muy distinta: hoy la relación lo lleva a 906905 (COMPLEMENTO SERICO C3 CUANTITATIVO POR IDR); sugerido 908001 (ACIDOS ORGÁNICOS [CADENA CORTA] POR CROMATOGRAFÍA DE GASES)
+908610,E19629,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 903439 (TROPONINA T, CUANTITATIVA); sugerido E19629 (L. CARNITINA)"
+911018,911018,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 902212 (HEMOCLASIFICACIÓN GRUPO ABO Y FACTOR Rh); sugerido 911018 (HEMOCLASIFICACIÓN GRUPO ABO, DIRECTA O GLOBULAR EN PLACA)"
+911021,911022,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 911005 (ANTICUERPOS IRREGULARES, IDENTIFICACIÓN [D, KELL, DUFFY, KID); sugerido 911022 (PRUEBA DE COMPATIBILIDAD, CRUZADA MAYOR EN TUBO)"
+911022,911022,por_revisar,"Mismo código en el Manual: hoy la relación lo lleva a 906013 (Brucella, PRUEBA DE BANQ EN TUBO); sugerido 911022 (PRUEBA DE COMPATIBILIDAD, CRUZADA MAYOR EN TUBO)"
+911026,S55209,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 911026 (VARIANTE A1 - A2 Y OTROS LIGADOS A LOS GRUPOS SANGUÍNEOS [SU); sugerido S55209 (Tubo en ""T"")"
+912001,912001,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 912010 (EXANGUINO TRANSFUSION); sugerido 912001 (APLICACIÓN DE LA UNIDAD DE CRIOPRECIPITADO)
+912004,912004,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 911101 (PROCESAMIENTO DE LA UNIDAD DE AUTOTRANSFUSION [PREDEPOSITO]); sugerido 912004 (APLICACIÓN DE LA UNIDAD DE SANGRE TOTAL)
+912005,912005,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 912010 (EXANGUINO TRANSFUSION); sugerido 912005 (APLICACIÓN DE PLASMA FRESCO O CONGELADO)
+920609,920903,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 879420 (TOMOGRAFIA AXIAL COMPUTADA DE ABDOMEN Y PELVIS (ABDOMEN TOTA); sugerido 920903 (GAMAGRAFIA OSEA CON SPECT)
+933501,933600,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 358803 (REPARO DE VENTANA AORTOPULMONAR CON PARCHE AORTICO Y/O PULMO); sugerido 933600 (TERAPIA DE REHABILITACION CARDIACA SOD)
+933601,933600,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 883306 (RESONANCIA NUCLEAR MAGNETICA DE TORAX Y APARATO CARDIOVASCUL); sugerido 933600 (TERAPIA DE REHABILITACION CARDIACA SOD)
+937203,937000,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 874910 (FARINGOGRAFIA Y ESOFAGOGRAMA CON CINE O VIDEO [ESTUDIO DE LA); sugerido 937000 (TERAPIA FONOAUDIOLOGICA INTEGRAL SOD (198))
+952302,952301,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 895201 (ELECTROCARDIOGRAMA DE ALTA RESOLUCION [ESTUDIO DE POTENCIALE); sugerido 952301 (POTENCIALES EVOCADOS VISUALES ( UNI O BILATERALES))
+952303,952301,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 895201 (ELECTROCARDIOGRAMA DE ALTA RESOLUCION [ESTUDIO DE POTENCIALE); sugerido 952301 (POTENCIALES EVOCADOS VISUALES ( UNI O BILATERALES))
+960406,S55209,por_revisar,"Descripción del Manual contenida en la CUPS: hoy la relación lo lleva a 319201 (DILATACIÓN ENDOSCOPICA DE LA TRÁQUEA); sugerido S55209 (Tubo en ""T"")"
+961201,893107,por_revisar,"Descripción muy distinta: hoy la relación lo lleva a 893106 (CONTROL DE ORTODONCIA FIJA, REMOVIBLE O TRATAMIENTO ORTOPÉDI); sugerido 893107 (ELABORACIÓN Y ADAPTACIÓN DE APARATO ORTOPEDICO)"
+965203,965302,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 493400 (RESECCIÓN DE LESIÓN DE ANO POR FULGURACIÓN ENDOSCOPICA SOD); sugerido 965302 (CURACION ENDOSCOPICA DE SENOS PARANASALES)
+973801,974300,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 115800 (RETIRO DE SUTURA EN CÓRNEA SOD); sugerido 974300 (RETIRO DE SUTURAS DE TORAX ( RETIRO DE PUNTOS) SOD)
+977501,972600,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 961400 (TAPONAMIENTO VAGINAL SOD); sugerido 972600 (SUSTITUCION DE OTRO TAPON (MECHA) O DRENAJE VAGINAL O VULVAR)
+993107,993105,por_revisar,Grupo de procedimiento distinto: hoy la relación lo lleva a 940100 (ADMINISTRACION [APLICACION] DE PRUEBA DE INTELIGENCIA (CUALQ); sugerido 993105 (ADMINISTRACION DE TOXOIDE DIFTERICO)
+A32401,A32401,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 893801 (CONSUMO DE OXIGENO Y PRODUCCION DE CO2 EN REPOSO); sugerido A32401 (ANALISIS FISICO-QUIMICO (ORGANOLEPTICO) DEL AGUA PARA CONSUM)
+A32402,A32402,por_revisar,Mismo código en el Manual: hoy la relación lo lleva a 907002 (COPROLÓGICO); sugerido A32402 (ANALISIS BACTERIOLOGICO (MICROBIOLOGICO) DEL AGUA PARA CONSU)

@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 
 import cotizar as cz
+from revision_relacion_cups import leer_homologacion
 from rutas import BASE, DB, conectar
 
 OPC_ITEM = ("solo-muestra", "biopsia-multiple", "portatil-rx", "portatil-eco", "bilateral")
@@ -244,8 +245,9 @@ def clasificar_nota(texto):
 
 
 def homologacion(db=DB):
-    """{codigo_factura: (codigo_manual, fuente)}: la relación CUPS 2026 -> ISS 2001 de la base
-    (tabla homologacion_cups) y, encima, las correcciones locales de homologacion.csv."""
+    """({codigo_factura: (codigo_manual, fuente)}, {cups: (sugerido, observación)}).
+    Relación CUPS 2026 -> ISS 2001 de la base (tabla homologacion_cups) y, encima, las filas
+    "aprobada" de homologacion.csv; las "por_revisar" solo generan una alerta."""
     homo = {}
     con = conectar(db)
     if con.execute("SELECT 1 FROM sqlite_master WHERE name = 'homologacion_cups'").fetchone():
@@ -253,13 +255,17 @@ def homologacion(db=DB):
                                      "WHERE codigo_iss <> ''"):
             homo[cups.upper()] = (iss, "Relación Manual ISS - CUPS 2026")
     con.close()
-    if HOMOLOGACION.exists():
-        h = pd.read_csv(HOMOLOGACION, dtype=str, keep_default_na=False)
-        for r in h.itertuples():
-            if r.codigo_factura.strip() and r.codigo_manual.strip():
-                homo[r.codigo_factura.strip().upper()] = (
-                    r.codigo_manual.strip(), "homologacion.csv" + (f": {r.observacion}" if r.observacion else ""))
-    return homo
+    dudosas = {}
+    for r in leer_homologacion().itertuples():
+        cod, iss = r.codigo_factura.strip().upper(), r.codigo_manual.strip()
+        if not (cod and iss):
+            continue
+        estado = (r.estado or "aprobada").strip().lower()
+        if estado == "aprobada":
+            homo[cod] = (iss, "homologacion.csv" + (f": {r.observacion}" if r.observacion else ""))
+        elif estado == "por_revisar":
+            dudosas[cod] = (iss, r.observacion)
+    return homo, dudosas
 
 
 def auditar(lineas, op, d, contrato_pct=0.0):
@@ -272,7 +278,7 @@ def auditar(lineas, op, d, contrato_pct=0.0):
     res, filas = [], []
     if "homologacion" not in d:
         d["homologacion"] = homologacion()
-    homo = d["homologacion"]
+    homo, dudosas = d["homologacion"]
     for i, ln in enumerate(lineas):
         cod = str(ln.get("codigo") or "").strip()
         cod_factura = cod
@@ -287,6 +293,11 @@ def auditar(lineas, op, d, contrato_pct=0.0):
                  descripcion_factura=ln.get("descripcion") or "", origen=ln.get("origen") or "",
                  fecha=ln.get("fecha") or "", seccion=ln.get("seccion") or "",
                  datos=ln.get("datos") or {}, alertas=[], fila=None)
+        if homologado and cod_factura.upper() in dudosas:
+            sug, obs = dudosas[cod_factura.upper()]
+            r["alertas"].append(dict(tipo="Relación dudosa", cita="homologacion.csv", texto=(
+                f"La relación del CUPS {cod_factura} está en revisión ({obs}). Si se aprueba, se "
+                f"compararía como {sug}")))
         if cod != cod_factura:
             r["codigo_factura"] = cod_factura
             r["alertas"].append(dict(tipo="Homologado", cita=homo[cod_factura.upper()][1], texto=(
@@ -406,7 +417,8 @@ def auditar(lineas, op, d, contrato_pct=0.0):
         if r["esperado"] is not None and r["facturado"] is not None:
             dif = r["facturado"] - r["esperado"]
         r["diferencia"] = dif
-        revisar = any(a["tipo"] in ("Código", "UVR", "Unidad", "Doble cobro", "Repetido")
+        revisar = any(a["tipo"] in ("Código", "UVR", "Unidad", "Doble cobro", "Repetido",
+                                    "Relación dudosa")
                       for a in r["alertas"])
         if r.get("doble_cobro") and r["facturado"] is not None:
             r["estado"], r["glosa"] = "Revisar", r["facturado"]

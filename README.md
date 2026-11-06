@@ -260,8 +260,15 @@ Los RIPS usan **CUPS vigentes**. Para compararlos, el ETL carga «Relación Manu
 a 6) en la tabla `homologacion_cups` (vista `v_homologacion_cups`, menú «Relación CUPS → ISS»). Las
 líneas que vienen de un RIPS siempre se comparan con su código ISS equivalente (313 CUPS existen
 también como código ISS con otro significado); las digitadas se toman como código ISS.
-`homologacion.csv` (`codigo_factura,codigo_manual,observacion`) corrige o completa la relación y
-tiene prioridad; también se puede corregir el código en la línea desde la web. La factura electrónica XML suele traer el código interno
+`homologacion.csv` (`codigo_factura,codigo_manual,estado,observacion`) corrige o completa la
+relación: solo las filas con estado `aprobada` se aplican (tienen prioridad sobre la relación).
+
+`revision_relacion_cups.py` (corre en cada ETL) busca **posibles errores de la relación**
+comparando la descripción CUPS con la ISS y con el resto del Manual (4 reglas, ver el
+docstring): hoy 210 casos, en Novedades → «Relación CUPS por revisar» y en «Todas las
+novedades». Cada sugerencia se agrega a `homologacion.csv` con estado `por_revisar`: no cambia la
+auditoría (la línea queda en Revisar con la alerta «Relación dudosa») hasta que alguien cambie el
+estado a `aprobada` (o a `rechazada` para descartarla) y se regenere la base. La factura electrónica XML suele traer el código interno
 del prestador y no el CUPS: sirve para cuadrar el total, la comparación se hace con el RIPS.
 
 Además muestra por línea las notas del procedimiento (INCLUYE, EXCLUYE, APLICA, por sesión...) para

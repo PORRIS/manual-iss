@@ -168,6 +168,14 @@ SELECT 'Relación CUPS: código ISS que no está en el PDF', 'relacion', 'codigo
        CAST(n.fila_excel AS INTEGER), n.codigo_iss, n.texto_excel, NULL,
        'CUPS ' || n.cups || ' ' || n.descripcion_cups, CAST(n.pagina_pdf AS INTEGER), n.motivo
 FROM novedades_relacion_cups n
+UNION ALL
+-- Posibles inconsistencias de la relación CUPS 2026 -> ISS (para revisar)
+SELECT 'Relación CUPS: posible inconsistencia', 'revisar', 'codigo_iss', NULL, r.cups,
+       'CUPS ' || r.cups || ' ' || r.descripcion_cups,
+       r.codigo_iss || ' ' || r.descripcion_iss, r.codigo_sugerido || ' ' || r.descripcion_sugerida,
+       NULL, r.tipo || ': ' || r.motivo || '. Estado en homologacion.csv: ' ||
+       COALESCE(NULLIF(r.estado_revision, ''), 'sin registrar')
+FROM relacion_cups_revision r
 )
 ORDER BY CASE WHEN fila_excel IS NULL THEN 1 ELSE 0 END, fila_excel, campo;
 
@@ -245,3 +253,10 @@ CREATE VIEW v_novedades_relacion_cups AS
 SELECT cups, descripcion_cups, codigo_iss, CAST(fila_excel AS INTEGER) AS fila_excel, texto_excel,
        CAST(pagina_pdf AS INTEGER) AS pagina_pdf, motivo
 FROM novedades_relacion_cups ORDER BY codigo_iss;
+
+-- Posibles inconsistencias de la relación CUPS 2026 -> ISS (revision_relacion_cups.py).
+CREATE VIEW v_novedades_relacion_revision AS
+SELECT cups, descripcion_cups, codigo_iss AS codigo_iss_actual, descripcion_iss AS descripcion_iss_actual,
+       parecido_actual, codigo_sugerido, descripcion_sugerida, parecido_sugerido, tipo, motivo,
+       estado_revision, codigo_en_homologacion
+FROM relacion_cups_revision ORDER BY tipo, cups;

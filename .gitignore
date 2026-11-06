@@ -32,3 +32,6 @@ correcciones_propuestas.csv
 
 # Facturas y RIPS reales (datos de pacientes): nunca al repositorio
 examples/
+
+# Archivos temporales de Office (documento abierto)
+~$*

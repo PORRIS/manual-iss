@@ -73,6 +73,11 @@
 21. Relación CUPS 2026 -> ISS 2001: tabla homologacion_cups y vista v_homologacion_cups desde
     «Relación Manual ISS - CUPS 2026.xlsx» (sin modificarlo); auditar.py la usa para las líneas
     de RIPS; homologacion.csv tiene prioridad. Pruebas: BD 54/54, auditoría 17/17.
+22. Revisión de la relación CUPS -> ISS (revision_relacion_cups.py, en el ETL): 210 posibles
+    inconsistencias (mismo código en el Manual 53, descripción contenida 48, grupo distinto 86,
+    descripción muy distinta 23) como novedad (v_novedades_relacion_revision; v_novedades = 583) y
+    en homologacion.csv con estado por_revisar (no se aplican). Auditoría: alerta "Relación
+    dudosa" (Revisar). Pruebas: BD 56/56, auditoría 19/19.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
@@ -101,7 +106,8 @@
   tarifa ISS 2001 y la proporción cambia por línea: falta saber con qué tarifa/contrato se liquidan
   (ISS + %, SOAT, propia). Relación CUPS 2026 -> ISS cargada (homologacion_cups): con ella se
   comparan 291/291, 1.351/1.395 y 830/874 líneas de los 3 RIPS reales. Por revisar en la relación:
-  glucometría CUPS 903883 -> ISS 903840 "Glucosa en orina" (el Manual tiene M19275 GLUCOMETRÍA);
+  210 relaciones por revisar en homologacion.csv (estado por_revisar -> aprobada/rechazada), entre
+  ellas la glucometría CUPS 903883 -> ISS 903840 "Glucosa en orina" (sugerido M19275 GLUCOMETRÍA);
   ISS 012205 y 783001 no están en el Manual: registrados como novedad (v_novedades_relacion_cups;
   783001 viene de la fila 3466 del Excel, eliminada porque no está en el PDF pág. 65; 012205 no
   está ni en el Excel ni en el PDF). El doble cobro se sugiere como Revisar (confirmado por el usuario).
