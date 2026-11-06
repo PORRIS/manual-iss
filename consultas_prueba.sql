@@ -304,6 +304,13 @@ SELECT (SELECT COUNT(*) FROM v_tarifarios) || '|' || (SELECT COUNT(*) FROM v_soa
        (SELECT valor FROM soat_parametros WHERE concepto = 'UVB') || '|' ||
        (SELECT valor_2026 FROM soat_tarifas WHERE codigo = '19490');
 
+-- @prueba SOAT cirugía: procedimientos con grupo | tarifas de componentes | reglas | grupo de 7144 | cirujano grupo 07
+-- @esperado 1770|71|10|7|410650.1
+SELECT (SELECT COUNT(*) FROM v_soat_grupos) || '|' || (SELECT COUNT(*) FROM soat_grupo_componentes) || '|' ||
+       (SELECT COUNT(*) FROM v_soat_reglas_cirugia) || '|' ||
+       (SELECT grupo FROM soat_grupos WHERE codigo = '7144') || '|' ||
+       (SELECT cirujano FROM v_soat_grupos WHERE codigo = '7144');
+
 -- @prueba Los 5 paquetes con más componentes
 SELECT codigo, descripcion, valor, n_componentes FROM v_paquetes
 ORDER BY n_componentes DESC LIMIT 5;

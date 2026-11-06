@@ -14,8 +14,15 @@ Tablas (prefijo soat_, con llaves primarias y foráneas):
     soat_tarifas(codigo PK -> soat_procedimientos)          factores y valor 2026 = factor UVB x UVB
     soat_relacion_cups(cups, codigo_soat -> soat_procedimientos; PK cups+codigo_soat)
 
-El SOAT de cirugía se liquida por grupo quirúrgico (Decreto 780 de 2016, anexo técnico 1): esos
-códigos están en soat_procedimientos y en la relación, pero no tienen valor en soat_tarifas.
+Cirugía SOAT (Decreto 780 de 2016, anexo técnico 1): cada procedimiento quirúrgico tiene un grupo
+(02 a 13 y especiales 20 a 23) y su valor es la suma de los componentes de ese grupo:
+    soat_grupos(codigo PK -> soat_procedimientos, grupo)   soat/soat_grupos.csv (extraer_soat_grupos.py)
+    soat_grupo_componentes(grupo, componente; codigo_tarifa -> soat_tarifas)
+        cirujano 39000-39015, anestesiologo 39100-39115, ayudante 39117-39128 (grupo 06 en
+        adelante), sala 39204-39219, materiales 39301-39304 (grupos 02 a 13; en 20 a 23 se pagan a
+        precio de catálogo, num. 54.2)
+    soat_reglas_cirugia(regla PK): porcentajes de bilaterales y cirugías múltiples (num. 48.2,
+        54.5, 69 a 72)
 """
 import re
 import warnings
@@ -26,6 +33,23 @@ from rutas import BASE
 
 SOAT_TABLA = BASE / "soat" / "SOAT A SALARIO MINIMO_UVT_UVB.xlsx"
 SOAT_RELACION = BASE / "soat" / "CUPS A SOAT_ANDER_OKANDER.xlsb"
+SOAT_GRUPOS = BASE / "soat" / "soat_grupos.csv"
+# Series de la tabla SOAT 2026 con la tarifa de cada componente por grupo (num. 47, 48 y 54)
+SERIES_CIRUGIA = {"cirujano": (39000, 39015), "anestesiologo": (39100, 39115),
+                  "ayudante": (39117, 39128), "sala": (39204, 39219), "materiales": (39301, 39304)}
+GRUPOS_SOAT = list(range(2, 14)) + list(range(20, 24))
+REGLAS_CIRUGIA = [  # regla, numeral, página PDF, componente, porcentaje, texto
+    ("BIL_HON", "69", 130, "honorarios", 75, "Intervención bilateral: +75% en servicios profesionales de cirujano, anestesiólogo y ayudante"),
+    ("BIL_SALA", "48.2", 120, "sala", 50, "Intervención bilateral: +50% en derechos de sala"),
+    ("BIL_MAT", "54.5", 122, "materiales", 75, "Intervención bilateral: +75% en materiales"),
+    ("MUL_MISMA_VIA", "70", 131, "honorarios", 50, "Múltiples, mismo cirujano, igual vía: 100% de la mayor + 50% de cada adicional (honorarios)"),
+    ("MUL_OTRA_VIA", "71", 131, "honorarios", 75, "Múltiples, mismo cirujano, diferente vía: 100% de la mayor + 75% de cada adicional (honorarios)"),
+    ("MUL_ESPECIALIDAD", "72", 131, "honorarios", 50, "Múltiples, distinta especialidad: cada cirujano 100% de su mayor + 50% de las adicionales; anestesiólogo +75% (72.1); ayudante +50% solo de la adicional de mayor grupo (72.2)"),
+    ("MUL_SALA", "48.2", 120, "sala", 50, "Múltiples en distinta región operatoria o de distinta especialidad: sala 100% de la mayor + 50% de cada adicional"),
+    ("MUL_MAT", "54.5", 122, "materiales", 75, "Múltiples en diferente región operatoria: materiales 100% de la mayor + 75% de cada adicional"),
+    ("MAT_ESPECIALES", "54.2", 121, "materiales", None, "Grupos especiales 20 a 23: materiales a precio comercial de catálogo (no tienen tarifa fija)"),
+    ("AYUDANTE", "47.1.4", 117, "ayudante", None, "Ayudantía solo cuando la cirugía lo requiera (tabla desde el grupo 06)"),
+]
 
 DDL = """
 CREATE TABLE tarifarios (
@@ -40,6 +64,15 @@ CREATE TABLE soat_tarifas (
     codigo TEXT PRIMARY KEY REFERENCES soat_procedimientos(codigo),
     descripcion TEXT, factor_smlv REAL, factor_uvt REAL, factor_uvb REAL NOT NULL,
     valor_2026 REAL NOT NULL);
+CREATE TABLE soat_grupos (
+    codigo TEXT PRIMARY KEY REFERENCES soat_procedimientos(codigo), grupo INTEGER NOT NULL,
+    pagina_pdf INTEGER, confianza TEXT);
+CREATE TABLE soat_grupo_componentes (
+    grupo INTEGER NOT NULL, componente TEXT NOT NULL,
+    codigo_tarifa TEXT NOT NULL REFERENCES soat_tarifas(codigo), PRIMARY KEY (grupo, componente));
+CREATE TABLE soat_reglas_cirugia (
+    regla TEXT PRIMARY KEY, numeral TEXT, pagina_pdf INTEGER, componente TEXT, porcentaje REAL,
+    texto TEXT);
 CREATE TABLE soat_relacion_cups (
     cups TEXT NOT NULL, nombre_cups TEXT,
     codigo_soat TEXT NOT NULL REFERENCES soat_procedimientos(codigo), descripcion_soat TEXT,
@@ -101,13 +134,33 @@ def leer_soat():
     for c in ("nombre_cups", "descripcion_soat"):
         r[c] = r[c].fillna("").str.strip()
 
+    g = (pd.read_csv(SOAT_GRUPOS, dtype=str) if SOAT_GRUPOS.exists()
+         else pd.DataFrame(columns=["codigo", "grupo", "pagina", "confianza"]))
+    g = g.rename(columns={"pagina": "pagina_pdf"})[["codigo", "grupo", "pagina_pdf", "confianza"]]
+    g["grupo"] = g.grupo.astype(int)
     procs = pd.concat([
         t[["codigo", "descripcion"]].assign(fuente="tabla SOAT 2026"),
         r.drop_duplicates("codigo_soat")[["codigo_soat", "descripcion_soat"]]
         .rename(columns={"codigo_soat": "codigo", "descripcion_soat": "descripcion"})
         .assign(fuente="relación CUPS-SOAT"),
+        g[["codigo"]].assign(descripcion=None, fuente="Decreto 780 (grupo quirúrgico)"),
     ]).drop_duplicates("codigo").reset_index(drop=True)
-    return par, procs, t.reset_index(drop=True), r.reset_index(drop=True), uvb
+    return par, procs, t.reset_index(drop=True), r.reset_index(drop=True), uvb, g
+
+
+def componentes_grupo(tar):
+    """(grupo, componente, codigo_tarifa) desde las series de la tabla SOAT 2026."""
+    filas = []
+    por_codigo = dict(zip(tar.codigo, tar.descripcion))
+    for comp, (ini, fin) in SERIES_CIRUGIA.items():
+        for k in range(ini, fin + 1):
+            d = por_codigo.get(str(k))
+            if d is None or "GRUPO" not in d.upper():
+                continue
+            for n in map(int, re.findall(r"\d+", d)):
+                if n in GRUPOS_SOAT:
+                    filas.append(dict(grupo=n, componente=comp, codigo_tarifa=str(k)))
+    return pd.DataFrame(filas).drop_duplicates(["grupo", "componente"])
 
 
 def crear(con):
@@ -119,11 +172,22 @@ def crear(con):
                      descripcion="Tarifa del Manual, con los recargos y descuentos de sus artículos; "
                                  "los CUPS se llevan a código ISS con la relación CUPS 2026")]
     if SOAT_TABLA.exists() and SOAT_RELACION.exists():
-        par, procs, tar, rel, uvb = leer_soat()
+        par, procs, tar, rel, uvb, grp = leer_soat()
         par.to_sql("soat_parametros", con, if_exists="append", index=False)
         procs.to_sql("soat_procedimientos", con, if_exists="append", index=False)
         tar.to_sql("soat_tarifas", con, if_exists="append", index=False)
         rel.to_sql("soat_relacion_cups", con, if_exists="append", index=False)
+        grp.to_sql("soat_grupos", con, if_exists="append", index=False)
+        comp = componentes_grupo(tar)
+        comp.to_sql("soat_grupo_componentes", con, if_exists="append", index=False)
+        pd.DataFrame(REGLAS_CIRUGIA, columns=["regla", "numeral", "pagina_pdf", "componente",
+                                              "porcentaje", "texto"]) \
+            .to_sql("soat_reglas_cirugia", con, if_exists="append", index=False)
+        faltan = [f"{c} grupo {g:02d}" for g in GRUPOS_SOAT for c in SERIES_CIRUGIA
+                  if not ((comp.grupo == g) & (comp.componente == c)).any()
+                  and not (c == "ayudante" and g < 6) and not (c == "materiales" and g >= 20)]
+        resumen.append(f"SOAT cirugía: {len(grp)} procedimientos con grupo, {len(comp)} tarifas de "
+                       f"componentes" + (f"; faltan en la tabla 2026: {', '.join(faltan)}" if faltan else ""))
         catalogo.append(dict(id="soat", nombre="Manual Tarifario SOAT 2026", vigencia="2026",
                              unidad="UVB", fuente=f"{SOAT_TABLA.name}; {SOAT_RELACION.name}",
                              descripcion=f"Valor = factor UVB x ${uvb:,.0f} (UVB 2026). Los CUPS se "
@@ -152,7 +216,7 @@ def cargar(con):
      'catalogo': {id: nombre}}"""
     def existe(t):
         return con.execute("SELECT 1 FROM sqlite_master WHERE name = ?", (t,)).fetchone()
-    d = dict(soat={}, soat_directo={}, catalogo={})
+    d = dict(soat={}, soat_directo={}, catalogo={}, soat_grupos={}, soat_comp={})
     if existe("tarifarios"):
         d["catalogo"] = dict(con.execute("SELECT id, nombre FROM tarifarios"))
     if existe("soat_relacion_cups"):
@@ -165,6 +229,12 @@ def cargar(con):
                 "SELECT p.codigo, COALESCE(t.descripcion, p.descripcion), t.valor_2026 "
                 "FROM soat_procedimientos p LEFT JOIN soat_tarifas t ON t.codigo = p.codigo"):
             d["soat_directo"][cod] = (cod, desc, valor)
+    if existe("soat_grupos"):
+        d["soat_grupos"] = dict(con.execute("SELECT codigo, grupo FROM soat_grupos"))
+        for g, comp, valor in con.execute(
+                "SELECT c.grupo, c.componente, t.valor_2026 FROM soat_grupo_componentes c "
+                "JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa"):
+            d["soat_comp"][(g, comp)] = valor
     return d
 
 

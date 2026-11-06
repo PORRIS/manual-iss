@@ -55,6 +55,11 @@ soat = tarifa("soat", [dict(codigo="903841", valor_unitario=22887.9, seccion=P),
                        dict(codigo="890202", valor_unitario=79078.3, seccion="consultas"),
                        dict(codigo="890202", valor_unitario=50000, seccion="consultas"),
                        dict(codigo="010101", valor_unitario=100000, seccion=P)])
+# Cirugía SOAT (grupo quirúrgico): CUPS 541701 -> SOAT 7144, grupo 07; valores reales de un RIPS
+# liquidado con la UVB 2025 ($11.552)
+cir = [auditar_tarifa([dict(codigo="541701", valor_unitario=u, seccion=P)], "soat", T, uvb=11552)["lineas"][0]
+       for u in (1893200, 363100, 2500000, 5000000)]
+cir_g3 = auditar_tarifa([dict(codigo="10101", valor_unitario=1)], "soat", T)["lineas"][0]
 soat_uvb = tarifa("soat", [dict(codigo="903841", valor_unitario=21833.28, seccion=P)], uvb=11552)
 soat_contrato = tarifa("soat", [dict(codigo="903841", valor_unitario=23803.42, seccion=P)], contrato_pct=4)
 
@@ -132,8 +137,15 @@ CASOS = [
      [("19490", "Conforme", 0), ("19490", "Glosa", 7112.1)]),
     ("SOAT con varias opciones: coincide con una -> Conforme; entre opciones -> Revisar",
      [(x["estado"], x["alertas"][0]["tipo"]) for x in soat[2:4]], [("Conforme", "Varias opciones"), ("Revisar", "Varias opciones")]),
-    ("SOAT cirugía sin tarifa (grupo quirúrgico) -> Revisar", (soat[4]["estado"], "grupo quirúrgico" in soat[4]["alertas"][0]["texto"]),
-     ("Revisar", True)),
+    ("SOAT cirugía grupo 07 (UVB 2025): completa 1.893.200 y adicional igual vía 363.100 Conforme; "
+     "entre opciones Revisar; por encima de la bilateral Glosa",
+     [(x["estado"], round(x["esperado"])) for x in cir],
+     [("Conforme", 1893026), ("Conforme", 362906), ("Revisar", 1893026), ("Glosa", 3128975)]),
+    ("SOAT cirugía: el escenario elegido queda explicado por componente",
+     ("Cirugía completa (grupo 07)" in cir[0]["manual"]["descripcion"], "cirujano" in cir[0]["ajustes"][0]["texto"]),
+     (True, True)),
+    ("SOAT cirugía grupo 03: falta la sala 39205 en la tabla 2026 -> alerta Tarifa incompleta",
+     [a["tipo"] for a in cir_g3["alertas"]][:1], ["Tarifa incompleta"]),
     ("SOAT con otra UVB (11.552): 1,89 x 11.552 = 21.833,28", (round(soat_uvb[0]["esperado"], 2), soat_uvb[0]["estado"]), (21833.28, "Conforme")),
     ("SOAT + 4 %: 22.887,9 x 1,04 = 23.803,42", round(soat_contrato[0]["esperado"], 2), 23803.42),
     ("manual propio: versiones 1 y 2 del mismo código; 5 códigos (repetido y hoja ajena avisados)",

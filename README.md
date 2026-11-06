@@ -290,7 +290,29 @@ primarias y foráneas; prefijo `soat_`), sin tocar las del Manual ISS:
 | `soat_tarifas` | Factores UVB/UVT/SMLV y valor 2026 = factor UVB × UVB (FK → `soat_procedimientos`) | hoja TABLA (1.426 códigos) |
 | `soat_relacion_cups` | CUPS → código SOAT, PK (cups, código) (FK → `soat_procedimientos`) | `soat/CUPS A SOAT_ANDER_OKANDER.xlsb` (10.300 pares) |
 
-Vistas: `v_tarifarios`, `v_soat_tarifas`, `v_soat_relacion_cups` (menú «SOAT y tarifas propias»).
+| `soat_grupos` | Grupo quirúrgico de 1.770 procedimientos (FK → `soat_procedimientos`) | `soat/soat_grupos.csv` |
+| `soat_grupo_componentes` | Código de tarifa de cada componente por grupo (FK → `soat_tarifas`) | series 39000, 39100, 39117, 39204 y 39301 de la tabla SOAT 2026 |
+| `soat_reglas_cirugia` | Porcentajes de bilaterales y cirugías múltiples (num. 48.2, 54.2, 54.5, 69-72) | Decreto 780 de 2016 |
+
+Vistas: `v_tarifarios`, `v_soat_tarifas`, `v_soat_relacion_cups`, `v_soat_grupos`,
+`v_soat_reglas_cirugia` (menú «SOAT y tarifas propias»).
+
+**Cirugía SOAT.** El anexo técnico 1 del Decreto 780 de 2016 (`soat/anexo-tecnico1-decreto-780-de-2016.pdf`,
+fuera de git por su tamaño) es un PDF escaneado. `extraer_soat_grupos.py` lee de las páginas 2 a 75
+el código y el grupo de cada procedimiento (reconoce solo dígitos: plantillas de la fuente Arial y de
+la página 3 verificada a ojo, y cuenta los agujeros de cada dígito para no confundir el 8 con 3 o 6).
+Controles: confianza de cada dígito, código de 4-5 dígitos, grupo 2-13 o 20-23, orden ascendente por
+página y sin repetidos; 81 filas revisadas a ojo sin errores. Correcciones manuales en
+`soat/soat_grupos_correcciones.csv` (hoy: 17623, impreso «I7623»). El CSV resultante sí está en git
+y es el que usa el ETL.
+
+Al auditar con SOAT, una cirugía no tiene un valor único: la línea del RIPS puede traer la cirugía
+completa (cirujano + anestesiólogo + ayudante + sala + materiales; en grupos 20-23 los materiales van
+a precio de catálogo), una adicional del mismo acto (50 % de honorarios con igual vía, 75 % con otra
+vía, o 75 % + 50 % de sala + 75 % de materiales en otra región), una bilateral o un solo componente.
+Si lo cobrado coincide con un escenario (tolerancia de $500 por el redondeo de cada componente) queda
+Conforme con el escenario explicado; si supera a todos, Glosa sobre el mayor; si no, Revisar. Falta en
+la tabla SOAT 2026 la sala del grupo 03 (39205): esas cirugías se avisan como «Tarifa incompleta».
 
 ### Manuales de tarifas propias (`tarifas_propias.py`)
 

@@ -282,3 +282,23 @@ FROM soat_relacion_cups r LEFT JOIN soat_tarifas t ON t.codigo = r.codigo_soat
 ORDER BY r.cups, r.codigo_soat;
 
 
+
+-- Cirugía SOAT: grupo de cada procedimiento y valor 2026 de cada componente del grupo.
+CREATE VIEW v_soat_grupos AS
+SELECT g.codigo, p.descripcion, g.grupo,
+       (SELECT t.valor_2026 FROM soat_grupo_componentes c JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa
+        WHERE c.grupo = g.grupo AND c.componente = 'cirujano') AS cirujano,
+       (SELECT t.valor_2026 FROM soat_grupo_componentes c JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa
+        WHERE c.grupo = g.grupo AND c.componente = 'anestesiologo') AS anestesiologo,
+       (SELECT t.valor_2026 FROM soat_grupo_componentes c JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa
+        WHERE c.grupo = g.grupo AND c.componente = 'ayudante') AS ayudante,
+       (SELECT t.valor_2026 FROM soat_grupo_componentes c JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa
+        WHERE c.grupo = g.grupo AND c.componente = 'sala') AS sala,
+       (SELECT t.valor_2026 FROM soat_grupo_componentes c JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa
+        WHERE c.grupo = g.grupo AND c.componente = 'materiales') AS materiales,
+       g.pagina_pdf
+FROM soat_grupos g LEFT JOIN soat_procedimientos p ON p.codigo = g.codigo
+ORDER BY CAST(g.codigo AS INTEGER);
+
+CREATE VIEW v_soat_reglas_cirugia AS
+SELECT regla, numeral, pagina_pdf, componente, porcentaje, texto FROM soat_reglas_cirugia ORDER BY regla;

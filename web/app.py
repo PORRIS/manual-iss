@@ -74,6 +74,9 @@ ETIQUETAS = {
     "factor_smlv": "Factor SMLV", "valor_2026": "Valor 2026", "codigo_soat": "Código SOAT",
     "nombre_cups": "Nombre CUPS", "descripcion_soat": "Descripción SOAT",
     "codigos_soat_del_cups": "Opciones SOAT del CUPS", "tipo_descripcion": "Tipo",
+    "anestesiologo": "Anestesiólogo", "ayudante": "Ayudante", "sala": "Derechos de sala",
+    "materiales": "Materiales", "numeral": "Numeral", "componente": "Componente",
+    "porcentaje": "Porcentaje",
     "cups": "CUPS 2026", "descripcion_cups": "Descripción CUPS", "codigo_iss": "Código ISS",
     "descripcion_iss": "Descripción ISS",
     "codigo_iss_actual": "ISS actual", "descripcion_iss_actual": "Descripción ISS actual",
@@ -125,6 +128,16 @@ VISTAS = {
         descripcion="Códigos SOAT relacionados con cada CUPS y su valor 2026. La cirugía SOAT "
                     "(grupo quirúrgico) aparece sin valor.",
         codigo=["cups", "codigo_soat"], texto=["nombre_cups", "descripcion_soat", "observacion"]),
+    "v_soat_grupos": dict(
+        titulo="Cirugía SOAT por grupo", grupo="SOAT y tarifas propias", icono="bisturi",
+        descripcion="Grupo quirúrgico de cada procedimiento (Decreto 780 de 2016, anexo técnico 1) "
+                    "y valor 2026 de cirujano, anestesiólogo, ayudante, sala y materiales.",
+        codigo=["codigo"], texto=["descripcion"], orden="codigo"),
+    "v_soat_reglas_cirugia": dict(
+        titulo="Reglas de cirugía SOAT", grupo="SOAT y tarifas propias", icono="porcentaje",
+        descripcion="Porcentajes del decreto para bilaterales y cirugías múltiples (numerales 48.2, "
+                    "54.2, 54.5 y 69 a 72).",
+        codigo=["regla"], texto=["texto", "componente"]),
     "v_regiones_134": dict(
         titulo="Regiones del art. 134", grupo="Cotizar y auditar", icono="mapa",
         descripcion="Departamentos y región con incremento en las tarifas (art. 134, pág. 204) y "

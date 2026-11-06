@@ -476,20 +476,84 @@ def _tipos_item(ln):
     return ["cups", "cum", "insumo", "material"]
 
 
+TOLERANCIA_CIRUGIA = 500.0  # pesos: cada componente se redondea a la centena (hasta 5 componentes)
+COMPONENTES = (("cirujano", "cirujano"), ("anestesiologo", "anestesiólogo"), ("ayudante", "ayudante"),
+               ("sala", "derechos de sala"), ("materiales", "materiales"))
+
+
+def escenarios_cirugia(k, dsc, grupo, T, uvb):
+    """Valores posibles de una cirugía SOAT de un grupo (Decreto 780 de 2016, anexo técnico 1):
+    [(código, descripción, valor, cómo se calculó, tolerancia)]. La línea del RIPS puede traer la
+    cirugía completa, una adicional del mismo acto (con su porcentaje), una bilateral o un solo
+    componente."""
+    f = uvb / UVB_2026
+    c = {comp: (T["soat_comp"].get((grupo, comp)) or 0) * f for comp, _ in COMPONENTES}
+    if grupo < 6:
+        c["ayudante"] = 0.0  # la tabla de ayudantía empieza en el grupo 06 (num. 47.1.4)
+    falta_sala = not c["sala"]
+    hon = c["cirujano"] + c["anestesiologo"] + c["ayudante"]
+    hon_sin = c["cirujano"] + c["anestesiologo"]
+    g = f"grupo {grupo:02d}"
+    mat_txt = " (materiales a precio de catálogo en grupos 20-23, num. 54.2)" if grupo >= 20 else ""
+    det = lambda pares: " + ".join(f"{n} {cz.pesos(v)}" for n, v in pares if v)  # noqa: E731
+    esc = []
+    if not falta_sala:
+        esc.append(("Cirugía completa", hon + c["sala"] + c["materiales"],
+                    det([("cirujano", c["cirujano"]), ("anestesiólogo", c["anestesiologo"]),
+                         ("ayudante", c["ayudante"]), ("sala", c["sala"]),
+                         ("materiales", c["materiales"])]) + mat_txt))
+        if c["ayudante"]:
+            esc.append(("Cirugía completa sin ayudante", hon_sin + c["sala"] + c["materiales"],
+                        det([("cirujano", c["cirujano"]), ("anestesiólogo", c["anestesiologo"]),
+                             ("sala", c["sala"]), ("materiales", c["materiales"])])))
+        esc.append(("Adicional en otra región operatoria (num. 71, 48.2, 54.5)",
+                    0.75 * hon + 0.5 * c["sala"] + 0.75 * c["materiales"],
+                    "75% honorarios + 50% sala + 75% materiales"))
+        esc.append(("Bilateral (num. 69, 48.2, 54.5)",
+                    1.75 * hon + 1.5 * c["sala"] + 1.75 * c["materiales"],
+                    "honorarios +75%, sala +50%, materiales +75%"))
+    esc.append(("Adicional, mismo cirujano e igual vía (num. 70)", 0.5 * hon, "50% de los honorarios"))
+    if c["ayudante"]:
+        esc.append(("Adicional, igual vía, sin ayudante (num. 70)", 0.5 * hon_sin,
+                    "50% de cirujano y anestesiólogo"))
+    esc.append(("Adicional, mismo cirujano y diferente vía (num. 71)", 0.75 * hon, "75% de los honorarios"))
+    for comp, nombre in COMPONENTES:
+        if c[comp]:
+            esc.append((f"Solo {nombre}", c[comp], f"{nombre} del {g}"))
+    return [(k, f"{dsc or ''} — {nombre} ({g})", v, f"SOAT cirugía {g}: {txt} (UVB {cz.pesos(uvb)})",
+             TOLERANCIA_CIRUGIA) for nombre, v, txt in esc if v], falta_sala
+
+
 def _soat(cod, ln, T, uvb):
-    """[(código SOAT, descripción, valor unitario|None)] y la explicación si no hay valor."""
+    """[(código SOAT, descripción, valor unitario|None, cómo se calculó, tolerancia)] y la
+    explicación si no hay valor. Las cirugías (código con grupo quirúrgico) dan varios escenarios."""
     cups = cod.zfill(6) if cod.isdigit() else cod
-    if cups in T["soat"]:
-        c = [(k, dsc, None if v is None else v / UVB_2026 * uvb) for k, dsc, v in T["soat"][cups]]
-        return c, ("" if any(v for *_, v in c) else
-                   f"El CUPS {cod} se relaciona con códigos SOAT sin tarifa en la tabla SOAT 2026 "
-                   f"({', '.join(k for k, *_ in c)}): la cirugía SOAT se liquida por grupo "
-                   "quirúrgico (Decreto 780 de 2016), aún no implementado")
-    if not ln.get("seccion") and cod in T["soat_directo"]:  # digitado como código SOAT
-        k, dsc, v = T["soat_directo"][cod]
-        return [(k, dsc, None if v is None else v / UVB_2026 * uvb)], (
-            "" if v else f"El código SOAT {cod} no tiene tarifa en la tabla SOAT 2026")
-    return [], f"El código {cod} no está en la relación CUPS-SOAT ni en la tabla SOAT"
+    if not ln.get("seccion") and cod in T["soat_directo"]:  # digitado: primero el código SOAT exacto
+        base = [T["soat_directo"][cod]]
+    elif cups in T["soat"]:  # del RIPS (o digitado): CUPS -> SOAT con la relación
+        base = T["soat"][cups]
+    else:
+        return [], f"El código {cod} no está en la relación CUPS-SOAT ni en la tabla SOAT"
+    c, sin_sala = [], []
+    for k, dsc, v in base:
+        if v:
+            c.append((k, dsc, v / UVB_2026 * uvb, f"SOAT {v / UVB_2026:g} UVB x {cz.pesos(uvb)}", None))
+        elif k in T["soat_grupos"]:
+            esc, falta = escenarios_cirugia(k, dsc, int(T["soat_grupos"][k]), T, uvb)
+            c += esc
+            if falta:
+                sin_sala.append(k)
+        else:
+            c.append((k, dsc, None, "", None))
+    porque = ""
+    if not any(x[2] for x in c):
+        porque = (f"El código {cod} se relaciona con códigos SOAT sin tarifa ni grupo quirúrgico "
+                  f"({', '.join(k for k, *_ in base)})")
+    if sin_sala:
+        porque = (porque + "; " if porque else "") + (
+            f"falta la tarifa de derechos de sala del grupo 03 (código 39205) en la tabla SOAT 2026: "
+            f"no se calcula la cirugía completa de {', '.join(sin_sala)}")
+    return c, porque
 
 
 def _iss(cod, ln, d):
@@ -508,19 +572,18 @@ def _iss(cod, ln, d):
 
 
 def candidatos(ln, cod, tarifario, T, uvb, contrato_pct=0.0, propia=None, d=None):
-    """[(código de referencia, descripción, valor unitario final, cómo se calculó)] y, si no hay,
-    la explicación. El valor final ya incluye el factor del manual o del contrato."""
+    """[(código de referencia, descripción, valor unitario final, cómo se calculó, tolerancia)] y,
+    si no hay, la explicación. El valor final ya incluye el factor del manual o del contrato."""
     def base(liq, factor, origen):
         if liq == "soat":
             c, porque = _soat(cod, ln, T, uvb)
-            calc = lambda v: f"SOAT {v / uvb:g} UVB x {cz.pesos(uvb)}"  # noqa: E731
         else:
             c, porque = _iss(cod, ln, d)
-            calc = lambda v: f"ISS 2001 {cz.pesos(v)}"  # noqa: E731
+            c = [(k, dsc, v, f"ISS 2001 {cz.pesos(v)}", None) for k, dsc, v in c]
         f = 1 + (factor or 0) / 100
         return [(k, dsc, v * f if v else None,
-                 calc(v) + (f" {factor:+g}% ({origen})" if factor else "") if v else "")
-                for k, dsc, v in c], porque
+                 calc + (f" {factor:+g}% ({origen})" if factor else "") if v else "", tol)
+                for k, dsc, v, calc, tol in c], porque
 
     if tarifario == "soat":
         return base("soat", contrato_pct, "contrato")
@@ -535,14 +598,15 @@ def candidatos(ln, cod, tarifario, T, uvb, contrato_pct=0.0, propia=None, d=None
             continue
         liq = it["tipo_liquidacion"] or v["tipo_base"]
         if liq == "valor_fijo":
-            return [(clave[1], it["descripcion"], it["tarifa"], f"Valor fijo del manual {manual}")], ""
+            return [(clave[1], it["descripcion"], it["tarifa"], f"Valor fijo del manual {manual}", None)], ""
         factor = it["factor_pct"] if it["factor_pct"] is not None else v["factor_pct"]
         c, porque = base(liq, factor, f"manual {manual}")
-        return [(k, it["descripcion"] or dsc, val, txt) for k, dsc, val, txt in c], porque
+        return [(k, (it["descripcion"] or dsc) if len(c) == 1 else dsc, val, txt, tol)
+                for k, dsc, val, txt, tol in c], porque
     if v["tipo_base"] in ("soat", "iss"):
         c, porque = base(v["tipo_base"], v["factor_pct"], f"base del manual {manual}")
-        return [(k, dsc, val, txt + " — el código no está en el manual: se usa su base")
-                for k, dsc, val, txt in c], porque
+        return [(k, dsc, val, txt + " — el código no está en el manual: se usa su base", tol)
+                for k, dsc, val, txt, tol in c], porque
     return [], f"El código {cod} no está en el manual {manual} ({'/'.join(_tipos_item(ln))})"
 
 
@@ -579,19 +643,22 @@ def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=
             if cod else ([], "línea sin código")
         con_valor = [c for c in cands if c[2]]
         elegido = None
+        tol_de = lambda c: c[4] if c[4] is not None else tol  # noqa: E731
         if not con_valor:
             r["alertas"].append(dict(tipo="Código", cita=nombre, texto=porque))
-        elif len(con_valor) == 1:
+        elif porque:  # hay valores, pero algo no se pudo calcular (p. ej. sala del grupo 03)
+            r["alertas"].append(dict(tipo="Tarifa incompleta", cita=nombre, texto=porque))
+        if len(con_valor) == 1:
             elegido = con_valor[0]
-        else:
-            ops = "; ".join(f"{k} {dsc[:50]} {cz.pesos(v)}" for k, dsc, v, _ in con_valor)
-            iguales = [c for c in con_valor if unit is not None and abs(unit - c[2]) <= tol]
+        elif con_valor:
+            ops = "; ".join(f"{k} {dsc[:60]} {cz.pesos(v)}" for k, dsc, v, *_ in con_valor)
+            iguales = [c for c in con_valor if unit is not None and abs(unit - c[2]) <= tol_de(c)]
             if iguales:
                 elegido = iguales[0]
                 r["alertas"].append(dict(tipo="Varias opciones", cita=nombre, texto=(
                     f"El CUPS tiene {len(con_valor)} opciones; lo facturado coincide con {elegido[0]}. "
                     f"Opciones: {ops}")))
-            elif unit is not None and unit > max(c[2] for c in con_valor) + tol:
+            elif unit is not None and unit > max(c[2] + tol_de(c) for c in con_valor):
                 elegido = max(con_valor, key=lambda c: c[2])
                 r["alertas"].append(dict(tipo="Varias opciones", cita=nombre, texto=(
                     f"Lo facturado supera todas las opciones; se compara con la de mayor valor "
@@ -604,7 +671,8 @@ def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=
                     f"Opciones: {ops}")))
                 r["revisar_opciones"] = True
         if elegido:
-            k, dsc, v, calc = elegido
+            k, dsc, v, calc, tol_e = elegido
+            r["tolerancia"] = tol_de(elegido)
             r["manual"] = dict(codigo=k, descripcion=dsc, articulo=None, unidad="pesos", agrupador=nombre)
             r["valor_manual"] = v
             r["esperado"] = v * cant
@@ -633,7 +701,8 @@ def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=
         r["diferencia"] = dif
         revisar = r.pop("revisar_opciones", False) or any(
             a["tipo"] in ("Código", "Repetido") for a in r["alertas"])
-        if dif is not None and dif > tol * r["cantidad"] and not revisar:
+        t = r.pop("tolerancia", tol) * r["cantidad"]
+        if dif is not None and dif > t and not revisar:
             r["estado"], r["glosa"] = "Glosa", dif
             r["motivo"] = f"Valor facturado superior a la tarifa ({nombre})"
         elif revisar or dif is None:
@@ -642,7 +711,7 @@ def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=
                 "Ver alertas: no se pudo comparar o requiere verificación"
         else:
             r["estado"], r["glosa"] = "Conforme", 0.0
-            r["motivo"] = f"Cobro inferior a la tarifa ({nombre})" if dif < -tol * r["cantidad"] \
+            r["motivo"] = f"Cobro inferior a la tarifa ({nombre})" if dif < -t \
                 else f"Igual a la tarifa ({nombre})"
 
     suma = lambda k: sum(r[k] for r in res if r[k] is not None)  # noqa: E731

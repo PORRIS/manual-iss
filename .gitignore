@@ -43,3 +43,6 @@ datos/
 # tarifas propias (los manuales se suben desde la web o con tarifas_propias.py)
 soat/*.pdf
 tarifas propias/
+
+# Informe que regenera extraer_soat_grupos.py
+soat/soat_grupos_revisar.csv
