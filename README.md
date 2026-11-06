@@ -88,7 +88,7 @@ Lo que se regenera solo (`salida/`, informes de validación) está en `.gitignor
 | `auditoria_visual.py` | Muestreo reproducible de 10 páginas (semilla 256): imágenes en `salida/auditoria/` y filas de la BD en `auditoria_filas.csv`. Resultado de la revisión en `auditoria_visual.csv`. |
 | `actualizar.sh` | Regenera la BD, corre las validaciones y copia la BD a `C:\Users\Porris\Documents` para Navicat. Se detiene en el primer error. |
 | `render.yaml` | Despliegue en Render (build con `etl.py`, chequeo `/salud`, clave en `WEB_CLAVE`). |
-| `web.sh`, `web/` | Interfaz web de consulta (FastAPI, solo lectura): un menú por vista, búsqueda por código (varios, o prefijo con `*`) o por texto (sin tildes, palabras en cualquier orden), detalle de cada fila y exportación a Excel filtrada o completa. Las vistas del menú y sus columnas de búsqueda se configuran en `VISTAS` de `web/app.py`. |
+| `web.sh`, `web/` | Interfaz web de consulta (FastAPI, solo lectura): un menú por vista, búsqueda por código (varios, o prefijo con `*`) o por texto (sin tildes, palabras en cualquier orden), detalle de cada fila, exportación a Excel filtrada o completa, y descarga del PDF y el Excel de origen (`/fuentes/pdf`, `/fuentes/excel`; el PDF abre en una página con `#page=N`). Las vistas del menú y sus columnas de búsqueda se configuran en `VISTAS` de `web/app.py`. |
 | `rutas.py` | Ruta del proyecto y de la BD, para que los scripts funcionen desde cualquier carpeta; si la BD no existe, avisa en vez de crear una vacía. |
 | `liquidar.py` | Liquidación de honorarios quirúrgicos (arts. 59-67). |
 | `vistas.sql` | Vista `v_honorarios_cirugia`. |
@@ -171,6 +171,9 @@ Clasificación de las diferencias:
 | `v_honorarios_cirugia` | Honorarios de cirugía (arts. 1-18) en pesos por profesional. |
 | `v_manual_completo` | Todo el Manual en el orden del Excel (artículos, agrupadores, procedimientos, componentes y notas); los componentes traen código, descripción y valor de su paquete. |
 | `v_ajustes_valor` | Valores con novedad: valor del Excel, valor del PDF, diferencia y motivo, de mayor a menor diferencia. |
+| `v_validacion_resumen` | Resumen de la validación BD vs PDF (tabla `validacion_resumen`, la calcula `etl.py`): cobertura de procedimientos y artículos, comparación campo a campo, control de extracción, auditoría visual y conteo de novedades. |
+| `v_auditoria_visual` | Las 10 páginas de la auditoría visual (tabla `auditoria_visual`, desde `auditoria_visual.csv`). |
+| `v_abreviaturas` | Leyendas SOD y NCOC del PDF. |
 | `v_novedades` | Todas las novedades de la revisión Excel → PDF (371): categoría, fila del Excel, texto original del Excel, antes/después, página del PDF y motivo. |
 | `v_novedades_eliminadas` | Las 11 filas del Excel que no pasaron a la BD, con su contenido original. |
 | `v_novedades_texto` | Los 280 textos corregidos con el del PDF (descripciones, notas, agrupadores, notas de referencia). |

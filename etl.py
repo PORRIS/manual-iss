@@ -19,6 +19,7 @@ import pandas as pd
 from rutas import al_proyecto
 
 al_proyecto()
+from control_extraccion import controlar
 from validar_completo import PDF_TABLAS, PDF_TEXTOS, cargar_pdf, comparar, fuerte
 
 try:
@@ -301,7 +302,8 @@ for n, c in cor.iterrows():
 for fpdf in (PDF_TABLAS, PDF_TEXTOS):
     if not os.path.exists(fpdf):
         raise SystemExit(f"Falta {fpdf}: ejecuta antes `uv run extraer_pdf.py`")
-dif, res = comparar(pr, ag, ar, nt, *cargar_pdf())
+pdf_t, pdf_x = cargar_pdf()
+dif, res = comparar(pr, ag, ar, nt, pdf_t, pdf_x)
 
 # diferencias revisadas con accion=aceptar: misma fila (o misma página si la fila no
 # existe en la BD), mismo campo y mismo valor del PDF
@@ -393,6 +395,68 @@ def texto_excel(fila, accion):
 _aj = tablas["ajustes_pdf"]
 _aj["texto_excel"] = [texto_excel(f, a) for f, a in zip(_aj.fila_excel, _aj.accion)]
 _aj["pagina_pdf"] = pd.to_numeric(_aj.motivo.str.extract(r"PDF pág\. (\d+)")[0]).astype("Int64")
+
+# ---------------- resumen de la validación (para consultarlo sin correr los scripts) ----------------
+# Se calcula en cada ETL: si el PDF, el Excel o correcciones.csv cambian, el resumen cambia.
+AUDITORIA = "auditoria_visual.csv"
+arts_pdf = (pdf_x[pdf_x.tipo == "articulo"].texto
+            .str.extract(r"^\s*ART[IÍ]CULO\s+(\d+)", expand=False).dropna().astype(int))
+cod_bd = set(pr.codigo.dropna())
+cod_pdf = set(pdf_t.codigo[pdf_t.codigo != ""])
+ctrl, n_ref, n_cel = controlar()
+auditoria = (pd.read_csv(AUDITORIA, encoding="utf-8-sig") if os.path.exists(AUDITORIA)
+             else pd.DataFrame(columns=["pagina", "filas_revisadas", "diferencias_sin_explicar",
+                                        "observacion"]))
+n_acc = _aj.groupby(["accion", "campo"]).size()
+solo_pdf = int((dif.campo == "texto_solo_pdf").sum())
+
+
+def fila_resumen(grupo, control, pdf, bd, ok, detalle):
+    return dict(grupo=grupo, control=control, pdf=pdf, bd=bd,
+                resultado="OK" if ok else "REVISAR", detalle=detalle)
+
+
+tablas["validacion_resumen"] = pd.DataFrame([
+    fila_resumen("Cobertura", "Procedimientos (filas de tabla con código)", len(pdf_t), len(pr),
+                 len(pdf_t) == len(pr) == res["emparejados"],
+                 f"{res['emparejados']} emparejados uno a uno entre el PDF y la BD"),
+    fila_resumen("Cobertura", "Códigos del PDF que no están en la BD", len(cod_pdf - cod_bd), None,
+                 not (cod_pdf - cod_bd), "Nada del PDF quedó por fuera"),
+    fila_resumen("Cobertura", "Procedimientos de la BD sin pareja en el PDF", None,
+                 res["proc_bd"] - res["emparejados"], res["proc_bd"] == res["emparejados"],
+                 "Nada de la BD sobra frente al PDF"),
+    fila_resumen("Cobertura", "Artículos", int(arts_pdf.nunique()), len(ar),
+                 set(arts_pdf) == set(ar.numero), "Mismos números de artículo en el PDF y en la BD"),
+    fila_resumen("Cobertura", "Textos del PDF que no están en la BD", solo_pdf, None, True,
+                 "Revisados: leyendas SOD/NCOC (tabla abreviaturas) y fórmula de cierre del Acuerdo"),
+    fila_resumen("Comparación campo a campo", "Diferencias BD vs PDF", len(dif), None, len(pend) == 0,
+                 f"{int(dif.revisada.sum())} revisadas y aceptadas, {len(pend)} pendientes"),
+    fila_resumen("Extracción del PDF", "Tablas extraídas vs referencia (REF, código, valor, PB)",
+                 n_ref, n_cel, len(ctrl) == 0,
+                 f"{len(ctrl)} discrepancias entre dos métodos de extracción independientes"),
+    fila_resumen("Auditoría visual", "Filas revisadas a ojo contra la imagen del PDF",
+                 int(auditoria.filas_revisadas.sum()), None,
+                 int(auditoria.diferencias_sin_explicar.sum()) == 0,
+                 f"{len(auditoria)} páginas al azar (semilla 256); "
+                 f"{int(auditoria.diferencias_sin_explicar.sum())} diferencias sin explicar"),
+    fila_resumen("Novedades del Excel", "Filas del Excel eliminadas", None,
+                 int(n_acc.get(("eliminar", "fila"), 0)), True,
+                 "No existen en el PDF, duplicadas o cabeceras (ver Novedades)"),
+    fila_resumen("Novedades del Excel", "Valores corregidos con el PDF", None,
+                 int(n_acc.get(("cambiar", "valor"), 0)), True, "Ver Novedades > Cambios de valor"),
+    fila_resumen("Novedades del Excel", "Textos corregidos con el PDF", None,
+                 int(sum(n_acc.get(("cambiar", c), 0)
+                         for c in ("descripcion", "texto", "nombre", "ref_nota"))), True,
+                 "Ver Novedades > Cambios de texto"),
+    fila_resumen("Novedades del Excel", "Notas agregadas desde el PDF", None,
+                 int(n_acc.get(("agregar", "nota"), 0)), True,
+                 "Únicas filas que están en el PDF y no en el Excel ("
+                 + ", ".join(_aj[_aj.accion == "agregar"].codigo.dropna()) + ")"),
+])
+for _c in ("pdf", "bd"):
+    tablas["validacion_resumen"][_c] = tablas["validacion_resumen"][_c].astype("Int64")
+tablas["validacion_resumen"].insert(0, "orden", range(1, len(tablas["validacion_resumen"]) + 1))
+tablas["auditoria_visual"] = auditoria
 
 # Art. 59: valor de la UVR en pesos por tipo de profesional
 tablas["parametros"] = (

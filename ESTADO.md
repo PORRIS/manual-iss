@@ -52,6 +52,10 @@
 17. Novedades completas: `ajustes_pdf` gana `texto_excel` (fila original del Excel) y `pagina_pdf`;
     vistas v_novedades (371) y por categoría (eliminadas 11, texto 280, valor 37, estructura 20,
     aceptadas 23); grupo "Novedades (Excel → PDF)" en la web.
+18. Validación consultable: etl.py crea `validacion_resumen` (12 controles, todos OK) y
+    `auditoria_visual`; vistas v_validacion_resumen, v_auditoria_visual, v_abreviaturas.
+    `control_extraccion.controlar()` reutilizable. Web: grupo "Validación", página "PDF y Excel
+    originales" (ver/descargar, SHA-256) y número de página del PDF como enlace.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.

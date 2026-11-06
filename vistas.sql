@@ -187,3 +187,17 @@ WHERE categoria IN ('Cambio de clasificación', 'Cambio de código', 'Nota agreg
 CREATE VIEW v_novedades_aceptadas AS
 SELECT campo, fila_excel, codigo, texto_excel, despues AS texto_pdf, pagina_pdf, motivo
 FROM v_novedades WHERE accion = 'aceptar';
+
+-- ===================================================================== VALIDACIÓN
+-- Resumen de la validación BD vs PDF (lo calcula etl.py en cada corrida).
+CREATE VIEW v_validacion_resumen AS
+SELECT orden, grupo, control, pdf, bd, resultado, detalle FROM validacion_resumen ORDER BY orden;
+
+-- Abreviaturas de las leyendas al pie de tabla del PDF.
+CREATE VIEW v_abreviaturas AS
+SELECT abreviatura, significado, paginas_pdf FROM abreviaturas ORDER BY abreviatura;
+
+-- Auditoría visual: páginas al azar revisadas a ojo contra la imagen del PDF.
+CREATE VIEW v_auditoria_visual AS
+SELECT pagina AS pagina_pdf, filas_revisadas, diferencias_sin_explicar, observacion
+FROM auditoria_visual ORDER BY pagina;

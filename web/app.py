@@ -11,6 +11,7 @@ Uso:  ./web.sh            (abre http://127.0.0.1:8000)
   Sin WEB_CLAVE (uso local) no pide nada.
 """
 import base64
+import hashlib
 import binascii
 import io
 import os
@@ -30,7 +31,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from rutas import DB  # noqa: E402
+from rutas import BASE, DB  # noqa: E402
 
 ESTATICO = Path(__file__).resolve().parent / "static"
 
@@ -53,6 +54,10 @@ ETIQUETAS = {
     "categoria": "Categoría", "accion": "Acción", "campo": "Campo", "texto_excel": "Texto en el Excel",
     "antes": "Antes", "despues": "Después", "pagina_pdf": "Pág. PDF", "que_cambio": "Qué cambió",
     "texto_excel_original": "Texto en el Excel", "texto_pdf": "Texto en el PDF",
+    "grupo": "Grupo", "control": "Control", "pdf": "PDF", "bd": "BD", "resultado": "Resultado",
+    "detalle": "Detalle", "filas_revisadas": "Filas revisadas",
+    "diferencias_sin_explicar": "Diferencias sin explicar", "observacion": "Observación",
+    "abreviatura": "Abreviatura", "significado": "Significado", "paginas_pdf": "Páginas PDF",
 }
 
 # vista -> configuración. codigo: columnas comparadas con el código; lista: columnas con códigos
@@ -97,6 +102,21 @@ VISTAS = {
         titulo="Agrupadores", grupo="Estructura", icono="arbol",
         descripcion="Ruta completa de cada agrupador (título > subtítulo > …).",
         codigo=[], texto=["nombre", "ruta"], ocultas=["padre_id", "raiz_id"], orden="id"),
+    "v_validacion_resumen": dict(
+        titulo="Resumen de la validación", grupo="Validación", icono="escudo",
+        descripcion="Controles de la base contra el PDF oficial: cobertura de procedimientos y "
+                    "artículos, comparación campo a campo, extracción y auditoría visual. "
+                    "Se recalcula cada vez que se regenera la base.",
+        codigo=[], texto=["grupo", "control", "detalle", "resultado"], orden="orden"),
+    "v_auditoria_visual": dict(
+        titulo="Auditoría visual", grupo="Validación", icono="ojo",
+        descripcion="Páginas del PDF elegidas al azar (semilla 256) y revisadas a ojo contra la "
+                    "base, fila por fila.",
+        codigo=[], texto=["observacion"], orden="pagina_pdf"),
+    "v_abreviaturas": dict(
+        titulo="Abreviaturas", grupo="Validación", icono="texto",
+        descripcion="Leyendas al pie de tabla del PDF (SOD, NCOC) y las páginas donde aparecen.",
+        codigo=[], texto=["abreviatura", "significado"]),
     "v_novedades": dict(
         titulo="Todas las novedades", grupo="Novedades (Excel → PDF)", icono="lista",
         descripcion="Todo lo que la revisión cambió del Excel para dejarlo igual al PDF oficial: "
@@ -356,6 +376,57 @@ def api_exportar(vista: str, q: str = "", modo: str = "auto", orden: str = "", d
     return StreamingResponse(
         buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+# Documentos de donde sale la información (se sirven tal cual, sin modificarlos).
+FUENTES = {
+    "pdf": dict(archivo="MANUAL-ISS-2001.pdf", tipo="application/pdf",
+                titulo="Manual Tarifario ISS 2001 (PDF)",
+                descripcion="Acuerdo 256 de 2001. Fuente oficial: la base se validó contra este "
+                            "documento y, donde difiere del Excel, manda el PDF."),
+    "excel": dict(archivo="manual_iss.xls", tipo="application/vnd.ms-excel",
+                  titulo="Manual Tarifario ISS 2001 (Excel)",
+                  descripcion="Fuente secundaria: de aquí se cargaron las filas de la base, que "
+                              "luego se corrigieron con el PDF (ver Novedades)."),
+}
+
+
+def ruta_fuente(fid):
+    if fid not in FUENTES:
+        raise HTTPException(404, "Documento desconocido")
+    ruta = BASE / FUENTES[fid]["archivo"]
+    if not ruta.exists():
+        raise HTTPException(404, f"No está el archivo {ruta.name}")
+    return ruta
+
+
+def sha256(ruta):
+    h = hashlib.sha256()
+    with open(ruta, "rb") as f:
+        for bloque in iter(lambda: f.read(1 << 20), b""):
+            h.update(bloque)
+    return h.hexdigest()
+
+
+@app.get("/api/fuentes")
+def api_fuentes():
+    res = []
+    for fid, f in FUENTES.items():
+        ruta = BASE / f["archivo"]
+        if ruta.exists():
+            res.append(dict(id=fid, archivo=f["archivo"], titulo=f["titulo"],
+                            descripcion=f["descripcion"], bytes=ruta.stat().st_size,
+                            sha256=sha256(ruta)))
+    return res
+
+
+@app.get("/fuentes/{fid}")
+def fuente(fid: str, descargar: bool = False):
+    """PDF: se abre en el navegador (admite #page=N); ?descargar=1 lo descarga."""
+    ruta = ruta_fuente(fid)
+    return FileResponse(ruta, media_type=FUENTES[fid]["tipo"], filename=ruta.name,
+                        content_disposition_type="attachment" if descargar or fid != "pdf"
+                        else "inline")
 
 
 @app.get("/")

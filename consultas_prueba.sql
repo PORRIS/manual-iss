@@ -211,6 +211,18 @@ SELECT (SELECT COUNT(*) FROM v_novedades) || '|' || (SELECT COUNT(*) FROM v_nove
 -- @esperado 13900 | 783001 | TRANSPOSICIÓN ÓSEA EN HUESOS LARGOS CON COLOCACIÓN DE TUTOR EXTERNO | 200|65
 SELECT texto_excel || '|' || pagina_pdf FROM v_novedades_eliminadas WHERE fila_excel = 3466;
 
+-- @prueba Resumen de validación: controles | en REVISAR | procedimientos PDF=BD | artículos PDF=BD
+-- @esperado 12|0|6444=6444|147=147
+SELECT (SELECT COUNT(*) FROM v_validacion_resumen) || '|' ||
+       (SELECT COUNT(*) FROM v_validacion_resumen WHERE resultado <> 'OK') || '|' ||
+       (SELECT pdf || '=' || bd FROM v_validacion_resumen WHERE control LIKE 'Procedimientos (filas%') || '|' ||
+       (SELECT pdf || '=' || bd FROM v_validacion_resumen WHERE control = 'Artículos');
+
+-- @prueba Auditoría visual: páginas | filas revisadas | sin explicar ; abreviaturas
+-- @esperado 10|406|0|2
+SELECT COUNT(*) || '|' || SUM(filas_revisadas) || '|' || SUM(diferencias_sin_explicar) || '|' ||
+       (SELECT COUNT(*) FROM v_abreviaturas) FROM v_auditoria_visual;
+
 -- @prueba Componente 791703: paquete, valor del paquete
 -- @esperado C40467|1121360
 SELECT paquete || '|' || CAST(valor_paquete AS INTEGER) FROM v_manual_completo

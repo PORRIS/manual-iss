@@ -17,6 +17,10 @@ const ICONOS = {
   texto: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
   capas: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
   check: '<circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/>',
+  escudo: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  ojo: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  documento: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+  externo: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>',
   buscar: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   excel: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 12 6 6M15 12l-6 6"/>',
   descarga: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
@@ -135,6 +139,8 @@ function pintarMenu() {
     h += vs.map((v) => `<a class="menu__item" href="#/${v.id}" data-vista="${v.id}">${icono(v.icono)}
       <span>${esc(v.titulo)}</span><small>${fmt.format(v.total)}</small></a>`).join("");
   }
+  h += `<div class="menu__grupo">Fuentes</div>
+    <a class="menu__item" href="#/fuentes" data-vista="fuentes">${icono("documento")}<span>PDF y Excel originales</span></a>`;
   $("#menu").innerHTML = h;
   $("#menu").addEventListener("click", (ev) => {
     const a = ev.target.closest(".menu__item");
@@ -215,7 +221,10 @@ async function pintarInicio() {
       <div class="tarjeta-vista__icono">${icono(v.icono)}</div>
       <div><h3>${esc(v.titulo)}</h3><p>${esc(v.descripcion)}</p>
         <div class="cifra"><b>${fmt.format(v.total)}</b> filas</div></div>${insignia}</button>`;
-  }).join("");
+  }).join("") + `<button class="tarjeta-vista tarjeta-fuentes" data-vista="fuentes">
+      <div class="tarjeta-vista__icono">${icono("documento")}</div>
+      <div><h3>PDF y Excel originales</h3><p>Descargue los documentos de donde sale la información:
+        el PDF oficial del Acuerdo 256 de 2001 y el Excel de origen.</p></div></button>`;
   document.querySelectorAll(".tarjeta-vista").forEach((t) =>
     t.addEventListener("click", () => navegar({ vista: t.dataset.vista, pagina: 1, orden: "", dir: "asc" })));
 }
@@ -299,11 +308,20 @@ function palabrasResaltado(d) {
 function celda(col, valor, palabras) {
   if (valor === null || valor === undefined || valor === "") return `<td class="vacio">—</td>`;
   if (col === "tipo_fila") return `<td><span class="etiqueta-fila">${esc(valor)}</span></td>`;
+  if (col === "pagina_pdf" || col === "paginas_pdf") return `<td class="num">${enlacesPaginas(valor)}</td>`;
+  if (col === "resultado") return `<td><span class="resultado ${valor === "OK" ? "ok" : "revisar"}">${esc(valor)}</span></td>`;
   if (typeof valor === "number") {
     return `<td class="num">${SIN_SEPARADOR.has(col) ? valor : fmt.format(valor)}</td>`;
   }
   const clase = COL_CODIGO.has(col) ? "cod" : "";
   return `<td class="${clase}"><div class="recorte" title="${esc(valor)}">${resaltar(valor, palabras)}</div></td>`;
+}
+
+/** Páginas del PDF como enlaces que abren el PDF en esa página ("3,9,25" -> 3 enlaces). */
+function enlacesPaginas(valor) {
+  return String(valor).split(/\s*,\s*/).filter(Boolean).map((p) => /^\d+$/.test(p)
+    ? `<a class="pagina" href="/fuentes/pdf#page=${p}" target="_blank" rel="noopener" title="Abrir el PDF en la página ${p}">${p}</a>`
+    : esc(p)).join(", ");
 }
 
 function pintarTabla(d) {
@@ -332,7 +350,10 @@ function pintarTabla(d) {
     else if (estado.dir === "asc") navegar({ dir: "desc", pagina: 1 });
     else navegar({ orden: "", dir: "asc", pagina: 1 });
   }));
-  marco.querySelectorAll("tbody tr").forEach((tr) => tr.addEventListener("click", () => abrirDetalle(d, +tr.dataset.i)));
+  marco.querySelectorAll("tbody tr").forEach((tr) => tr.addEventListener("click", (ev) => {
+    if (ev.target.closest("a")) return; // enlace a una página del PDF
+    abrirDetalle(d, +tr.dataset.i);
+  }));
 }
 
 function pintarPaginacion(d) {
@@ -372,7 +393,8 @@ function abrirDetalle(d, i) {
     const v = f[j];
     const vacio = v === null || v === undefined || v === "";
     const txt = vacio ? "—" : typeof v === "number" && !SIN_SEPARADOR.has(c.id) ? fmt.format(v) : v;
-    return `<div class="campo"><dt>${esc(c.etiqueta)}</dt><dd class="${vacio ? "vacio" : ""}">${esc(txt)}</dd></div>`;
+    const html = !vacio && (c.id === "pagina_pdf" || c.id === "paginas_pdf") ? enlacesPaginas(v) : esc(txt);
+    return `<div class="campo"><dt>${esc(c.etiqueta)}</dt><dd class="${vacio ? "vacio" : ""}">${html}</dd></div>`;
   }).join("")}</dl>`;
   if (codigo) {
     h += `<div class="cajon__acciones">
@@ -427,10 +449,43 @@ async function exportar(completo, boton) {
   }
 }
 
+// ---------- Fuentes (PDF y Excel originales) ----------
+const mb = (b) => fmt.format(Math.round(b / 104857.6) / 10) + " MB";
+
+async function pintarFuentes() {
+  $("#migaVista").textContent = "PDF y Excel originales";
+  const c = $("#contenido");
+  c.dataset.vista = "fuentes";
+  c.innerHTML = `<section class="panel"><div class="cabecera">
+      <div class="cabecera__icono">${icono("documento")}</div>
+      <div><h1>PDF y Excel originales</h1><p>Los documentos de donde sale la información de esta base.
+        Se publican tal como se recibieron, sin modificaciones. El código SHA-256 permite comprobar que
+        un archivo es exactamente el mismo.</p></div></div>
+      <div class="fuentes" id="fuentes"><div class="estado">Cargando…</div></div></section>`;
+  let fs;
+  try { fs = await api("/api/fuentes"); } catch (e) { $("#fuentes").innerHTML = `<div class="estado">${esc(e.message)}</div>`; return; }
+  $("#fuentes").innerHTML = fs.map((f) => `
+    <article class="fuente">
+      <div class="fuente__icono ${f.id}">${icono(f.id === "pdf" ? "documento" : "excel")}</div>
+      <div class="fuente__texto">
+        <h3>${esc(f.titulo)}</h3>
+        <p>${esc(f.descripcion)}</p>
+        <div class="fuente__meta"><span>${esc(f.archivo)}</span><span>${mb(f.bytes)}</span></div>
+        <div class="fuente__hash" title="SHA-256">SHA-256: <code>${esc(f.sha256)}</code></div>
+      </div>
+      <div class="fuente__acciones">
+        ${f.id === "pdf" ? `<a class="boton boton--borde" href="/fuentes/pdf" target="_blank" rel="noopener">${icono("externo")}Ver</a>` : ""}
+        <a class="boton ${f.id === "pdf" ? "boton--verde" : "boton--morado"}" href="/fuentes/${f.id}?descargar=1">${icono("descarga")}Descargar</a>
+      </div>
+    </article>`).join("") + `<p class="ayuda">En las vistas de novedades y validación, el número de página del PDF
+      es un enlace: abre el PDF directamente en esa página.</p>`;
+}
+
 // ---------- Arranque ----------
 function render() {
   marcarMenu();
-  if (estado.vista) pintarVista();
+  if (estado.vista === "fuentes") pintarFuentes();
+  else if (estado.vista) pintarVista();
   else { $("#contenido").dataset.vista = ""; pintarInicio(); }
 }
 

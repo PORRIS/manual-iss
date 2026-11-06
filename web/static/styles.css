@@ -184,6 +184,30 @@ tr.f-nota td, tr.f-capitulo td { font-style: italic; color: var(--texto-suave); 
 .f-agrupador .etiqueta-fila { background: var(--verde); color: #fff; }
 .f-procedimiento .etiqueta-fila { background: #e2f0ff; color: #2f6fb0; }
 
+a.pagina { color: var(--morado); font-weight: 600; text-decoration: none; border-bottom: 1px dashed currentColor; }
+a.pagina:hover { color: var(--morado-oscuro); border-bottom-style: solid; }
+.resultado { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 3px 9px; border-radius: 999px; }
+.resultado.ok { background: var(--verde-claro); color: var(--verde-oscuro); }
+.resultado.revisar { background: #f8e6e8; color: var(--vino); }
+
+/* ---------- Fuentes ---------- */
+.fuentes { display: grid; gap: 14px; }
+.fuente { display: flex; gap: 18px; align-items: center; padding: 20px; border: 1px solid var(--borde); border-radius: var(--radio); }
+.fuente__icono { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.fuente__icono svg.icono { width: 26px; height: 26px; }
+.fuente__icono.pdf { background: #f8e6e8; color: var(--vino); }
+.fuente__icono.excel { background: var(--verde-claro); color: var(--verde-oscuro); }
+.fuente__texto { flex: 1; min-width: 0; }
+.fuente h3 { margin: 0 0 4px; font-size: 15px; }
+.fuente p { margin: 0 0 8px; color: var(--texto-suave); line-height: 1.5; }
+.fuente__meta { display: flex; gap: 14px; font-size: 12.5px; color: var(--texto-suave); }
+.fuente__meta span:first-child { font-family: ui-monospace, Consolas, monospace; color: var(--texto); }
+.fuente__hash { margin-top: 6px; font-size: 11px; color: var(--texto-suave); overflow-wrap: anywhere; }
+.fuente__hash code { font-size: 11px; }
+.fuente__acciones { display: flex; gap: 8px; flex: none; }
+.fuente__acciones .boton { text-decoration: none; }
+.tarjeta-fuentes .tarjeta-vista__icono { background: #f8e6e8; color: var(--vino); }
+
 /* ---------- Paginación ---------- */
 .paginacion { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px;
   font-size: 13px; color: var(--texto-suave); }
@@ -240,4 +264,5 @@ tr.f-nota td, tr.f-capitulo td { font-style: italic; color: var(--texto-suave); 
   .panel { padding: 18px; }
   .hero { padding: 26px 20px; }
   .tabla-marco { max-height: none; }
+  .fuente { flex-direction: column; align-items: flex-start; }
 }
