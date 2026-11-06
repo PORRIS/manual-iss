@@ -35,6 +35,11 @@ Consulta web (buscar por código o texto en todas las vistas y exportar a Excel)
 ./web.sh                     # http://localhost:8000 (también desde el navegador de Windows); Ctrl+C para detener
 ```
 
+Publicar en Render (gratis): `render.yaml` crea el servicio. En el build genera la BD con
+`etl.py` (la BD no está en el repositorio) y pide la contraseña `WEB_CLAVE` (usuario `revisor`).
+Pasos: subir el repositorio a GitHub → render.com → New → Blueprint → elegir el repositorio →
+escribir la clave. Sin `WEB_CLAVE` (uso local con `./web.sh`) no pide clave.
+
 `extraer_pdf.py` solo hace falta la primera vez o si cambia el PDF o el extractor; el ETL lee los
 CSV que genera.
 
@@ -82,6 +87,7 @@ Lo que se regenera solo (`salida/`, informes de validación) está en `.gitignor
 | `proponer_correcciones.py` | Genera `correcciones_propuestas.csv` a partir de `validacion_completa.csv`, para revisarlo antes de fusionarlo. |
 | `auditoria_visual.py` | Muestreo reproducible de 10 páginas (semilla 256): imágenes en `salida/auditoria/` y filas de la BD en `auditoria_filas.csv`. Resultado de la revisión en `auditoria_visual.csv`. |
 | `actualizar.sh` | Regenera la BD, corre las validaciones y copia la BD a `C:\Users\Porris\Documents` para Navicat. Se detiene en el primer error. |
+| `render.yaml` | Despliegue en Render (build con `etl.py`, chequeo `/salud`, clave en `WEB_CLAVE`). |
 | `web.sh`, `web/` | Interfaz web de consulta (FastAPI, solo lectura): un menú por vista, búsqueda por código (varios, o prefijo con `*`) o por texto (sin tildes, palabras en cualquier orden), detalle de cada fila y exportación a Excel filtrada o completa. Las vistas del menú y sus columnas de búsqueda se configuran en `VISTAS` de `web/app.py`. |
 | `rutas.py` | Ruta del proyecto y de la BD, para que los scripts funcionen desde cualquier carpeta; si la BD no existe, avisa en vez de crear una vacía. |
 | `liquidar.py` | Liquidación de honorarios quirúrgicos (arts. 59-67). |

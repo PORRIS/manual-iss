@@ -46,6 +46,9 @@
 15. Interfaz web `./web.sh` (web/app.py + web/static): menú por vista, búsqueda por código o texto,
     búsqueda global con conteo por vista, detalle por fila y Excel filtrado o completo. Paleta y
     logo SIAIS (#1dbb99, #6d5eac).
+16. Despliegue en Render (`render.yaml`, plan gratuito) con clave HTTP Basic (`WEB_CLAVE`,
+    usuario `revisor`); probado en un clon limpio: el build genera una BD idéntica a la local.
+    Falta: crear el repositorio en GitHub, hacer push y crear el Blueprint en Render.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
@@ -64,7 +67,7 @@
 - No automatizado en cotizar.py: art. 95 par. 7 (varios conjuntos en un mismo acto) y
   par. 22 (anestesia general en hemodinamia/radiología intervencionista: falta la lista de
   conjuntos a los que aplica).
-- Opcional: subir el repositorio a un remoto; exportar el manual completo a Excel.
+- Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar
 ```bash

@@ -6,17 +6,24 @@ Uso:  ./web.sh            (abre http://127.0.0.1:8000)
 - Búsqueda por código (exacto, varios separados por coma o espacio, prefijo con *) o por texto
   (todas las palabras, en cualquier orden, sin distinguir mayúsculas ni tildes).
 - Exportación a Excel de lo filtrado o de la vista completa.
+- Contraseña opcional: si existe la variable de entorno WEB_CLAVE, todo el sitio (salvo /salud)
+  pide usuario y clave (HTTP Basic). Usuario: WEB_USUARIO, o "revisor" si no se define.
+  Sin WEB_CLAVE (uso local) no pide nada.
 """
+import base64
+import binascii
 import io
+import os
 import re
+import secrets
 import sqlite3
 import sys
 import unicodedata
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -98,7 +105,40 @@ RE_CODIGO = re.compile(r"^[A-Za-z]?\d[\w.]*\*?$")
 TAMANOS = (10, 25, 50, 100, 250)
 MAX_EXCEL = 200_000
 
-app = FastAPI(title="Manual Tarifario ISS 2001")
+app = FastAPI(title="Manual Tarifario ISS 2001", docs_url=None, redoc_url=None, openapi_url=None)
+
+CLAVE = os.environ.get("WEB_CLAVE", "")
+USUARIO = os.environ.get("WEB_USUARIO", "revisor")
+
+
+def credenciales_validas(cabecera):
+    if not cabecera.startswith("Basic "):
+        return False
+    try:
+        usuario, _, clave = base64.b64decode(cabecera[6:]).decode("utf-8").partition(":")
+    except (binascii.Error, UnicodeDecodeError):
+        return False
+    # compare_digest en ambos para no filtrar por tiempos cuál de los dos falló
+    ok_usuario = secrets.compare_digest(usuario.encode(), USUARIO.encode())
+    ok_clave = secrets.compare_digest(clave.encode(), CLAVE.encode())
+    return ok_usuario and ok_clave
+
+
+@app.middleware("http")
+async def exigir_clave(request: Request, call_next):
+    if CLAVE and request.url.path != "/salud" and not credenciales_validas(
+            request.headers.get("Authorization", "")):
+        return Response("Se requiere usuario y clave", status_code=401,
+                        headers={"WWW-Authenticate": 'Basic realm="Manual ISS 2001", charset="UTF-8"'})
+    return await call_next(request)
+
+
+@app.get("/salud")
+def salud():
+    """Chequeo de Render: responde sin clave, y solo si la BD existe."""
+    if not DB.exists():
+        raise HTTPException(503, "sin base de datos")
+    return PlainTextResponse("ok")
 
 
 def norm(x):
