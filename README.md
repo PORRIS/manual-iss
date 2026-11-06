@@ -16,6 +16,8 @@ uv run extraer_pdf.py        # PDF -> pdf_tablas.csv y pdf_textos.csv (~45 s; so
 uv run etl.py                # XLS + correcciones.csv -> salida/manual_iss.db y CSV
 uv run validar_completo.py   # informe BD vs PDF -> validacion_completa.csv
 uv run cotizar.py 903801 871112x2 C40402   # cotización rápida con tarifas en pesos
+uv run probar_bd.py          # 46 pruebas de la BD (consultas_prueba.sql); --ejemplos muestra filas
+uv run consultar.py consultas_ver.sql --vertical   # ficha de códigos, paquetes, búsquedas (editar los WITH)
 ```
 
 `extraer_pdf.py` solo hace falta la primera vez o si cambia el PDF o el extractor; el ETL lee los
@@ -38,6 +40,12 @@ correcciones.csv ┴──────etl.py──> aplica correcciones ──> 
 **Regla central: nada se sobrescribe sin revisión.** El ETL solo aplica lo que está en
 `correcciones.csv`. Después compara la BD contra el PDF en todos los campos y, si queda alguna
 diferencia que no esté revisada, termina con error y la lista en `diferencias_pendientes.csv`.
+
+## Si cambia el Excel o el PDF
+
+Use el prompt de [PROMPT_ACTUALIZACION.md](PROMPT_ACTUALIZACION.md): complete qué cambió y péguelo en
+Claude Code abierto en esta carpeta. Guía el diagnóstico, la reubicación de correcciones, la
+revisión de diferencias y la validación, con puntos de aprobación antes de fusionar o hacer commit.
 
 ## Archivos
 
