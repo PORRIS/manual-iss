@@ -18,6 +18,8 @@ import re
 import pandas as pd
 import pdfplumber
 
+from rutas import al_proyecto
+
 PDF = "MANUAL-ISS-2001.pdf"
 SAL_TABLAS = "pdf_tablas.csv"
 SAL_TEXTOS = "pdf_textos.csv"
@@ -271,6 +273,7 @@ def textos_pagina(p, zonas):
 
 
 def main():
+    al_proyecto()
     tablas, textos, bloque = [], [], 0
     with pdfplumber.open(PDF) as pdf:
         for p in pdf.pages:

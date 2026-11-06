@@ -11,6 +11,15 @@ Python se gestiona con [uv](https://docs.astral.sh/uv/): `uv add` para dependenc
 
 ## Uso rápido
 
+Para regenerar todo de una vez (desde cualquier carpeta):
+
+```bash
+./actualizar.sh          # ETL + 4 validaciones + copia para Navicat; se detiene en el primer error
+./actualizar.sh --pdf    # además vuelve a extraer el PDF
+```
+
+Comandos sueltos:
+
 ```bash
 uv run extraer_pdf.py        # PDF -> pdf_tablas.csv y pdf_textos.csv (~45 s; solo si cambia el PDF o el extractor)
 uv run etl.py                # XLS + correcciones.csv -> salida/manual_iss.db y CSV
@@ -66,6 +75,8 @@ Lo que se regenera solo (`salida/`, informes de validación) está en `.gitignor
 | `pruebas_cotizar.py` | Pruebas del cotizador con resultados calculados a mano. |
 | `proponer_correcciones.py` | Genera `correcciones_propuestas.csv` a partir de `validacion_completa.csv`, para revisarlo antes de fusionarlo. |
 | `auditoria_visual.py` | Muestreo reproducible de 10 páginas (semilla 256): imágenes en `salida/auditoria/` y filas de la BD en `auditoria_filas.csv`. Resultado de la revisión en `auditoria_visual.csv`. |
+| `actualizar.sh` | Regenera la BD, corre las validaciones y copia la BD a `C:\Users\Porris\Documents` para Navicat. Se detiene en el primer error. |
+| `rutas.py` | Ruta del proyecto y de la BD, para que los scripts funcionen desde cualquier carpeta; si la BD no existe, avisa en vez de crear una vacía. |
 | `liquidar.py` | Liquidación de honorarios quirúrgicos (arts. 59-67). |
 | `vistas.sql` | Vista `v_honorarios_cirugia`. |
 | `correcciones.csv` | Correcciones revisadas a mano. Ver abajo. |
@@ -123,7 +134,7 @@ Clasificación de las diferencias:
 |---|---|
 | `articulos` | `numero`, `texto`, `fila_excel` |
 | `agrupadores` | `id`, `articulo`, `nombre`, `fila_excel`, `padre_id`, `nivel` (1 = título; 2 = subtítulo; …) |
-| `procedimientos` | `id`, `fila_excel`, `articulo`, `agrupador_id`, `codigo_manual` (REF), `codigo` (CUPS), `marca` (PB), `descripcion`, `ref_nota`, `valor`, `unidad`, `tipo`, `padre_id` |
+| `procedimientos` | `id`, `fila_excel`, `articulo`, `agrupador_id`, `codigo_manual` (REF), `codigo` (CUPS), `marca` (PB), `descripcion`, `ref_nota`, `valor`, `unidad`, `tipo`, `padre_id`, `descripcion_busqueda` (sin tildes y en mayúsculas, para buscar) |
 | `notas` | `id`, `fila_excel`, `articulo`, `agrupador_id`, `procedimiento_id`, `tipo`, `texto`, `despues_de_fila` |
 | `parametros` | Valor de la UVR en pesos por tipo de profesional (art. 59) |
 | `abreviaturas` | Leyendas del PDF: `SOD` (Sin Otra Denominación), `NCOC` (No Clasificable bajo Otro Concepto), con sus páginas |
@@ -147,6 +158,9 @@ Clasificación de las diferencias:
 | `v_honorarios_cirugia` | Honorarios de cirugía (arts. 1-18) en pesos por profesional. |
 
 Ejemplo: `SELECT * FROM v_paquete_componentes WHERE componente_codigo = '512104';`
+
+Buscar sin importar tildes: `WHERE descripcion_busqueda LIKE '%CIRUGIA%'` (escriba el texto sin
+tildes; la consulta de búsqueda de `consultas_ver.sql` las quita sola).
 
 Las vistas **no aplican** recargos ni descuentos de los parágrafos: dependen del caso. Para eso está `cotizar.py`.
 

@@ -64,11 +64,18 @@ JOIN procedimientos c ON c.padre_id = pa.id
 WHERE pa.codigo IN (SELECT codigo FROM filtro)
 ORDER BY pa.codigo, c.fila_excel;
 
--- ## Buscar por texto en la descripción (sin distinguir mayúsculas; las tildes sí cuentan)
-WITH filtro(texto) AS (VALUES ('%COLECISTECTOM%'))
+-- ## Buscar por texto en la descripción (sin distinguir mayúsculas ni tildes)
+-- Escriba el texto con o sin tildes: 'cirugía', 'CIRUGIA' y 'cirugia' dan lo mismo.
+WITH filtro(texto) AS (VALUES ('%colecistectomía%')),
+     buscado(t) AS (
+    SELECT UPPER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+           REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(texto,
+           'á','a'),'é','e'),'í','i'),'ó','o'),'ú','u'),'ü','u'),'ñ','n'),
+           'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U'),'Ü','U'),'Ñ','N'))
+    FROM filtro)
 SELECT codigo, ref, marca AS pb, descripcion, valor, unidad, articulo, seccion, paquete_codigo
 FROM v_tarifas
-WHERE descripcion LIKE (SELECT texto FROM filtro)
+WHERE descripcion_busqueda LIKE (SELECT t FROM buscado)
 ORDER BY articulo, codigo;
 
 -- ## Todo lo que hay bajo un agrupador (por su ruta), con notas

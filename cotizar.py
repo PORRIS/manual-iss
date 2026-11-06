@@ -24,14 +24,15 @@ Uso:
 """
 import argparse
 import re
-import sqlite3
 import sys
 import unicodedata
 
 import pandas as pd
 
-DB = "salida/manual_iss.db"
-REGLAS = "reglas_tarifas.csv"
+from rutas import BASE, conectar
+
+DB = BASE / "salida" / "manual_iss.db"
+REGLAS = BASE / "reglas_tarifas.csv"
 RE_ITEM = re.compile(r"^(?P<codigo>[A-Za-z]?\d{4,6})(?:x(?P<cant>\d+))?(?:@(?P<ref>\w+))?$")
 # Art. 134 (pág. 204): departamentos y región con incremento; par. 2 (pág. 205): ciudades
 # donde no aplica. "URABA" = municipios de la región de Urabá (el Manual no los enumera).
@@ -65,7 +66,7 @@ def normcod(c):
 
 # ---------------------------------------------------------------- datos
 def cargar(db=DB, reglas=REGLAS):
-    con = sqlite3.connect(db)
+    con = conectar(db)
     d = dict(
         t=pd.read_sql("SELECT * FROM v_tarifas", con),
         notas=pd.read_sql("SELECT procedimiento_id, texto FROM notas "

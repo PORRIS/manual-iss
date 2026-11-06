@@ -13,9 +13,12 @@ fuente oficial. Nada se sobrescribe sin revisión:
      está en correcciones.csv, el ETL termina con error, la deja en
      diferencias_pendientes.csv y no genera la base.
 Cada corrección aplicada queda registrada en la tabla ajustes_pdf (auditoría)."""
-import os, re, sqlite3
+import os, re, sqlite3, unicodedata
 import pandas as pd
 
+from rutas import al_proyecto
+
+al_proyecto()
 from validar_completo import PDF_TABLAS, PDF_TEXTOS, cargar_pdf, comparar, fuerte
 
 try:
@@ -399,6 +402,15 @@ print("dígitos de códigos numéricos:", num.codigo.str.len().value_counts().to
 aj = tablas["ajustes_pdf"]
 print("correcciones aplicadas (ajustes_pdf):",
       aj.groupby(["accion", "campo"]).size().to_dict() if len(aj) else {})
+
+# Columna para buscar sin tildes ni mayúsculas (la descripción original no cambia).
+def sin_tildes(s):
+    if s is None or pd.isna(s):
+        return None
+    return unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode().upper()
+
+
+tablas["procedimientos"]["descripcion_busqueda"] = tablas["procedimientos"]["descripcion"].map(sin_tildes)
 
 # ---------------- salida ----------------
 os.makedirs("salida", exist_ok=True)

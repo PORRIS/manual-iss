@@ -8,6 +8,8 @@ import argparse
 import sqlite3
 import sys
 
+from rutas import al_proyecto, conectar
+
 DB = "salida/manual_iss.db"
 SQL = "consultas_prueba.sql"
 
@@ -37,7 +39,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ejemplos", action="store_true", help="muestra las filas de los ejemplos")
     a = ap.parse_args()
-    con = sqlite3.connect(DB)
+    al_proyecto()
+    con = conectar()
     ok = fallas = 0
     for titulo, esperado, consulta in bloques(open(SQL, encoding="utf-8").read()):
         try:

@@ -1,10 +1,13 @@
 """Compara la BD generada desde el Excel (salida/manual_iss.db) contra el PDF del
 Acuerdo 256 de 2001, ya extraído en pdf_referencia.csv. Escribe validacion.csv."""
 import re
-import sqlite3
 import unicodedata
 
 import pandas as pd
+
+from rutas import al_proyecto, conectar
+
+al_proyecto()
 
 DB = "salida/manual_iss.db"
 REF_PDF = "pdf_referencia.csv"
@@ -29,7 +32,7 @@ def norm_ref(r):
 
 
 # ---- datos ----
-con = sqlite3.connect(DB)
+con = conectar()
 x = pd.read_sql("SELECT fila_excel, articulo, codigo_manual, codigo, descripcion, valor, tipo "
                 "FROM procedimientos ORDER BY fila_excel", con)
 con.close()
@@ -88,3 +91,4 @@ print(f"valores comparados: {cv.valor_pdf.notna().sum()}")
 print("hallazgos por tipo:")
 print(h.tipo.value_counts().to_string() if len(h) else "  ninguno")
 print(f"detalle en {SALIDA}")
+raise SystemExit(1 if len(h) else 0)

@@ -14,7 +14,7 @@ import sys
 
 import pandas as pd
 
-DB = "salida/manual_iss.db"
+from rutas import BASE, conectar
 
 
 def sentencias(sql):
@@ -42,11 +42,12 @@ def main():
     ap.add_argument("--csv", help="guarda el resultado de la última consulta en este CSV")
     a = ap.parse_args()
 
-    sql = open(a.sql, encoding="utf-8").read() if os.path.exists(a.sql) else a.sql
+    archivo = a.sql if os.path.exists(a.sql) else BASE / a.sql  # también desde otra carpeta
+    sql = open(archivo, encoding="utf-8").read() if os.path.exists(archivo) else a.sql
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_colwidth", 60)
-    con = sqlite3.connect(DB)
+    con = conectar()
     df = None
     for titulo, q in sentencias(sql if sql.rstrip().endswith(";") else sql + ";"):
         try:

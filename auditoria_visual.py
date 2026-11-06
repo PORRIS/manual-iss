@@ -7,11 +7,13 @@ compararlas a ojo contra la imagen. El resultado de la revisión va en auditoria
 """
 import os
 import random
-import sqlite3
 
 import pandas as pd
 import pdfplumber
 
+from rutas import al_proyecto, conectar
+
+al_proyecto()
 from validar_completo import ref5
 
 SEMILLA = 256  # Acuerdo 256 de 2001
@@ -25,7 +27,7 @@ paginas = sorted(set(pt.pagina))
 muestra = sorted(random.Random(SEMILLA).sample(paginas, N))
 print(f"páginas con tablas: {len(paginas)} | semilla {SEMILLA} | muestra: {muestra}")
 
-con = sqlite3.connect("salida/manual_iss.db")
+con = conectar()
 pr = pd.read_sql("SELECT fila_excel, codigo_manual, marca, codigo, descripcion, ref_nota, "
                  "valor FROM procedimientos ORDER BY fila_excel", con)
 con.close()

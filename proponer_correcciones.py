@@ -10,10 +10,12 @@ Criterios:
 """
 import csv
 import re
-import sqlite3
 
 import pandas as pd
 
+from rutas import al_proyecto, conectar
+
+al_proyecto()
 from validar_completo import RE_NOTAS_FINAL, espacios, fuerte, notas_de
 
 DB = "salida/manual_iss.db"
@@ -21,7 +23,7 @@ COLS = ["fila_excel", "codigo_esperado", "accion", "campo", "valor_nuevo", "pagi
         "motivo"]
 
 d = pd.read_csv("validacion_completa.csv", dtype=str, keep_default_na=False)
-con = sqlite3.connect(DB)
+con = conectar()
 pr = pd.read_sql("SELECT fila_excel, codigo, descripcion, ref_nota FROM procedimientos", con)
 con.close()
 pr["fila_excel"] = pr.fila_excel.astype(str)

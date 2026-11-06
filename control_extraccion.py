@@ -5,6 +5,10 @@ import difflib
 
 import pandas as pd
 
+from rutas import al_proyecto
+
+al_proyecto()
+
 ref = pd.read_csv("pdf_referencia.csv", dtype=str, encoding="utf-8-sig")
 cel = pd.read_csv("pdf_tablas.csv", dtype=str, encoding="utf-8-sig").fillna("")
 ref = ref.fillna("")

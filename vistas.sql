@@ -46,7 +46,8 @@ SELECT p.id, p.articulo,
            ELSE 'Otros'
        END AS seccion,
        r.titulo, r.ruta AS agrupador_ruta, g.nombre AS agrupador,
-       p.codigo_manual AS ref, p.codigo, p.marca, p.descripcion, p.ref_nota, p.tipo,
+       p.codigo_manual AS ref, p.codigo, p.marca, p.descripcion, p.descripcion_busqueda,
+       p.ref_nota, p.tipo,
        pq.codigo AS paquete_codigo, p.unidad, p.valor,
        CASE WHEN p.unidad = 'UVR'
             THEN p.valor * (SELECT pesos_por_uvr FROM parametros WHERE codigo_uvr = 'S41101')

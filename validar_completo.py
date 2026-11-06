@@ -20,10 +20,11 @@ Salida: validacion_completa.csv con tipo, campo, fila_excel, pagina_pdf, valor_b
 """
 import difflib
 import re
-import sqlite3
 import unicodedata
 
 import pandas as pd
+
+from rutas import al_proyecto, conectar
 
 DB = "salida/manual_iss.db"
 PDF_TABLAS = "pdf_tablas.csv"
@@ -322,7 +323,8 @@ def comparar(pr, ag, ar, nt, pt, px):
 
 
 def main():
-    con = sqlite3.connect(DB)
+    al_proyecto()
+    con = conectar()
     pr = pd.read_sql("SELECT * FROM procedimientos ORDER BY fila_excel", con)
     ag = pd.read_sql("SELECT * FROM agrupadores", con)
     ar = pd.read_sql("SELECT * FROM articulos", con)

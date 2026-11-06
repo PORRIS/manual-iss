@@ -12,10 +12,12 @@ Luego cada agrupador de la BD se empareja con su título del PDF por nombre (en 
 import csv
 import difflib
 import re
-import sqlite3
 
 import pandas as pd
 
+from rutas import al_proyecto, conectar
+
+al_proyecto()
 from validar_completo import fuerte
 
 t = pd.read_csv("pdf_textos.csv", keep_default_na=False)
@@ -110,7 +112,7 @@ for _, _, clase, r in ev:
     tras_fila = False
 
 tp = pd.DataFrame(titulos)
-con = sqlite3.connect("salida/manual_iss.db")
+con = conectar()
 ag = pd.read_sql("SELECT id, articulo, nombre, fila_excel FROM agrupadores ORDER BY fila_excel", con)
 con.close()
 

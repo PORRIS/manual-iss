@@ -38,14 +38,19 @@
     `consultar.py` (ficha por código, paquetes, búsqueda, ajustes de valor, manual completo en
     el orden del Excel). `PROMPT_ACTUALIZACION.md`: prompt para cuando cambie el Excel o el PDF.
     Commits: a949530 (base) y 7700267 (consultas y prompt). Sin remoto configurado.
+13. `actualizar.sh` (todo en un comando), `rutas.py` (scripts desde cualquier carpeta; error
+    claro si falta la BD), columna `procedimientos.descripcion_busqueda` (búsqueda sin tildes)
+    y `validar.py` termina con error si hay hallazgos.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
   tiene bloqueos sobre esa ruta de red). Se usa una copia:
-  `cp salida/manual_iss.db /mnt/c/Users/Porris/Documents/manual_iss.db` (repetir tras cada ETL).
+  `C:\Users\Porris\Documents\manual_iss.db`, que `./actualizar.sh` actualiza en cada corrida
+  (si Navicat la tiene abierta, la copia falla: cerrarla y repetir).
 - No está instalado el cliente `sqlite3`: usar `uv run consultar.py "<SQL>"` o un archivo .sql.
-- Los scripts usan rutas relativas: ejecutarlos desde la carpeta del proyecto.
+- Los scripts encuentran el proyecto y la BD desde cualquier carpeta (`rutas.py`). Con `uv`, desde
+  otra carpeta: `uv run --project ~/develop/manual_iss ~/develop/manual_iss/consultar.py ...`.
 
 ## Pendiente
 - Confirmar (hoy funcionan así): el +15 % del art. 134 también se aplica a los adicionales por
@@ -54,14 +59,11 @@
 - No automatizado en cotizar.py: art. 95 par. 7 (varios conjuntos en un mismo acto) y
   par. 22 (anestesia general en hemodinamia/radiología intervencionista: falta la lista de
   conjuntos a los que aplica).
-- Opcional: subir el repositorio a un remoto; copia automática de la BD a Windows al terminar
-  el ETL; que los scripts encuentren la BD desde cualquier carpeta.
+- Opcional: subir el repositorio a un remoto; exportar el manual completo a Excel.
 
 ## Orden para regenerar
 ```bash
-uv run extraer_pdf.py && uv run control_extraccion.py   # solo si cambió el PDF o el extractor
-uv run etl.py
-uv run validar.py && uv run validar_completo.py && uv run probar_bd.py && uv run pruebas_cotizar.py
-cp salida/manual_iss.db /mnt/c/Users/Porris/Documents/manual_iss.db
+./actualizar.sh          # ETL + validaciones + copia para Navicat
+./actualizar.sh --pdf    # además extrae el PDF (solo si cambió el PDF o el extractor)
 ```
 Si cambia el Excel o el PDF: usar PROMPT_ACTUALIZACION.md.

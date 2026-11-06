@@ -67,12 +67,11 @@ nunca pip). BD: `salida/manual_iss.db`; copia para Navicat en
      por qué cambia cada uno.
 
 5. **Validación final.**
-   - `uv run validar_completo.py`, `uv run validar.py`, `uv run probar_bd.py` y
-     `uv run pruebas_cotizar.py`: muéstrame su salida.
+   - `./actualizar.sh` (ETL, `validar.py`, `validar_completo.py`, `probar_bd.py`,
+     `pruebas_cotizar.py` y copia para Navicat): muéstrame el resumen de su salida.
    - Auditoría visual: 10 páginas con semilla fija más todas las páginas con cambios;
      compara a ojo cada fila con la BD y reporta cuántas revisaste y cualquier diferencia.
    - Actualiza `ESTADO.md` y, si cambió el flujo o hay decisiones nuevas, el README.
-   - Copia la BD para Navicat (`cp salida/manual_iss.db /mnt/c/Users/Porris/Documents/`).
    - Propón el mensaje del commit y espera mi aprobación antes de hacerlo.
 
 ## Reglas

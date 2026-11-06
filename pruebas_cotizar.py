@@ -1,6 +1,9 @@
 """Pruebas de cotizar.py con resultados calculados a mano (tarifas del PDF).
 Uso: uv run pruebas_cotizar.py"""
 from cotizar import cargar, cotizar
+from rutas import al_proyecto
+
+al_proyecto()
 
 D = cargar()
 OP0 = {"solo-muestra": None, "biopsia-multiple": [], "portatil-rx": {}, "portatil-eco": [],
