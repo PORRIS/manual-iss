@@ -170,7 +170,8 @@ def leer_excel(contenido):
     for ws in wb.worksheets:
         tipo = HOJAS.get(_norm(ws.title))
         if not tipo:
-            avisos.append(f"Hoja «{ws.title}» ignorada: use CUPS, CUMS/MEDICAMENTOS, INSUMOS o MATERIALES")
+            if _norm(ws.title) != "INSTRUCCIONES":
+                avisos.append(f"Hoja «{ws.title}» ignorada: use CUPS, CUMS/MEDICAMENTOS, INSUMOS o MATERIALES")
             continue
         it = ws.iter_rows(values_only=True)
         col, n_cab = None, 0
@@ -228,20 +229,69 @@ def validar(filas, tipo_base):
     return errores
 
 
+def _estilo_cabecera(ws, color="1DBB99"):
+    from openpyxl.styles import Font, PatternFill
+    for c in ws[1]:
+        c.fill = PatternFill("solid", fgColor=color)
+        c.font = Font(bold=True, color="FFFFFF")
+    ws.freeze_panes = "A2"
+
+
 def plantilla():
-    """Excel vacío con el formato esperado."""
+    """Excel para llenar y subir: una hoja de datos vacía por tipo (CUPS, CUMS, INSUMOS,
+    MATERIALES) y la hoja INSTRUCCIONES con ejemplos (se ignora al cargar)."""
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.worksheet.datavalidation import DataValidation
     wb = openpyxl.Workbook()
-    wb.remove(wb.active)
-    ejemplos = {"CUPS": ("890202", "CONSULTA DE PRIMERA VEZ POR OTRAS ESPECIALIDADES", 79000, "", ""),
-                "CUMS": ("19933174-1", "ACETAMINOFEN 500 MG TABLETA", 120, "", ""),
-                "INSUMOS": ("INS-0001", "EQUIPO DE VENOCLISIS", 4500, "", ""),
-                "MATERIALES": ("MAT-0001", "GASA ESTERIL 10 X 10", "", "SOAT", -5)}
-    for hoja, ej in ejemplos.items():
+    ins = wb.active
+    ins.title = "INSTRUCCIONES"
+    texto = [
+        ("Plantilla de tarifas propias", True),
+        ("1. Llene una fila por tecnología en la hoja que corresponda: CUPS (procedimientos y servicios), "
+         "CUMS (medicamentos), INSUMOS y MATERIALES. Puede dejar vacías las hojas que no use.", False),
+        ("2. Columnas obligatorias: Código, Descripción y Tarifa (valor pactado en pesos, sin decimales "
+         "o con coma decimal).", False),
+        ("3. Columnas opcionales, solo si esa fila se liquida distinto al resto del manual: «Tipo "
+         "liquidación» (valor fijo, SOAT o ISS) y «Factor %» (recargo o descuento sobre SOAT o ISS, "
+         "ej. -5 o 10). Si las deja vacías se usa lo que indique al subir el manual.", False),
+        ("4. Con tipo SOAT o ISS la Tarifa puede quedar vacía: el valor sale de esa tarifa más el factor.", False),
+        ("5. No cambie los nombres de las hojas ni de las columnas. Esta hoja no se carga.", False),
+        ("6. Al subir el archivo indique el código del manual (ej. TAR-PROPIA-2026-01), el nombre, el "
+         "pagador, la vigencia y el estado. Si el código ya existe se crea una versión nueva.", False),
+        ("", False),
+        ("Ejemplos (no los copie como tarifas reales):", True),
+    ]
+    for t, negrita in texto:
+        ins.append([t])
+        ins.cell(ins.max_row, 1).font = Font(bold=negrita, size=13 if ins.max_row == 1 else 11)
+        ins.cell(ins.max_row, 1).alignment = Alignment(wrap_text=True, vertical="top")
+    ins.append(["Hoja", "Código", "Descripción", "Tarifa", "Tipo liquidación", "Factor %"])
+    for c in ins[ins.max_row]:
+        c.font = Font(bold=True)
+    for ej in (("CUPS", "890202", "CONSULTA DE PRIMERA VEZ POR OTRAS ESPECIALIDADES", 79000, "", ""),
+               ("CUPS", "903841", "GLUCOSA EN SUERO", "", "SOAT", -10),
+               ("CUMS", "19933174-1", "ACETAMINOFEN 500 MG TABLETA", 120, "", ""),
+               ("INSUMOS", "INS-0001", "EQUIPO DE VENOCLISIS", 4500, "", ""),
+               ("MATERIALES", "MAT-0001", "GASA ESTERIL 10 X 10", "", "ISS", 30)):
+        ins.append(list(ej))
+    ins.column_dimensions["A"].width = 110
+    for c, w in zip("BCDEF", (14, 46, 12, 16, 10)):
+        ins.column_dimensions[c].width = w
+    lista = DataValidation(type="list", formula1='"valor fijo,SOAT,ISS"', allow_blank=True,
+                           showErrorMessage=True, errorTitle="Tipo de liquidación",
+                           error="Use valor fijo, SOAT o ISS (o déjelo vacío)")
+    for hoja in ("CUPS", "CUMS", "INSUMOS", "MATERIALES"):
         ws = wb.create_sheet(hoja)
         ws.append(["Código", "Descripción", "Tarifa", "Tipo liquidación", "Factor %"])
-        ws.append(list(ej))
-        for c, w in zip("ABCDE", (16, 50, 14, 18, 10)):
+        _estilo_cabecera(ws)
+        for c, w in zip("ABCDE", (18, 60, 14, 18, 11)):
             ws.column_dimensions[c].width = w
+        v = DataValidation(type="list", formula1=lista.formula1, allow_blank=True, showErrorMessage=True,
+                           errorTitle=lista.errorTitle, error=lista.error)
+        v.add("D2:D5000")
+        ws.add_data_validation(v)
+        for fila in range(2, 5001):  # códigos como texto: conservan los ceros a la izquierda
+            ws.cell(fila, 1).number_format = "@"
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

@@ -994,6 +994,18 @@ def api_soat_estado(version_id: int, c: CambioEstado):
     return {"ok": True}
 
 
+@app.get("/api/soat/plantilla")
+def api_soat_plantilla(version: str = Query("base", pattern=r"^(base|\d{1,9})$")):
+    """Excel para preparar otra versión SOAT, prellenado con la versión indicada (2026 por defecto)."""
+    try:
+        with conexion() as con:
+            contenido, anio = sv.plantilla(con, version)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return Response(contenido, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="plantilla_soat_{anio + 1}.xlsx"'})
+
+
 @app.get("/api/soat/versiones/{version_id}/tarifas")
 def api_soat_tarifas(version_id: int):
     return _json(sv.tarifas_version(version_id))

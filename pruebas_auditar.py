@@ -98,6 +98,24 @@ vs = sv.guardar((BASE / "soat" / "SOAT A SALARIO MINIMO_UVT_UVB.xlsx").read_byte
 T27, uvb27, _ = sv.aplicar(T, vs["id"], eng=ENG)
 glu = [auditar_tarifa([dict(codigo="903841", valor_unitario=23814, seccion=P)], "soat", t, uvb=u)["lineas"][0]["estado"]
        for t, u in ((T, 12110), (T27, uvb27))]
+# Plantillas: se descargan, se llenan y se vuelven a subir con el mismo cargador
+from rutas import conectar  # noqa: E402
+
+pl_soat, _ = sv.plantilla(conectar())
+wb = openpyxl.load_workbook(io.BytesIO(pl_soat))
+for fila in wb["TD"].iter_rows(min_row=4):
+    if fila[0].value == "UVB":
+        fila[1].value = 12600  # la persona escribe la UVB nueva como número
+buf = io.BytesIO()
+wb.save(buf)
+tar_pl, uvb_pl, calc_pl = sv.leer_excel(buf.getvalue())
+pl_prop = openpyxl.load_workbook(io.BytesIO(tp.plantilla()))
+pl_prop["CUPS"].append(["010101", "PUNCION CISTERNAL", 150000])
+pl_prop["CUMS"].append(["19933174-1", "ACETAMINOFEN", "1.200"])
+buf = io.BytesIO()
+pl_prop.save(buf)
+filas_pl, avisos_pl = tp.leer_excel(buf.getvalue())
+
 lp = [dict(codigo="890202", valor_unitario=80000, seccion="consultas"),
       dict(codigo="50010194", valor_unitario=11292000, seccion="otrosServicios", datos={"tipoOS": "01"}),
       dict(codigo="MED-001", valor_unitario=58000, seccion="medicamentos"),
@@ -159,6 +177,11 @@ CASOS = [
      (glu, vs["calculados"], uvb27), (["Glosa", "Conforme"], ["39205"], 12600.0)),
     ("SOAT con otra UVB (11.552): 1,89 x 11.552 = 21.833,28", (round(soat_uvb[0]["esperado"], 2), soat_uvb[0]["estado"]), (21833.28, "Conforme")),
     ("SOAT + 4 %: 22.887,9 x 1,04 = 23.803,42", round(soat_contrato[0]["esperado"], 2), 23803.42),
+    ("plantilla SOAT prellenada: 1.426 códigos de la tabla, UVB escrita como número, 39205 se calcula",
+     (len(tar_pl) - len(calc_pl), uvb_pl, calc_pl), (1426, 12600.0, ["39205"])),
+    ("plantilla de tarifas propias: hojas vacías + INSTRUCCIONES (no se carga ni avisa); filas llenadas",
+     ([(f["tipo"], f["codigo"], f["tarifa"]) for f in filas_pl], avisos_pl),
+     ([("cups", "010101", 150000.0), ("cum", "19933174-1", 1200.0)], [])),
     ("manual propio: versiones 1 y 2 del mismo código; 5 códigos (repetido y hoja ajena avisados)",
      (va["version"], vb["version"], va["filas"], len(va["avisos"])), (1, 2, 5, 2)),
     ("manual propio v1: valor fijo (glosa 1.000), insumo, CUM, fila SOAT -10 %, fila ISS (vía relación), "

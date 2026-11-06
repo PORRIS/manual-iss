@@ -322,7 +322,9 @@ con cualquier tabla a la que le falte un componente de cirugía; la columna `ori
 ### Versiones de la tarifa SOAT (`soat_versiones.py`)
 
 La tarifa SOAT cambia cada año. La SOAT 2026 del repositorio es la versión por defecto; las de otros
-años se suben (web: «Versiones de tarifa SOAT»; consola: `uv run soat_versiones.py cargar archivo.xlsx
+años se suben con la **plantilla prellenada** (botón «Plantilla» en «Versiones de tarifa SOAT» o
+`/api/soat/plantilla?version=ID`: trae todos los códigos y factores de la versión elegida y la UVB
+resaltada en la hoja TD; se cambian la UVB y los factores que cambien) (web: «Versiones de tarifa SOAT»; consola: `uv run soat_versiones.py cargar archivo.xlsx
 --anio 2027 [--uvb 12600]`) con el mismo formato del maestro SOAT (hoja TABLA con los factores y hoja
 TD con la UVB). Se guardan en la base de tarifas propias (`soat_versiones`, `soat_version_archivos`,
 `soat_version_tarifas`) con su Excel original, año, UVB y estado. Al auditar con SOAT se elige la
@@ -353,7 +355,8 @@ git). En Render se configura como variable de entorno del servicio.
 Excel: una hoja por tipo (CUPS; CUMS o MEDICAMENTOS; INSUMOS; MATERIALES) con Código, Descripción,
 Tarifa y, opcionales, «Tipo liquidación» (valor fijo, SOAT, ISS) y «Factor %»; la cabecera puede no
 estar en la primera fila. La web muestra una vista previa (conteos, primeras filas, avisos y errores)
-antes de guardar y ofrece una plantilla.
+antes de guardar y ofrece una plantilla para llenar (hojas vacías con lista desplegable en «Tipo
+liquidación» y una hoja INSTRUCCIONES con ejemplos, que no se carga).
 
 ```bash
 uv run tarifas_propias.py cargar "tarifas propias/TARIFAS PROPIAS.xlsx" --codigo TAR-PROPIA-2026-01 \

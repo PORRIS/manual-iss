@@ -1308,8 +1308,10 @@ async function pintarPropias() {
         <div class="cot-acciones propia-ancho">
           <button class="boton boton--borde" type="button" id="propiaPrevia">${icono("ojo")}Vista previa</button>
           <button class="boton boton--verde" type="submit" id="propiaGuardar" disabled>${icono("descarga")}Guardar versión</button>
-          <a class="boton boton--borde" href="/api/propias-plantilla">${icono("excel")}Plantilla</a>
+          <a class="boton boton--borde" href="/api/propias-plantilla">${icono("excel")}Plantilla para llenar</a>
         </div>
+        <p class="ayuda propia-ancho">Descargue la plantilla, llene las hojas CUPS, CUMS, INSUMOS y MATERIALES (la hoja INSTRUCCIONES
+          trae ejemplos y no se carga), y súbala aquí con los datos del manual.</p>
       </form>
       <div id="propiaPreviaRes"></div>
       <p class="ayuda">Se guarda en: ${esc(PROP_CFG.destino || "—")}</p>
@@ -1463,7 +1465,10 @@ async function pintarSoatVersiones() {
         <div class="cot-acciones propia-ancho">
           <button class="boton boton--borde" type="button" id="soatPrevia">${icono("ojo")}Vista previa</button>
           <button class="boton boton--verde" type="submit" id="soatGuardar" disabled>${icono("descarga")}Guardar versión</button>
+          <a class="boton boton--borde" href="/api/soat/plantilla" title="Excel prellenado con la SOAT 2026: actualice la UVB y los factores">${icono("excel")}Plantilla (prellenada con SOAT 2026)</a>
         </div>
+        <p class="ayuda propia-ancho">¿Cómo preparar la tarifa del año nuevo? Descargue la plantilla (trae todos los códigos y factores
+          vigentes), cambie la UVB en la hoja TD y los factores que cambien en la hoja TABLA, y súbala aquí.</p>
       </form>
       <div id="soatPreviaRes"></div>
       <p class="ayuda">Las versiones subidas se guardan en: ${esc(SOAT_CFG?.destino || "—")}</p>
@@ -1551,7 +1556,8 @@ function pintarListaSoat() {
       <td class="num">${v.filas}</td>
       <td>${v.predeterminada ? esc(v.archivo) : `<a class="pagina" href="/api/soat/versiones/${v.id}/archivo">${esc(v.archivo || "Excel")}</a>`}</td>
       <td class="sutil sin-salto">${esc(String(v.cargado_en || "con el sistema").slice(0, 16).replace("T", " "))}</td>
-      <td class="sin-salto">${v.predeterminada ? "" : `<button class="boton-icono" type="button" data-tarifas-soat="${v.id}" title="Ver tarifas">${icono("lista")}</button>`}
+      <td class="sin-salto"><a class="boton-icono" href="/api/soat/plantilla?version=${esc(v.id)}" title="Plantilla prellenada con esta versión">${icono("excel")}</a>
+        ${v.predeterminada ? "" : `<button class="boton-icono" type="button" data-tarifas-soat="${v.id}" title="Ver tarifas">${icono("lista")}</button>`}
         <button class="boton-icono" type="button" data-usar-soat="${v.id}" title="Usar en una auditoría">${icono("lupa")}</button></td></tr>`).join("")}</tbody></table></div>
     <p class="ayuda">Las tarifas de la versión por defecto se consultan en «SOAT 2026» y «Cirugía SOAT por grupo».</p>`;
 }

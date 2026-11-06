@@ -182,6 +182,87 @@ def aplicar(T, version_id, eng=None):
     return Tv, v.uvb, v.nombre
 
 
+def plantilla(con_bd, version_id=BASE_ID, eng=None):
+    """Excel para preparar la tarifa SOAT de otro año, prellenado con una versión existente
+    (por defecto la SOAT 2026): hoja TABLA (códigos y factores), hoja TD (UVB y parámetros) e
+    INSTRUCCIONES. Se actualizan la UVB y los factores que cambien, y se sube."""
+    import io
+
+    import openpyxl
+    from openpyxl.styles import Alignment, Font, PatternFill
+    if version_id in (None, "", BASE_ID):
+        filas = con_bd.execute("SELECT codigo, descripcion, factor_smlv, factor_uvt, factor_uvb "
+                               "FROM soat_tarifas WHERE origen = 'tabla' OR origen IS NULL "
+                               "ORDER BY CAST(codigo AS INTEGER)").fetchall()
+        anio, uvb = 2026, version_base(con_bd)["uvb"]
+        params = con_bd.execute("SELECT concepto, valor_texto, equivalencia, uso, norma, entidad, "
+                                "observacion FROM soat_parametros").fetchall()
+    else:
+        with motor(eng).connect() as con:
+            v = con.execute(select(versiones).where(versiones.c.id == int(version_id))).first()
+            if v is None:
+                raise ValueError("Versión SOAT no encontrada")
+            filas = [(r.codigo, r.descripcion, r.factor_smlv, r.factor_uvt, r.factor_uvb) for r in
+                     con.execute(select(tarifas).where(tarifas.c.version_id == v.id)
+                                 .order_by(tarifas.c.codigo))
+                     if not str(r.origen or "").startswith("calculado")]
+        anio, uvb = v.anio, v.uvb
+        params = [("UVB", f"${uvb:,.0f}".replace(",", "."), "1 UVB = 100%", "Tarifa oficial SOAT", "", "", "")]
+    verde, morado = PatternFill("solid", fgColor="1DBB99"), PatternFill("solid", fgColor="6D5EAC")
+    blanco = Font(bold=True, color="FFFFFF")
+    wb = openpyxl.Workbook()
+    ins = wb.active
+    ins.title = "INSTRUCCIONES"
+    for i, t in enumerate([
+            f"Plantilla de tarifa SOAT (prellenada con SOAT {anio})",
+            "1. Hoja TD: escriba el valor de la UVB del año nuevo en la fila UVB (columna VALOR / VIGENCIA). "
+            "Puede actualizar también la norma o resolución.",
+            "2. Hoja TABLA: actualice el FACTOR UVB de los códigos que cambien, agregue filas para códigos "
+            "nuevos y borre las de códigos derogados. El valor en pesos = FACTOR UVB x UVB.",
+            "3. No cambie los nombres de las hojas TABLA y TD ni el orden de las columnas (CÓDIGO, "
+            "DESCRIPCIÓN, % SMLV, FACTOR UVT, FACTOR UVB). Las columnas % SMLV y FACTOR UVT son informativas.",
+            "4. Si falta algún componente de cirugía (cirujano, anestesiólogo, ayudante, sala o materiales "
+            "de un grupo), el sistema lo calcula con el Decreto 780 de 2016 y lo marca como «calculado».",
+            "5. Suba el archivo en «Versiones de tarifa SOAT»: indique el año y revise la vista previa antes "
+            "de guardar. Esta hoja no se carga."], start=1):
+        ins.cell(i, 1, t).alignment = Alignment(wrap_text=True, vertical="top")
+        ins.cell(i, 1).font = Font(bold=i == 1, size=13 if i == 1 else 11)
+    ins.column_dimensions["A"].width = 120
+
+    t = wb.create_sheet("TABLA")
+    t.append([f"MAESTRO TARIFARIO SOAT {anio + 1} (preparado desde SOAT {anio})"])
+    t.append(["Códigos, descripciones y factores. Valor en pesos = FACTOR UVB x UVB (hoja TD)."])
+    t.append(["PROCEDIMIENTO", None, "SMLV", "UVT", "UVB"])
+    t.append(["CÓDIGO", "DESCRIPCIÓN", "% SMLV", "FACTOR UVT", "FACTOR UVB"])
+    for c in t[4]:
+        c.fill, c.font = verde, blanco
+    for f in filas:
+        t.append([str(f[0]), f[1], f[2], f[3], f[4]])
+    t.freeze_panes = "A5"
+    for c, w in zip("ABCDE", (12, 70, 12, 12, 13)):
+        t.column_dimensions[c].width = w
+    for (celda,) in t.iter_rows(min_row=5, min_col=1, max_col=1):
+        celda.number_format = "@"
+
+    td = wb.create_sheet("TD")
+    td.append([f"MANUAL TARIFARIO SOAT {anio + 1} — PARÁMETROS"])
+    td.append([])
+    td.append(["CONCEPTO", "VALOR / VIGENCIA", "EQUIVALENCIA BASE", "USO EN EL MAESTRO", "NORMA / RESOLUCIÓN",
+               "ENTIDAD", "OBSERVACIÓN"])
+    for c in td[3]:
+        c.fill, c.font = morado, blanco
+    for p_ in params:
+        td.append([str(x) if x is not None else None for x in p_])
+        if str(p_[0]).strip().upper() == "UVB":
+            td.cell(td.max_row, 2).fill = PatternFill("solid", fgColor="FFF1A8")
+            td.cell(td.max_row, 7, f"Actualice con la UVB {anio + 1} (hoy: {p_[1]})")
+    for c, w in zip("ABCDEFG", (18, 18, 20, 30, 34, 26, 40)):
+        td.column_dimensions[c].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue(), anio
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)

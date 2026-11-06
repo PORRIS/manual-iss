@@ -135,9 +135,15 @@ def _cups(v):
 
 
 def _pesos(texto):
-    """'$12.110' -> 12110.0; '$58.363,50' -> 58363.5"""
+    """'$12.110' -> 12110.0; '$58.363,50' -> 58363.5; 12110 o '12110.0' (celda numérica) -> 12110.0"""
+    if isinstance(texto, (int, float)):
+        return float(texto)
     s = re.sub(r"[^\d,.]", "", str(texto or ""))
-    return float(s.replace(".", "").replace(",", ".")) if s else None
+    if not s:
+        return None
+    if re.fullmatch(r"\d+\.\d{1,2}", s):  # número de Excel leído como texto: 12110.0
+        return float(s)
+    return float(s.replace(".", "").replace(",", "."))
 
 
 def leer_tabla_soat(fuente):
