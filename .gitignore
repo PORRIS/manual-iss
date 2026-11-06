@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Credenciales (DB_URL para cargar la base a PostgreSQL/MySQL/SQL Server)
+.env
+
+# Marcas de Windows en archivos descargados
+*:Zone.Identifier
+
+# Generado por etl.py y auditoria_visual.py (se regenera con `uv run etl.py`)
+salida/
+
+# Informes que se regeneran en cada ejecución
+validacion.csv
+validacion_completa.csv
+control_extraccion.csv
+diferencias_pendientes.csv
+auditoria_filas.csv
+# Propuesta ya revisada y fusionada en correcciones.csv (proponer_correcciones.py la regenera)
+correcciones_propuestas.csv

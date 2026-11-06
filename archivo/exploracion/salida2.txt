@@ -1,0 +1,80 @@
+
+=== 11111000000000  (5087 filas) ===
+         0   1       2                                          3      4    5   6   7   8   9   10  11  12   13
+936    5101  PB  386100               TOMA DE INJERTO ARTERIAL SOD     55  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+1834   8146  PB  487702  DESCENSO RECTAL VÍA  ANTERIOR Y POSTERIOR    300  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+7617  38715  PB  S12400      SERVICIO DE COMPLEJIDAD BAJA    (357)  52080  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8285  90141  PB  993504          VACUNACION CONTRA FIEBRE AMARILLA    755  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 10111000000000  (735 filas) ===
+          0    1       2                                             3        4    5   6   7   8   9   10  11  12   13
+4165   16319  NaN  764201  MANDIBULECTOMÍA TOTAL SIN RECONSTRUCCION ...      160  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+6102  213452  NaN  519600  EXTRACCION PERCUTANEA DE CALCULOS EN COLE...   336345  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8637   40419  NaN  C40419                          COLECTOMÍA SUBTOTAL   3220055  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8998   40731  NaN  C40731     EXTIRPACIÓN DE HIGROMA QUÍSTICO DE CUELLO   659200  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 00100000000000  (699 filas) ===
+       0    1                                             2    3    4    5   6   7   8   9   10  11  12   13
+6486  NaN  NaN  c) El valor total del estudio que para su...  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+6980  NaN  NaN  APLICA: para diferida manual o automatiza...  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8321  NaN  NaN           Tarifa sesión de 30 minutos   (412)  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8566  NaN  NaN                          Tarifa  por paciente  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 00010000000000  (601 filas) ===
+       0    1    2                                             3    4    5   6   7   8   9   10  11  12   13
+4550  NaN  NaN  NaN                      ENDOSCOPIAS TERAPEUTICAS  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+6206  NaN  NaN  NaN  PROCEDIMIENTOS ECOGRAFICOS VASCULARES NO ...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+6396  NaN  NaN  NaN                              SISTEMA NERVIOSO  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+7529  NaN  NaN  NaN                  SERVICIO DE COMPLEJIDAD BAJA  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 10000000000000  (496 filas) ===
+                                                0    1    2    3    4    5   6   7   8   9   10  11  12   13
+7990  PARAGRAFO 1: Las jeringas, agujas y los e...  NaN  NaN  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9432  Si a la culminación de los primeros 45 dí...  NaN  NaN  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9497  Son aquellos iguales o distintos practica...  NaN  NaN  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9570  PARAGRAFO. Cuando se considere necesaria ...  NaN  NaN  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 01110000000000  (405 filas) ===
+       0   1       2                                             3    4    5   6   7   8   9   10  11  12   13
+8690  NaN  PB  791401  FIJACIÓN INTERNA DE FRACTURA E INESTABILI...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8721  NaN  PB  799710  REDUCCIÓN  CON FIJACION  DE LAS FRACTURAS...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9144  NaN  PB  445100  REANASTOMOSIS DEL  ESTÓMAGO POR DESHISCEN...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9240  NaN  PB  550401  NEFROSTOMÍA PERCUTÁNEA CON LITOFRAGMENTAC...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 10110000000000  (138 filas) ===
+         0    1       2                                             3    4    5   6   7   8   9   10  11  12   13
+9748   3120  NaN  184100  SUTURA DE LACERACION DE PABELLÓN AURICULA...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9776  12103  NaN  754101  REMOCIÓN MANUAL DE PLACENTA RETENIDA Y/O ...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9778  12112  NaN  750105  LEGRADO UTERINO OBSTETRICO POSTPARTO O PO...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9820  28106  NaN  982101  EXTRACCION CUERPO EXTRAÑO SUPERFICIAL DE ...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 01111000000000  (51 filas) ===
+       0   1       2                      3      4    5   6   7   8   9   10  11  12   13
+7840  NaN  PB  S22202    DE 21 HASTA 30 UVR   13400  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+7872  NaN  PB  S22231    DE 81 HASTA 90 UVR   51865  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+7876  NaN  PB  S22235  DE 131 HASTA 150 UVR   74565  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8352  NaN  PB  S55208    Ventilador mecánico   0.58  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 00110000000000  (36 filas) ===
+       0    1       2                                             3    4    5   6   7   8   9   10  11  12   13
+6496  NaN  NaN      c)  Procedimientos Ecográficos o Vasculares n...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+8970  NaN  NaN  707703                   COLPOPEXIA POR LAPAROSCOPIA  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9127  NaN  NaN  334302  REPARACION DE  LACERACION PULMONAR  CON C...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9331  NaN  NaN  504000  HEPATECTOMÍA TOTAL ( OBTENCIÓN DE ORGANO)...  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== 01100000000000  (29 filas) ===
+       0    1                                             2    3    4    5   6   7   8   9   10  11  12   13
+9659  NaN  A),  Continuar con la atención de urgencia del...  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9701  NaN  A).  Original o fotocopia de la orden de servi...  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9703  NaN  C).  Resumen en medio físico de la historia cl...  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+9704  NaN  D).  Facturas con el lleno de  los requisitos ...  NaN  NaN  NaN NaN NaN NaN NaN NaN NaN NaN  NaN
+
+=== palabras clave en col 0 ===
+CAPITULO 2 [35, 9470]
+SECCION 0 []
+SUBSECCION 0 []
+GRUPO 0 []
+ARTICULO 144 [39, 418, 619, 884, 930]
+NOTA 0 []
+PARAGRAFO 198 [612, 3469, 3471, 4939, 4952]
+TOTAL 0 []

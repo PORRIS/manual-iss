@@ -1,0 +1,11 @@
+regla,articulo,paragrafo,pagina_pdf,tipo,valor,base,opcion,variante,alcance,estado,texto
+R25P3,25,3,108,factor,0.12,por_estudio,solo-muestra,,art:25,aprobada,"Si en el CAA o IPS solo se toma la muestra, se paga el 12% de la tarifa"
+R26P1,26,1,110,porcentaje,0.60,por_estudio,biopsia-multiple,,art:26;titulo:BIOPSIAS,aprobada,Biopsia múltiple (dos o más muestras): la tarifa de la biopsia simple se incrementa en el 60%
+R27P4A,27,4,122,suma_fija,15610,por_estudio,portatil-rx,simple,art:27;titulo:RADIOLOGIA;no_ruta:TOMOGRAFIA,aprobada,"Radiología portátil durante la internación, estudios radiológicos simples: $15.610 adicional"
+R27P4B,27,4,122,suma_fija,46305,por_estudio,portatil-rx,fluoroscopia,art:27;titulo:RADIOLOGIA;no_ruta:TOMOGRAFIA,aprobada,"Radiología portátil durante la internación, con fluoroscopia o intensificador de imágenes: $46.305 adicional"
+R27P12,27,12,122,suma_fija,9095,por_estudio,portatil-eco,,art:27;agrupador_contiene:ECOGRAF,aprobada,Ecografía portátil durante la internación: $9.095 adicional
+R27P16T,27,16,123,suma_fija,13120,por_paciente,tecnecio,,art:27;titulo:MEDICINA NUCLEAR,aprobada,Medicina nuclear con tecnecio 99: $13.120 adicional por paciente
+R27P16R,27,16,123,suma_fija,103225,por_paciente,automatica,,"codigos:920302,920304,920305,920306",aprobada,"Códigos 920302, 920304, 920305 y 920306: $103.225 adicional por paciente (equipo de radioaerosoles)"
+R95P6,95,6,188,porcentaje,0.55,por_estudio,bilateral,,art:95,aprobada,Conjunto realizado en forma bilateral (art. 64): +55% sobre el valor del conjunto
+R134B,134,b,204,porcentaje,0.15,por_estudio,region-134,,art:19-41,aprobada,Departamentos y regiones del art. 134: +15% sobre lo que se paga por exámenes y procedimientos del Capítulo II (arts. 19-41)
+R95P23,95,23,192,porcentaje,0.14,por_estudio,region-134,,art:95,aprobada,Departamentos y regiones del art. 134: +14% sobre la tarifa total del conjunto (incluido el +55% bilateral)

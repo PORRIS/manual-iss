@@ -1,0 +1,11 @@
+﻿pagina,filas_revisadas,diferencias_sin_explicar,observacion
+12,45,0,115301 y 115302: la nota (5) de un dígito queda dentro de la descripción y no en ref_nota (equivalente para la validación)
+46,41,0,
+64,49,0,
+81,33,0,Título de dos niveles MAXILARES / EXTIRPACION: la BD usa el título (aceptado)
+95,60,0,
+98,54,0,
+112,36,0,Correcciones aplicadas visibles: 871182 (349) y 872580 (416)
+119,43,0,Valor 56.910 que se sale del borde y continuación CATETERES de 882840 (pág. 118): correctos
+129,33,0,Códigos 911105/911102/911103 fuera del borde de la celda: correctos
+135,12,0,

@@ -1,0 +1,67 @@
+## filas ART* no reconocidas: 0
+
+## 'ART..15' en filas: [3799]
+3799  |  | ARTICULO 15. Señálase para las intervenciones quirúrgicas y procedimientos en la especialidad de Cirugía Plástica, la siguiente nomenc
+
+## 'ART..83' en filas: [7908]
+7908  |  | ARTICULO 83. Los  derechos de sala de observación en el servicio de urgencias, se pagarán así: |  | 
+
+## filas 7903-7918
+                                                                0    1                                                            2                                    3      4
+7903  ARTICULO 82. Los  derechos de sala de curación para el p...  NaN                                                          NaN                                  NaN    NaN
+7904                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7905                                                        39205   PB                                                       S22101                   SALA DE CURACIONES   6545
+7906                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7907                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7908                                                          NaN  NaN  ARTICULO 83. Los  derechos de sala de observación en el ...                                  NaN    NaN
+7909                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7910                                                          NaN  NaN                                                          NaN     SALA DE OBSERVACION DE URGENCIAS    NaN
+7911                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7912                                                        39201   PB                                                       S20001     SERVICIO DE COMPLEJIDAD BAJA SOD  23435
+7913                                                        39202   PB                                                       S20101  SERVICIO DE COMPLEJIDAD MEDIANA SOD  28145
+7914                                                        39203   PB                                                       S20201     SERVICIO DE COMPLEJIDAD ALTA SOD  36660
+7915                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7916  PARAGRAFO. Esta tarifa es un valor diario, se reconoce ú...  NaN                                                          NaN                                  NaN    NaN
+7917                                                          NaN  NaN                                                          NaN                                  NaN    NaN
+7918  ARTICULO 84. La sala de recuperación comprende los sigui...  NaN                                                          NaN                                  NaN    NaN
+
+## sin_valor art 95: 17
+          0    1                                           2                                                  3       4
+8502    NaN  NaN        APLICA: para catéter yugular   (415)                                                NaN     NaN
+8503  40818  NaN                                      C40818    COLOCACION DE CATETER PARA DIALISIS PERITONEAL   356725
+8504    NaN   PB                                      549001    COLOCACION DE CATETER PARA DIALISIS PERITONEAL      NaN
+8505    NaN  NaN  APLICA: únicamente por laparotomía   (362)                                                NaN     NaN
+8506   9181  NaN                                      M09181  COLOCACION DE CATETER PARA DIALISIS PERITONEAL...     NaN
+8507  40819  NaN                                      C40819  FORMACION DE FISTULA ARTERIOVENOSA CON O SIN P...  272660
+8508    NaN   PB                                      549002  INSERCION DE CATETER PERMANENTE PARA HEMODIALISIS     NaN
+---
+          0    1       2                                                  3       4
+8862    NaN   PB  154103  REINSERCION O RETROINSERCION DE MUSCULOS RECTO...     NaN
+8863  40480  NaN  C40480  RESECCIÓN DE PTERIGION  SIMPLE  (NASAL O TEMPO...  325385
+8864    NaN   PB  103104  RESECCIÓN DE PTERIGION  SIMPLE  (NASAL O TEMPO...     NaN
+8865  40481  NaN  C40481  QUERATOTOMÍA RADIAL MIÓPICA O ASTIGMÁTICA [CIR...  243810
+8866    NaN  NaN  117400  QUERATOTOMÍA RADIAL MIÓPICA O ASTIGMÁTICA [CIR...     NaN
+8867  40483  NaN  C40483  IDENTACION ESCLERAL CON IMPLANTACION Y CRIOTER...  965530
+8868    NaN   PB  144101  IDENTACION ESCLERAL CON IMPLANTACION Y CRIOTER...     NaN
+---
+        0    1       2                                                  3    4
+8950  NaN   PB  545100  LISIS DE ADHERENCIAS PERITONEALES POR LAPAROSC...  NaN
+8951  NaN   PB  549202  EXTRACCION DE CUERPO EXTRAÑO INTRAPERITONEAL (...  NaN
+8952  NaN   PB  652102           CISTECTOMÍA DE OVARIO POR LAPAROSCOPIA +  NaN
+8953  NaN   PB  652302      RESECCIÓN DE TUMOR DE OVARIO POR LAPAROSCOPIA  NaN
+8954  NaN  NaN  652702           FULGURACIÓN EN OVARIO POR LAPAROSCOPIA +  NaN
+8955  NaN   PB  652802  RESECCIÓN DE QUISTE PARA-OVÁRICO POR LAPAROSCO...  NaN
+8956  NaN   PB  652902  LIBERACION O LISIS O ADHERENCIAS (LEVES, MODER...  NaN
+---
+
+## art 59
+                                                                                                                                      0    1       2                                                           3     4
+7636  ARTICULO 59.  Los servicios profesionales especializados de Clínicas Quirúrgicas o Ginecoobstétricas, de  los especialistas en...  NaN     NaN                                                         NaN   NaN
+7637                                                                                                                                NaN  NaN     NaN                                                         NaN   NaN
+7638                                                                                                                              39101   PB  S41101  ESPECIALISTAS DE CLÍNICAS QUIRÚRGICAS O GINECOOBSTÉTRICAS   1270
+7639                                                                                                                              39102   PB  S41201                            ESPECIALISTAS EN ANESTESIOLOGÍA    960
+7640                                                                                                                              39103   PB  S41301                                 MÉDICO AYUDANTE QUIRÚRGICO    360
+7641                                                                                                                              39145   PB  S41401                               MÉDICO  U ODONTÓLOGO GENERAL    810
+7642                                                                                                                                NaN  NaN     NaN                                                         NaN   NaN
+7643                                                                                                                                NaN  NaN                                                                 NaN   NaN
+7644  ARTICULO 60. El valor de la UVR en el caso de los servicios profesionales del especialista de clínicas quirúrgicas o ginecoobs...  NaN     NaN                                                         NaN   NaN

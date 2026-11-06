@@ -1,0 +1,372 @@
+fila_excel,codigo_esperado,accion,campo,valor_nuevo,pagina_pdf,motivo
+1955,M09181,eliminar,,,37,No existe en el PDF (salta de 09180 a 09182)
+8507,M09181,eliminar,,,,No existe en el PDF
+3466,783001,eliminar,,,65,No existe en el PDF
+6523,M23119,cambiar,codigo,641200,124,El PDF usa el CUPS 641200 para PENOSCOPIA SOD
+3093,786930,cambiar,descripcion,"EXTRACCIÓN DE DISPOSITIVO IMPLANTADO EN COLUMNA VERTEBRAL, POR VIA ANTERIOR",58,Texto del PDF
+4187,765105,cambiar,descripcion,"MENISCOPEXIA TEMPOROMANDIBULAR, POR VIA EXTERNA",79,Texto del PDF
+8848,765105,cambiar,descripcion,"MENISCOPEXIA TEMPOROMANDIBULAR, VIA EXTERNA",178,Texto del PDF
+4615,818606,cambiar,descripcion,"CONDROPLASTIA DEL CODO, VIA ARTROSCOPICA",87,Texto del PDF
+8130,993122,cambiar,descripcion,"VACUNACION CONTRA COMBINADA CONTRA DIFTERIA, TETANOS Y TOSFERINA(dpt)",163,Texto del PDF (tal cual; el PDF trae el error de redacción)
+73,012410,cambiar,valor,375,3,Decimal oculto en el Excel (375.21); el PDF trae el valor redondeado (dif. 0.21)
+1148,383401,cambiar,valor,410,23,Decimal oculto en el Excel (409.768); el PDF trae el valor redondeado (dif. 0.23)
+1175,373600,cambiar,valor,310,23,Decimal oculto en el Excel (309.768); el PDF trae el valor redondeado (dif. 0.23)
+1191,352600,cambiar,valor,680,24,Decimal oculto en el Excel (679.768); el PDF trae el valor redondeado (dif. 0.23)
+1884,497303,cambiar,valor,150,36,Decimal oculto en el Excel (149.5); el PDF trae el valor redondeado (dif. 0.50)
+1953,549001,cambiar,valor,70,37,Diferencia real: el Excel trae 80 UVR y el PDF 70
+2722,790300,cambiar,valor,35,51,Decimal oculto en el Excel (34.6154); el PDF trae el valor redondeado (dif. 0.38)
+2774,808051,cambiar,valor,55,52,Decimal oculto en el Excel (54.7712); el PDF trae el valor redondeado (dif. 0.23)
+2781,786920,cambiar,valor,50,52,Decimal oculto en el Excel (49.7219); el PDF trae el valor redondeado (dif. 0.28)
+2844,786501,cambiar,valor,55,53,Decimal oculto en el Excel (54.534); el PDF trae el valor redondeado (dif. 0.47)
+3015,775701,cambiar,valor,65,57,Decimal oculto en el Excel (65.1701); el PDF trae el valor redondeado (dif. 0.17)
+3513,778901,cambiar,valor,45,66,Decimal oculto en el Excel (44.8214); el PDF trae el valor redondeado (dif. 0.18)
+3542,797404,cambiar,valor,60,67,Decimal oculto en el Excel (60.2083); el PDF trae el valor redondeado (dif. 0.21)
+3686,817901,cambiar,valor,105,70,Decimal oculto en el Excel (104.667); el PDF trae el valor redondeado (dif. 0.33)
+3707,807401,cambiar,valor,60,70,Decimal oculto en el Excel (60.4167); el PDF trae el valor redondeado (dif. 0.42)
+3776,828320,cambiar,valor,80,71,Decimal oculto en el Excel (79.5238); el PDF trae el valor redondeado (dif. 0.48)
+3860,867001,cambiar,valor,70,73,Decimal oculto en el Excel (69.6536); el PDF trae el valor redondeado (dif. 0.35)
+3861,867002,cambiar,valor,80,73,Decimal oculto en el Excel (79.6536); el PDF trae el valor redondeado (dif. 0.35)
+3986,867201,cambiar,valor,100,75,Decimal oculto en el Excel (100.005); el PDF trae el valor redondeado (dif. 0.00)
+3987,867202,cambiar,valor,120,75,Decimal oculto en el Excel (120.005); el PDF trae el valor redondeado (dif. 0.00)
+4310,041101,cambiar,valor,30,82,Decimal oculto en el Excel (30.3571); el PDF trae el valor redondeado (dif. 0.36)
+4311,041200,cambiar,valor,30,82,Decimal oculto en el Excel (30.3571); el PDF trae el valor redondeado (dif. 0.36)
+4395,452600,cambiar,valor,65,83,Decimal oculto en el Excel (64.8611); el PDF trae el valor redondeado (dif. 0.14)
+6263,882112,cambiar,valor,90747,118,Decimal oculto en el Excel (90746.5); el PDF trae el valor redondeado (dif. 0.50)
+6269,882103,cambiar,valor,137430,118,Decimal oculto en el Excel (137430); el PDF trae el valor redondeado (dif. 0.50)
+6283,882611,cambiar,valor,63109,118,Decimal oculto en el Excel (63108.5); el PDF trae el valor redondeado (dif. 0.50)
+6290,882203,cambiar,valor,90747,118,Decimal oculto en el Excel (90746.5); el PDF trae el valor redondeado (dif. 0.50)
+6293,882222,cambiar,valor,90747,118,Decimal oculto en el Excel (90746.5); el PDF trae el valor redondeado (dif. 0.50)
+6296,882232,cambiar,valor,90747,118,Decimal oculto en el Excel (90746.5); el PDF trae el valor redondeado (dif. 0.50)
+6299,882242,cambiar,valor,90747,118,Decimal oculto en el Excel (90746.5); el PDF trae el valor redondeado (dif. 0.50)
+6302,882262,cambiar,valor,90747,118,Decimal oculto en el Excel (90746.5); el PDF trae el valor redondeado (dif. 0.50)
+9127,C40412,cambiar,valor,2479690,183,Decimal oculto en el Excel (2.47969e+06); el PDF trae el valor redondeado (dif. 0.02)
+9330,C40594,cambiar,valor,4640010,187,Trasplante hepático: el PDF redondea el valor calculado del Excel (4640010.7250)
+9331,C40595,cambiar,valor,5168460,187,Trasplante hepático: el PDF redondea el valor calculado del Excel (5168459.7980)
+9333,C40596,cambiar,valor,79993130,187,Trasplante hepático: el PDF redondea el valor calculado del Excel (79993128.0825)
+9335,C40597,cambiar,valor,869415,187,Trasplante hepático: el PDF redondea el valor calculado del Excel (869415.7577)
+9336,C40598,cambiar,valor,202680,187,Trasplante hepático: el PDF redondea el valor calculado del Excel (202682.4587)
+1200,352500,cambiar,descripcion,REINTERVENCION PARA SUSTITUCIÓN DE PROTESIS VALVULARES SOD *,24,[MENOR] Texto del PDF
+1206,356100,cambiar,descripcion,ATRIOSEPTOPLASTIA CON INJERTO (PARCHE) DE TEJIDO SOD *,24,[MENOR] Texto del PDF
+1211,358800,cambiar,descripcion,CORRECCION TOTAL DE TRANSPOSICION DE GRANDES VASOS SOD *,24,[MENOR] Texto del PDF
+1219,358105,cambiar,descripcion,REPARACION DE TETRALOGIA DE FALLOT CON CORONARIA ANOMALA ( DESCENDENTE ANTERIOR ORIGINADA DE LA CORONARIA DERECHA),24,[MENOR] Texto del PDF
+1250,374100,cambiar,descripcion,CARDIORRAFIA SOD *,25,[MENOR] Texto del PDF
+1251,374200,cambiar,descripcion,REPARACION DE CORAZON POR RUPTURA POSTINFARTO SOD *,25,[MENOR] Texto del PDF
+1255,360300,cambiar,descripcion,ANGIOPLASTIA DE ARTERIA CORONARIA CON TORAX ABIERTO SOD *,25,[MENOR] Texto del PDF
+1256,361100,cambiar,descripcion,ANASTOMOSIS AORTOCORONARIA DE UNA ARTERIA CORONARIA SOD *,25,[MENOR] Texto del PDF
+1258,361200,cambiar,descripcion,ANASTOMOSIS AORTOCORONARIAO DE DOS ARTERIAS CORONARIAS SOD *,25,[MENOR] Texto del PDF
+1259,361300,cambiar,descripcion,ANASTOMOSIS AORTOCORONARIAO DE TRES ARTERIAS CORONARIAS SOD *,25,[MENOR] Texto del PDF
+1260,361400,cambiar,descripcion,ANASTOMOSIS AORTOCORONARIAO DE CUATRO O MAS ARTERIAS CORONARIAS SOD*,25,[MENOR] Texto del PDF
+1265,362200,cambiar,descripcion,REVASCULARIZACION CARDIACA POR IMPLANTACION DE ARTERIA GASTROEPIPLOICA SOD *,25,[MENOR] Texto del PDF
+1267,363200,cambiar,descripcion,REINTERVENCION DE REVASCULARIZACION CARDIACA ( DERIVACION O PUENTES CORONARIOS) SOD *,25,[MENOR] Texto del PDF
+132,017204,cambiar,descripcion,"RESECCION DE TUMOR SUPRATENTORIAL HEMISFERICO, CON ESTIMULACION CORTICAL",4,[MENOR] Texto del PDF
+1404,426103,cambiar,descripcion,RECONSTRUCCION ESOFAGICA ANTE -ESTERNAL CON OTRA INTERPOSICION NCOC **,28,[MENOR] Texto del PDF
+1953,549001,cambiar,ref_nota,,37,[MAYOR] Nota del PDF (sin nota)
+227,021102,cambiar,descripcion,"CORRECCION DE DESGARRO DURAL POST TRAUMATICO EN BOVEDA CRANEANA, CON PLASTIA DURAL",6,[MENOR] Texto del PDF
+2401,673101,cambiar,descripcion,ESCISIÓN DE PÓLIPO EN CUELLO UTERINO (CERVIX) NCOC **,45,[MENOR] Texto del PDF
+2934,786702,cambiar,ref_nota,96,55,[MAYOR] Nota del PDF ((96))
+2955,772802,cambiar,descripcion,OSTEOTOMÍA DE HUESO DEL TARSO Y METATARSO (UNO O MAS HUESOS) CON FIJACION INTERNA O EXTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]],56,[MENOR] Texto del PDF
+3046,793704,cambiar,descripcion,REDUCCIÓN ABIERTA DE FRACTURA EN PLATILLOS TIBIALES Y EXTENSIÓN DISFISIARIA CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSÍNTESIS]] SIN INJERTO,57,[MAYOR] Texto del PDF
+3162,810911,cambiar,descripcion,"REFUSION DE COLUMNA TORACICA , VIA ANTERIOR, CON INJERTO (102)",60,[MENOR] Texto del PDF
+3247,815102,cambiar,descripcion,REEMPLAZO PROTÉSICO TOTAL CON ARTRODESIS DE CADERA,62,[MENOR] Texto del PDF
+3248,815301,cambiar,descripcion,REVISIÓN REEMPLAZO PROTÉSICO PARCIAL DE CADERA,62,[MENOR] Texto del PDF
+3467,849501,cambiar,descripcion,"CIRUGÍA RECONSTRUCTIVA MULTIPLE: OSTEOTOMIAS Y/O FIJACION INTERNA [DISPISITIVOS DE FIJACION U OSTEOSINTESIS] EN FEMUR, TIBIA Y PERONE; TRANSFERENCIAS MUSCULOTENDINOSAS; TENOTOMIAS Y/O ALARGAMIENTOS TENDINOSOS EN MUSLO, PIERNA Y PIE; TRIPLE ARTODESIS EN PIE",65,[MAYOR] Texto del PDF
+3497,786911,cambiar,descripcion,"EXTRACCIÓN DE CUERPO EXTRAÑO EN FALANGES (UNO O MAS) DE PIE , VÍA ABIERTA",66,[MENOR] Texto del PDF
+358,805200,cambiar,descripcion,QUIMIONUCLEOLISIS O DISCOLISIS INTERVERTEBRAL SOD *,9,[MENOR] Texto del PDF
+363,032200,cambiar,descripcion,CORDOTOMIA ABIERTA SOD *,9,[MENOR] Texto del PDF
+365,032400,cambiar,descripcion,MIELOTOMIA ABIERTA SOD *,9,[MENOR] Texto del PDF
+366,032100,cambiar,descripcion,CORDOTOMIA PERCUTANEA SOD *,9,[MENOR] Texto del PDF
+367,038200,cambiar,descripcion,NEUROLISIS DE RAICES ESPINALES SOD *,9,[MENOR] Texto del PDF
+374,039400,cambiar,descripcion,RETIRO DE ELECTRODOS Y/O RECEPTOR DE NEUROESTIMULACION ESPINAL SOD *,9,[MENOR] Texto del PDF
+376,039800,cambiar,descripcion,RETIRO DE DERIVACION ESPINAL SOD *,9,[MENOR] Texto del PDF
+378,348500,cambiar,descripcion,IMPLANTACION DE MARCAPASOS DIAFRAGMATICO SOD *,9,[MENOR] Texto del PDF
+382,033100,cambiar,descripcion,PUNCION LUMBAR SOD *,9,[MENOR] Texto del PDF
+3833,862900,cambiar,descripcion,FISTULECTOMÍA DE PIEL Y TEJIDO CELULAR SUBCUTÁNEO SOD *,72,[MENOR] Texto del PDF
+3839,858100,cambiar,descripcion,SUTURA DE HERIDA DE LA MAMA SOD *,72,[MENOR] Texto del PDF
+415,052601,cambiar,descripcion,RESECCION DE TUMOR EN NERVIO O GANGLIO SIMPATICO NCOC *,10,[MENOR] Texto del PDF
+4159,766501,cambiar,descripcion,"OSTEOTOMIA LEFORT I SEGMENTARIA, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",79,[MENOR] Texto del PDF
+4245,767603,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA MULTIPLE DE CUERPO O RAMA MANDIBULAR, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",81,[MENOR] Texto del PDF
+4281,762101,cambiar,descripcion,"ENUCLEACION, RESECCION Y CURETAJE DE LESIONES BENIGNAS EN MAXILAR SUPERIOR O INFERIOR, DE MENOS DE TRES CMS VIA TRANSMUCOSA",82,[MENOR] Texto del PDF
+4284,762103,cambiar,descripcion,"ENUCLEACION, RESECCION Y CURETAJE DE LESIONES BENIGNAS EN MAXILAR SUPERIOR O INFERIOR, DE MAS DE TRES CMS VIA TRANSMUCOSA",82,[MENOR] Texto del PDF
+4649,791702,cambiar,descripcion,"REDUCCION CERRADA DE FRACTURAS OSTEOCONDRALES O DE LA ESPINA TIBIAL CON FIJACION INTERNA, VIA ENDOSCOPICA",88,[MENOR] Texto del PDF
+4650,791703,cambiar,descripcion,"REDUCCION CERRADA DE FRACTURAS DEL TERCIO PROXIMAL DE LA TIBIA, CON FIJACION INTERNA, VIA ENDOSCOPICA",88,[MENOR] Texto del PDF
+4665,778103,cambiar,descripcion,"RESECCIÓN PARCIAL DE CLAVÍCULA , VÍA ENDOSCÓPICA",88,[MENOR] Texto del PDF
+5178,904301,cambiar,descripcion,CORTISOL PRE Y POST ESTIMULACIÓN,98,[MENOR] Texto del PDF
+5701,903046,aceptar,descripcion,POR NEFELOMETRÍA,107,"Aprobado: el PDF deja vacía la primera línea y solo trae 'POR NEFELOMETRÍA' (falta 'TRANSFERRINA', error evidente del PDF). Se sugiere mantener la BD"
+5728,906250,cambiar,descripcion,"VIH, PRUEBA CONFIRMATORIA POR WESTERN BLOTTING O EQUIVALENTE",108,[MENOR] Texto del PDF
+5817,898301,cambiar,descripcion,AUTOPSIA [NECROPSIA] COMPLETA,109,[MENOR] Texto del PDF
+5940,871182,cambiar,descripcion,FLUOROSCOPIA COMO GUÌA DE PROCEDIMIENTOS QUIRURGICOS O INTERVENCIONISTAS EN TORAX,112,[MAYOR] Texto del PDF
+5967,872580,cambiar,ref_nota,416,112,[MAYOR] Nota del PDF ((416))
+6038,877141,cambiar,descripcion,"ARTERIOGRAFIA ABDOMINAL SELECTIVA DE ARTERIA GASTRODUODENAL, O TRONCO CELIACO, O MESENTERICA SUPERIOR O MESENTERICA INFERIOR",114,[MENOR] Texto del PDF
+6241,881220,cambiar,ref_nota,,117,[MAYOR] Nota del PDF (sin nota)
+6242,881390,cambiar,ref_nota,55,117,[MAYOR] Nota del PDF ((55))
+6264,882130,cambiar,descripcion,DOPPLER DE OTROS VASOS PERIFERICOS DEL CUELLO NCOC **,118,[MENOR] Texto del PDF
+6288,882201,cambiar,descripcion,DOPPLER DE VASOS ABDOMINALES Y/O PELVICOS NCOC **,118,[MENOR] Texto del PDF
+6289,882202,cambiar,descripcion,DUPLEX SCANNING [DOPPLER- ECOGRAFIA] DE VASOS ABDOMINALES Y/O PELVICOS NCOC **,118,[MENOR] Texto del PDF
+6607,350100,cambiar,descripcion,COMISUROTOMIA O VALVULOTOMIA AORTICA CON BALON (VIA ENDOVASCULAR) SOD *,125,[MENOR] Texto del PDF
+6609,350300,cambiar,descripcion,COMISUROTOMIA O VALVULOTOMIA PULMONAR CON BALON (VIA ENDOVASCULAR) SOD *,125,[MENOR] Texto del PDF
+6610,350200,cambiar,descripcion,COMISUROTOMIA O VALVULOTOMIA MITRAL CON BALON (VIA ENDOVASCULAR) SOD*,125,[MENOR] Texto del PDF
+6611,350400,cambiar,descripcion,COMISUROTOMIA/VALVULOTOMIA TRICUSPIDEA CON BALON (VÍA ENDOVASCULAR) SOD *,126,[MENOR] Texto del PDF
+6619,354200,cambiar,descripcion,ATRIOSEPTOSTOMIA CON BALON O CUHILLA [PROCEDIMIENTO DE RASHKIND O PARKER] SOD *,126,[MENOR] Texto del PDF
+6630,378200,cambiar,descripcion,IMPLANTACION DE MARCAPASO UNICAMERAL SOD *,126,[MENOR] Texto del PDF
+6632,378300,cambiar,descripcion,INSERCION DE MARCAPASOS BICAMERAL SOD *,126,[MENOR] Texto del PDF
+6633,378900,cambiar,descripcion,RETIRO O ELIMINACION DE MARCAPASOS CARDIACO SOD *,126,[MENOR] Texto del PDF
+6636,378500,cambiar,descripcion,REVISION [REPROGRAMACION] DE APARATO MARCAPASO SOD *,126,[MENOR] Texto del PDF
+6637,379500,cambiar,descripcion,REPROGRAMACION DE CARDIOVERSOR/DESFIBRILADOR SOD *,126,[MENOR] Texto del PDF
+6645,895300,cambiar,descripcion,VECTOCARDIOGRAMA (CON ECG) SOD *,126,[MENOR] Texto del PDF
+690,040102,cambiar,descripcion,"ESCISION DE NEUROMA ACUSTICO, VIA RETROSIGMOIDEA",15,[MENOR] Texto del PDF
+691,040103,cambiar,descripcion,"ESCISION DE NEUROMA ACUSTICO, VIA TRANSLABERINTICA",15,[MENOR] Texto del PDF
+692,040104,cambiar,descripcion,"ESCISION DE NEUROMA ACUSTICO, VIA TRANSOTICA",15,[MENOR] Texto del PDF
+70,012100,cambiar,descripcion,INCISION Y DRENAJE DE SENO FRONTAL SOD *,3,[MENOR] Texto del PDF
+723,218801,cambiar,descripcion,SEPTORRINOPLASTIA FUNCIONAL PRIMARIA NCOC **,15,[MENOR] Texto del PDF
+8096,993122,cambiar,descripcion,"VACUNACION COMBINADA CONTRA DIFTERIA, TETANOS Y TOS FERINA (DPT)",163,[MENOR] Texto del PDF
+8339,901101,cambiar,descripcion,COLORACIÓN ACIDO ALCOHOL RESISTENTE [ZIELH-NIELSEN] Y LECTURA O BACILOSCOPIA,167,[MENOR] Texto del PDF
+8340,902214,cambiar,descripcion,"HEMOPARASITOS, EXTENDIDO DE GOTA GRUESA",167,[MENOR] Texto del PDF
+8346,S55201,cambiar,descripcion,Catéter o cánula nasal,167,[MENOR] Texto del PDF
+8511,392702,cambiar,descripcion,FORMACION DE FISTULA AV (PERIFERICA) PARA DIALISIS RENAL CON PROTESIS[DERIVACION AV POR CANULA EXTERNA DE SCRIBNER] [INSERCION DE CANULA VASO A VASO],171,[MENOR] Texto del PDF
+8513,399501,cambiar,descripcion,HEMODIALISIS CON BICARBONATO,171,[MENOR] Texto del PDF
+8633,537000,cambiar,descripcion,REPARACION DE HERNIA DIAFRAGMATICA VIA ABDOMINAL SOD,173,[MENOR] Texto del PDF
+8634,537100,cambiar,descripcion,REPARACION DE HERNIA DIAFRAGMATICA VIA TORACICA SOD,173,[MENOR] Texto del PDF
+8647,405300,cambiar,descripcion,VACIAMIENTO RADICAL LINFATICO INGUINO ILIACO SOD,174,[MENOR] Texto del PDF
+8665,808402,cambiar,descripcion,EXTRACCIÓN DE CUERPOS LIBRES INTRA-ARTICULARES DE FALANGES (UNA O MAS) POR ARTROSCOPIA,174,[MENOR] Texto del PDF
+8669,835500,cambiar,descripcion,BURSECTOMÍA POR ARTROSCOPIA SOD,174,[MENOR] Texto del PDF
+8708,814708,cambiar,descripcion,FIJACIÓN DE LA RODILLA POR ARTROSCOPIA,175,[MENOR] Texto del PDF
+8714,814906,cambiar,descripcion,RESECCION DE LESION OSTEOCONDRAL CON FIJACION EN TOBILLO POR ARTROSCOPIA,175,[MENOR] Texto del PDF
+8716,819330,cambiar,descripcion,SUTURA DEL FIBROCARTÍLAGO TRIANGULAR O DE LIGAMENTOS INTERCARPIANOS (UNO O MAS) POR ARTROSCOPIA,175,[MENOR] Texto del PDF
+8717,836405,cambiar,descripcion,SUTURA DEL TENDÓN BICIPITAL (TENODESIS) POR ENDOSCOPIA,175,[MENOR] Texto del PDF
+8735,836305,cambiar,descripcion,SUTURA DEL MANGUITO ROTADOR POR ENDOSCOPIA,175,[MENOR] Texto del PDF
+8742,795102,cambiar,descripcion,REDUCCIÓN ABIERTA CON FIJACIÓN INTERNA DE EPÍFISIS SEPARADA DE HUMERO,175,[MENOR] Texto del PDF
+8760,793305,cambiar,descripcion,REDUCCIÓN ABIERTA DE FRACTURA EN SEGMENTO PROXIMAL DE RADIO Y CUBITO CON FIJACION INTERNA (DISPOSITIVOS DE FIJACIÓN [OSTEOSÍNTESIS),176,[MAYOR] Texto del PDF
+8761,793306,cambiar,descripcion,REDUCCIÓN ABIERTA DE FRACTURA EN SEGMENTO DISTAL DE RADIO Y CUBITO CON FIJACION INTERNA (DISPOSITIVOS DE FIJACIÓN [OSTEOSÍNTESIS),176,[MAYOR] Texto del PDF
+8762,793307,cambiar,descripcion,REDUCCIÓN ABIERTA DE FRACTURA EN DIÁFISIS DE CÚBITO Y RADIO CON FIJACION INTERNA (DISPOSITIVOS DE FIJACIÓN [OSTEOSÍNTESIS),176,[MAYOR] Texto del PDF
+8778,C40665,cambiar,descripcion,REDUCCIÓN ABIERTA DE FRACTURA EN RÓTULA CON FIJACION INTERNA,176,[MAYOR] Texto del PDF
+8827,772505,cambiar,descripcion,OSTEOTOMÍA VALGUIZANTE O VARIZANTE DE CUELLO DE FÉMUR CON FIJACIÓN (INTERNA O EXTERNA) [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS],177,[MENOR] Texto del PDF
+8829,772505,cambiar,descripcion,OSTEOTOMÍA VALGUIZANTE O VARIZANTE DE CUELLO DE FÉMUR CON FIJACIÓN (INTERNA O EXTERNA) [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS],177,[MENOR] Texto del PDF
+8836,C40470,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA LEFORT I, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8837,767402,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA LEFORT I, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8839,767403,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA LEFORT II, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8840,767404,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA LEFORT III, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8841,C40472,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA SIMPLE DE CUERPO O RAMA MANDIBULAR, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8842,767602,cambiar,descripcion,"REDUCCION ABIERTA DE FRACTURA SIMPLE DE CUERPO O RAMA MANDIBULAR, CON FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8843,C40473,cambiar,descripcion,REDUCCION ABIERTA DE FRACTURA DE ARCO CIGOMATICO CON FIJACION INTERNA[DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS],178,[MENOR] Texto del PDF
+8844,767201,cambiar,descripcion,REDUCCION ABIERTA DE FRACTURA DE ARCO CIGOMATICO CON FIJACION INTERNA[DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS],178,[MENOR] Texto del PDF
+8845,C40474,cambiar,descripcion,"REDUCCION ABIERTA FRACTURA MALAR, CON REDUCCION PISO DE ORBITA, INJERTO Y/O FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8846,767203,cambiar,descripcion,"REDUCCION ABIERTA FRACTURA MALAR, CON REDUCCION PISO DE ORBITA, INJERTO Y/O FIJACION INTERNA [DISPOSITIVOS DE FIJACIÓN U OSTEOSINTESIS]",178,[MENOR] Texto del PDF
+8854,C40477,cambiar,descripcion,VITRECTOMÍA VIA POSTERIOR CON INSERCIÓN DE SILICÓN O GASES,178,[MENOR] Texto del PDF
+8855,147401,cambiar,descripcion,VITRECTOMÍA VIA POSTERIOR CON INSERCIÓN DE SILICÓN O GASES,178,[MENOR] Texto del PDF
+8856,C40478,cambiar,descripcion,VITRECTOMÍA VIA POSTERIOR CON RETINOPEXIA,178,[MENOR] Texto del PDF
+8857,147402,cambiar,descripcion,VITRECTOMÍA VIA POSTERIOR CON RETINOPEXIA,178,[MENOR] Texto del PDF
+8861,154101,cambiar,descripcion,REINSERCION O RETROINSERCION DE MUSCULOS RECTOS (UNO O DOS),178,[MENOR] Texto del PDF
+8862,154102,cambiar,descripcion,REINSERCION O RETROINSERCION DE MUSCULOS OBLICUOS (UNO O DOS),178,[MENOR] Texto del PDF
+8874,C40486,cambiar,descripcion,QUERATOTOMÍA FOTORREFRACTIVA CON LASER CON QUERATOMILEUSIS [LASIK] SOD,178,[MENOR] Texto del PDF
+8875,117500,cambiar,descripcion,QUERATOTOMÍA FOTORREFRACTIVA CON LASER CON QUERATOMILEUSIS [LASIK] SOD,178,[MENOR] Texto del PDF
+8877,126401,cambiar,descripcion,TRABECULECTOMÍA SECUNDARIA (CON CIRUGIA OCULAR PREVIA),179,[MENOR] Texto del PDF
+8891,C40493,cambiar,descripcion,TIMPANOPLASTIA TIPO I (CIERRE DE PERFORACIÓN),179,[MENOR] Texto del PDF
+8892,194101,cambiar,descripcion,TIMPANOPLASTIA TIPO I (CIERRE DE PERFORACIÓN),179,[MENOR] Texto del PDF
+8911,604000,cambiar,descripcion,ADENOMECTOMIA RETROPUBICA SOD,179,[MENOR] Texto del PDF
+8916,602902,cambiar,descripcion,PROSTATECTOMÍA TRANSURETRAL,179,[MENOR] Texto del PDF
+8918,605100,cambiar,descripcion,PROSTATECTOMIA RADICAL (PROSTATOVESICULECTOMÍA) SOD,179,[MENOR] Texto del PDF
+8922,640000,cambiar,descripcion,CIRCUNCISIÓN SOD,179,[MENOR] Texto del PDF
+8938,C40511,cambiar,descripcion,"REMOCION TRANSURETRAL [ENDOSCOPICA] DE CALCULO [URETEROLITOTOMÍA], COAGULO O CUERPO EXTRAÑO EN URETER O PELVIS RENAL SOD",180,[MENOR] Texto del PDF
+8939,560100,cambiar,descripcion,"REMOCION TRANSURETRAL [ENDOSCOPICA] DE CALCULO [URETEROLITOTOMÍA], COAGULO O CUERPO EXTRAÑO EN URETER O PELVIS RENAL SOD",180,[MENOR] Texto del PDF
+8942,552100,cambiar,descripcion,NEFROSCOPIA DIAGNOSTICA SOD,180,[MENOR] Texto del PDF
+8943,552200,cambiar,descripcion,PIELOSCOPIA DIAGNOSTICA SOD,180,[MENOR] Texto del PDF
+8944,563100,cambiar,descripcion,URETEROSCOPIA DIAGNOSTICA SOD,180,[MENOR] Texto del PDF
+8948,663100,cambiar,descripcion,SECCIÓN Y/O LIGADURA DE TROMPAS DE FALOPIO [CIRUGIA DE POMEROY] POR MINILAPAROTOMIA SOD,180,[MENOR] Texto del PDF
+8953,652102,cambiar,descripcion,CISTECTOMÍA DE OVARIO POR LAPAROSCOPIA,180,[MENOR] Texto del PDF
+8955,652702,cambiar,descripcion,FULGURACIÓN EN OVARIO POR LAPAROSCOPIA,180,[MENOR] Texto del PDF
+8956,652802,cambiar,descripcion,RESECCIÓN DE QUISTE PARA-OVÁRICO POR LAPAROSCOPIA,180,[MENOR] Texto del PDF
+8957,652902,cambiar,descripcion,"LIBERACION O LISIS O ADHERENCIAS (LEVES, MODERADAS O SEVERAS) DE OVARIO POR LAPAROSCOPIA",180,[MENOR] Texto del PDF
+8973,690101,cambiar,descripcion,LEGRADO UTERINO GINECOLÓGICO DIAGNÓSTICO,180,[MENOR] Texto del PDF
+8974,690102,cambiar,descripcion,LEGRADO UTERINO GINECOLÓGICO TERAPEUTICO,180,[MENOR] Texto del PDF
+8978,685100,cambiar,descripcion,HISTERECTOMÍA VAGINAL SOD,180,[MENOR] Texto del PDF
+8979,C40523,cambiar,descripcion,HISTERECTOMÍA TOTAL ABDOMINAL AMPLIADA CON VAGINECTOMIA PARCIAL,180,[MENOR] Texto del PDF
+8980,684101,cambiar,descripcion,HISTERECTOMÍA TOTAL ABDOMINAL AMPLIADA CON VAGINECTOMIA PARCIAL,180,[MENOR] Texto del PDF
+8985,684101,cambiar,descripcion,HISTERECTOMÍA TOTAL ABDOMINAL AMPLIADA CON VAGINECTOMIA PARCIAL,181,[MENOR] Texto del PDF
+8987,C40766,cambiar,descripcion,HISTERECTOMÍA RADICAL MODIFICADA [OPERACIÓN DE WERTHEIM] SOD,181,[MENOR] Texto del PDF
+8989,686100,cambiar,descripcion,HISTERECTOMÍA RADICAL MODIFICADA [OPERACIÓN DE WERTHEIM] SOD,181,[MENOR] Texto del PDF
+9019,352400,cambiar,descripcion,REEMPLAZO O RECONSTRUCCION DE DOS O TRES VALVULAS SOD,181,[MENOR] Texto del PDF
+9025,876212,cambiar,descripcion,ANGIOCARDIOGRAFIA DE CORAZON DERECHO,181,[MENOR] Texto del PDF
+9044,360500,cambiar,descripcion,ANGIOPLASTIA CORONARIA TRANSLUMINAL PERCUTANEA MULTIPLE (ATERECTOMIA CORONARIA) REALIZADA DURANTE LA MISMA INTERVENCION SOD,182,[MENOR] Texto del PDF
+9222,147401,cambiar,descripcion,VITRECTOMÍA VIA POSTERIOR CON INSERCIÓN DE SILICÓN O GASES,185,[MENOR] Texto del PDF
+9246,652101,cambiar,descripcion,CISTECTOMÍA DE OVARIO POR LAPAROTOMÍA,186,[MENOR] Texto del PDF
+9248,652801,cambiar,descripcion,RESECCIÓN DE QUISTE PARA-OVÁRICO POR LAPAROTOMÍA,186,[MENOR] Texto del PDF
+9249,652901,cambiar,descripcion,"LIBERACION O LISIS O ADHERENCIAS (LEVES, MODERADAS O SEVERAS) DE OVARIO POR LAPAROTOMIA",186,[MENOR] Texto del PDF
+9253,667901,cambiar,descripcion,SALPINGOPLASTIA (FIMBROPLASTIA) POR LAPAROTOMÍA,186,[MENOR] Texto del PDF
+9273,725100,cambiar,descripcion,EXTRACCIÓN (TOTAL O PARCIAL) INSTRUMENTADA EN PODÁLICA SOD,186,[MENOR] Texto del PDF
+9277,735931,cambiar,descripcion,ASISTENCIA DEL PARTO INTERVENIDO GEMELAR O MULTIPLE,186,[MENOR] Texto del PDF
+45,,eliminar,,,,[MAYOR] Cabecera de tabla del Excel ('ISS CODIGO DESCRIPCION UVR'); no es texto del PDF
+343,,cambiar,texto,INCLUYE: con o sin la utilización de microscopio o microdisectomía. APLICA: para descomprimir el canal cervical o la raíz del nervio espinal al mismo nivel y la extracción del núcleo pulposo. (100),8,[MENOR] Texto del PDF
+613,,cambiar,texto,"PARAGRAFO 1. El procedimiento “queratectomía con exímer láser “ únicamente será objeto de práctica, en personas entre 20 y 50 años de edad, en los siguientes casos",13,[MENOR] Texto del PDF
+616,,cambiar,texto,"b) En hipermetropía con o sin astigmatismo, cuando el valor de la esfera se encuentre en el rango entre 2 y 7 dioptrías",14,[MENOR] Texto del PDF
+1179,,cambiar,texto,"INCLUYE: el mapeo transoperatorio intracoronario en manejo de arritmias cardiacas [cirugía de Maze], y la reconstrucción (75)",23,[MENOR] Texto del PDF
+1278,,cambiar,texto,"INCLUYE: el mapeo transoperatorio intracoronario en manejo de arritmias cardiacas, [cirugía de Maze], fibrilación auricular y la reconstrucción (75)",26,[MENOR] Texto del PDF
+1288,,cambiar,texto,"ARTICULO 6. Señalase para las intervenciones quirúrgicas y procedimientos en la especialidad de Cirugía de Tórax, la siguiente nomenclatura y calificación en Unidades de Valor Relativo (UVR):",26,[MENOR] Texto del PDF
+1954,,eliminar,,,,"[MAYOR] Nota (362) de M09181, procedimiento que no existe en el PDF (ya eliminado)"
+2285,,cambiar,texto,"INCLUYE: resección nódulo, fibroadenoma u otra lesión benigna de mama (218)",43,[MAYOR] Texto del PDF
+2769,,cambiar,texto,APLICA: para la extracción de espículas óseas de canal espinal (92),52,[MENOR] Texto del PDF
+2921,,cambiar,texto,APLICA: para la extracción de espículas óseas de canal espinal (92),55,[MENOR] Texto del PDF
+3001,,cambiar,texto,EXCLUYE: la corrección de síndrome del túnel carpiano o metatarsiano (99),56,[MENOR] Texto del PDF
+3084,,cambiar,texto,APLICA: para la extracción de espículas óseas de canal espinal (92),58,[MENOR] Texto del PDF
+3472,,cambiar,texto,"PARAGRAFO 2. Cuando se practique la reducción de una fractura con material de osteosíntesis y/o tutores externos, no da lugar a facturar los servicios correspondientes a la reducción de la fractura. Se exceptúa el caso en que la reducción, con respecto a la aplicación del tutor, tenga asignadas un mayor número de UVR; en este evento se pagará los servicios por concepto de la reducción de la fractura, más no por la aplicación del tutor.",66,[MAYOR] Texto del PDF
+3658,,cambiar,texto,EXCLUYE: la corrección de síndrome del túnel carpiano o metatarsiano (99),69,[MENOR] Texto del PDF
+3696,,cambiar,texto,EXCLUYE: la corrección de síndrome del túnel carpiano o metatarsiano (99),70,[MENOR] Texto del PDF
+3774,,cambiar,texto,EXCLUYE: la corrección de síndrome del túnel carpiano o metatarsiano (99),71,[MENOR] Texto del PDF
+4623,,cambiar,texto,EXCLUYE: la corrección de síndrome del túnel carpiano o metatarsiano (99),87,[MENOR] Texto del PDF
+4645,,cambiar,texto,INCLUYE: con o sin la utilización de microscopio o microdisectomía. (100),88,[MENOR] Texto del PDF
+4942,,eliminar,,,,[MAYOR] Título que no aparece en el PDF (buscado en el texto completo)
+5304,,cambiar,texto,"INCLUYE: la determinación de anticardiolipina, antifosfatidil serina, fosfatidil etanolamina, antiacido fosfatídico, fosfatil glicerol y antifosfatidil inositol. (117)",100,[MAYOR] Texto del PDF
+5772,,cambiar,nombre,"ESTUDIO DE ESPECIMENES SIMPLES (SIN DISECCION GANGLIONAR): VESICULA, APENDICE, AMIGDALA, GLANDULAS SALIVARES, EPIPLON O PERITONEO, ARTERIA PIEL, TROMPA UTERINA, ETC.",109,[MAYOR] Texto del PDF
+5773,,cambiar,texto,La tarifa aplica por cada espécimen quirúrgico,109,[MENOR] Texto del PDF
+5785,,cambiar,nombre,"ESTUDIO DE ESPECIMENES QUIRURGICOS (CON DISECCION GANGLIONAR): MAMA, ESTOMAGO, CONO CERVICAL, UTERO, RIÑON, BRAZO, MUSLO, PIERNA, ETC.",109,[MENOR] Texto del PDF
+5786,,cambiar,texto,La tarifa aplica por cada espécimen quirúrgico,109,[MENOR] Texto del PDF
+5823,,cambiar,texto,"PARAGRAFO 2.. Las tarifas de los ítem Biopsias y Especimenes Quirúrgicos, corresponden al procesamiento, análisis y lectura de la respectiva muestra.",110,[MAYOR] Texto del PDF
+5941,,eliminar,,,,[MAYOR] duplicado en la BD: la BD lo tiene 4 veces y el PDF 2 en el artículo 27
+5968,,eliminar,,,,[MAYOR] duplicado en la BD: la BD lo tiene 4 veces y el PDF 2 en el artículo 27
+5969,,cambiar,texto,"APLICA: únicamente para colangiografía retrógrada endoscópica (transduodenal), papilectomía y/o extracción de cálculos biliares (416)",112,[MAYOR] Texto del PDF
+6095,,cambiar,texto,INCLUYE: la fluoroscopia (350),115,[MENOR] Texto del PDF
+6118,,cambiar,texto,"INCLUYE: la colocación de catéter hasta uretra, control fluroscopico (242)",115,[MENOR] Texto del PDF
+6120,,cambiar,texto,INCLUYE: la colocación de catéter hasta uretra (243),115,[MENOR] Texto del PDF
+6542,,cambiar,texto,"INCLUYE: monitoreo simultáneo de la frecuencia cardiaca, tensión arterial, ECG y saturación arterial de oxígeno (194)",124,[MENOR] Texto del PDF
+6695,,cambiar,texto,INCLUYE: reconocimiento de la voz con enmascaramiento apropiado o curva función intensidad-discriminación del habla. (121),127,[MENOR] Texto del PDF
+6717,,cambiar,texto,INCLUYE: con o sin pruebas térmicas (268),128,[MAYOR] Texto del PDF
+6853,,eliminar,,,,[MAYOR] duplicado en la BD: la BD lo tiene 2 veces y el PDF 1 en el artículo 35
+7001,,cambiar,texto,"APLICA: únicamente para el manejo del paciente con cualquiera de los siguientes fármacos: folinato de calcio (ácido folínico), doxorrubicina, ciclofosfamida, platino o carboplatino (ciclo Completo de tratamiento). EXCLUYE: el valor de los medicamentos. (280)",135,[MAYOR] Texto del PDF
+7003,,cambiar,texto,"Tarifa para tratamiento intrahospitalario de Leucemia aguda o anemia aplástica. INCLUYE: formulación y control de quimioterapia sistémica, quimioterapias intratecales y cuidado médico durante el período de inducción (280)",135,[MENOR] Texto del PDF
+7013,,cambiar,texto,Tipo I: Procedimiento con simulador y con planeación computarizada,135,[MENOR] Texto del PDF
+7014,,cambiar,texto,Tipo II: Procedimiento sin simulador y con planeación computarizada,135,[MENOR] Texto del PDF
+7015,,cambiar,texto,Tipo III: Procedimiento sin simulador y con planeación manual,135,[MENOR] Texto del PDF
+7016,,cambiar,texto,Tipo IV: Procedimiento con simulador y planeación manual,135,[MENOR] Texto del PDF
+7022,,cambiar,texto,Grupo 1:Paleación en una dosis y entidades benignas,135,[MENOR] Texto del PDF
+7024,,cambiar,texto,"Grupo 2:Campo único en: encéfalo, cara, cuello, axila / axilo supraclavicular, tronco, pelvis/periné o extremidades",135,[MENOR] Texto del PDF
+7026,,cambiar,texto,"Grupo 3:Profilaxis en encéfalo, campos múltiples en mediastino o paleación en cualquier región, campos múltiples y/o bilateral en axila, campos múltiples en axilo-supraclavicular, mediastino - supraclavicular, campos múltiples en extremidades.",135,[MENOR] Texto del PDF
+7028,,cambiar,texto,"Grupo 4:Pre o post operatorio ganglionar de mama, campos múltiples en: cara, glándula mamaria, encéfalo, tórax, parcial de abdomen, pelvis o raquis; cara y cuello bilateral, cuello y mediastino, hemitórax, hemiabdomen o profilaxis en encéfalo o raquis.",135,[MENOR] Texto del PDF
+7030,,cambiar,texto,"Grupo 5:Cara, cuello y mediastino, ganglionar supradiafragmática, baño toráxico, abdominal total, irradiación corporal total, ganglionar infradiafragmática, encéfalo y raquis, completa de mama.",135,[MENOR] Texto del PDF
+7287,,cambiar,texto,INCLUYE: uni o bilateral (24),141,[MENOR] Texto del PDF
+7331,,cambiar,texto,APLICA: para la extracción de espículas óseas de canal espinal (92),142,[MENOR] Texto del PDF
+7408,,cambiar,texto,"INCLUYE: Mediciones electroacústicas de las prótesis auditivas de ganancia, potencia, curvas de frecuencia, distorsión, armónica, medidas de ganancia funcional a campo libre y ganancia de inserción con equipos de mediciones reales en el oído. (303)",143,[MENOR] Texto del PDF
+7422,,cambiar,texto,PATOLOGÍAS UNIDADES,144,[MENOR] Texto del PDF
+7438,,cambiar,texto,PARAGRAFO 9. El valor por la aplicación del parche hemático epidural en canal espinal se facturará a la EPS-ISS únicamente cuando el procedimiento se realice en fecha posterior de causado el acto anestésico o como consecuencia de complicación de la punción lumbar diagnóstica y/o terapéutica..,144,[MENOR] Texto del PDF
+7452,,cambiar,texto,"d. Uso de la infraestructura física y de la dotación propia del servicio (bomba de infusión, lámpara de fototerapia, vacío, menaje, mobiliario, etc.)",145,[MAYOR] Texto del PDF
+7475,,cambiar,texto,Excluye los procedimientos para la colocación del catéter o tubo cuando fuere el caso y la sustitución de tubo (sonda) nasogástrico o de esofagostomía o del tubo de gastrostomía (Artículo 41 códigos 970100-970200).,145,[MAYOR] Texto del PDF
+7509,,cambiar,texto,"La atención la brinda en forma permanente un médico especialista y/o general y enfermeras, con entrenamiento en el manejo de esta Unidad.",147,[MENOR] Texto del PDF
+7669,,cambiar,texto,"a) Estudios y procedimientos clínicos especiales Intervencionistas de Radiología, con excepción de los códigos 380110, 385120, 395010, 382301, 380210, 385220, 385401 y 395200. 30%",151,[MAYOR] Texto del PDF
+7670,,cambiar,texto,"b) Estudios y procedimientos clínicos especiales Intervencionistas de Radiología, códigos 380110, 385120, 395010, 382301, 380210, 385220, 385401 y 395200. 25%",151,[MAYOR] Texto del PDF
+7671,,cambiar,texto,c) Estudios y procedimientos de hemodinamia y electrofisiología. 30%,151,[MAYOR] Texto del PDF
+7682,,cambiar,texto,"a) Ojo, oído, glándula salival, maxilar superior o inferior, malar, seno paranasal, pulmón, plejo nervioso (cervical, braquial y lumbar), mama, glándula suprarrenal, riñón, uréter, testículo, epidídimo, ovario y trompa de Falopio (excepto sección y/o ligadura).",151,[MAYOR] Texto del PDF
+7683,,cambiar,texto,b) Miembros superiores o inferiores,151,[MAYOR] Texto del PDF
+7684,,cambiar,texto,"c) Hernia inguinal, femoral o crural",151,[MAYOR] Texto del PDF
+7702,,cambiar,texto,"a) Oftalmología: 1) extraocular o sobre los anexos (aparato lagrimal, párpados, conjuntiva, músculos oculares y palpebrales); 2) intraocular, que comprende: retina y cámaras anterior, posterior y vítrea; 3) órbita.",152,[MENOR] Texto del PDF
+7703,,cambiar,texto,b) Oído: 1) oído externo: procedimientos efectuados por el conducto auditivo externo y pabellón auricular; 2) vía transmastoidea; 3) vía transoral; 4) vía transnasal.,152,[MENOR] Texto del PDF
+7704,,cambiar,texto,"c) Procedimientos de cirugía laparoscópica, artroscópica o toracoscópica: 1) una sola vía, cualquiera sea el número de incisiones que se practiquen.",152,[MENOR] Texto del PDF
+7705,,cambiar,texto,"d) Cirugía abdominal: 1) órganos de la cavidad preperitoneal; 2) órganos de la cavidad retroperitoneal por lumbotomía; 3) cavidad abdominal inferior con abordaje mixto por laparotomía, perineal y/o a través de orificio natural.",152,[MENOR] Texto del PDF
+7706,,cambiar,texto,e) Organos intratorácicos: 1) una sola vía por cada hemitórax,152,[MENOR] Texto del PDF
+7707,,cambiar,texto,f) Columna vertebral: 1) Columna cervical 2) Columna dorsal 3) Columna lumbo-sacra,152,[MENOR] Texto del PDF
+7708,,cambiar,texto,g) Cirugía en piel y anexos: Por campo operatorio preparado,152,[MENOR] Texto del PDF
+7761,,cambiar,texto,"En el caso del paciente quirúrgico u obstétrico, la tarifa de ""Cuidado (manejo) Intrahospitalario"", se aplica únicamente en al caso que el paciente permanezca internado por un periodo superior a los primeros 15 días post quirúrgicos.",154,[MAYOR] Texto del PDF
+7763,,cambiar,texto,"PARAGRAFO 3. Los servicios profesionales correspondientes a los Códigos : 890601, 890801, S41601 y S41603, se pagarán únicamente en aquellas instituciones en donde por carencia de especialista, la actividad la realiza un médico general.",154,[MAYOR] Texto del PDF
+7772,,cambiar,texto,"ARTICULO 76. Los servicios profesionales por concepto de la atención médica o quirúrgica en los contratos de tipo intrainstitucional definidos en la Resolución 1449 de 1.996 de la Presidencia del ISS, se pagarán así:",155,[MAYOR] Texto del PDF
+7832,,cambiar,texto,"PARAGRAFO 7. La EPS-ISS no reconocerá valores adicionales por el empleo de accesorios e implementos de los equipos que se utilicen en la práctica de las intervenciones quirúrgicas y procedimientos, así no sean reutilizables. Se exceptúa de esta disposición los que a continuación se relacionan junto con el valor a facturar, por cada procedimiento efectuado: a) cuchilla para el artroscopio en procedimientos terapéuticos $41.395; b) trocar desechable de primera punción en cirugía laparoscópica $303.995 c) asa o electrodo para cauterización y corte por corriente eléctrica en cirugía urológica endoscópica $40.000; igualmente el balón de contrapulsación.",156,[MENOR] Texto del PDF
+7860,,cambiar,texto,"PARAGRAFO 3. Los derechos de sala procede facturarlos únicamente cuando el procedimiento desde el punto de vista técnico-científico no es posible efectuarlo en consultorio, sala de yesos o de pequeña cirugía.",157,[MAYOR] Texto del PDF
+7931,,cambiar,texto,"ARTICULO 85. Los materiales de sutura, curación, que se relacionan en el parágrafo 6 de este Artículo, el oxígeno, agentes y gases anestésicos, que se consuman en el quirófano y en la sala de recuperación, se pagarán de acuerdo con los siguientes valores, según el número de Unidades de Valor Relativo asignadas a la intervención quirúrgica o procedimiento realizado",159,[MENOR] Texto del PDF
+7969,,cambiar,texto,"PARAGRAFO 6. Los materiales de sutura y curación a que se refiere este Artículo, son los que se consuman en cualquiera de las salas (cirugía, parto, procedimiento especial, endoscopia, procedimientos básica, curaciones) y la tarifa incluye: algodón, aplicadores, apósitos, compresas, mechas, gasas, torundas, cotonoides, cierres umbilicales, esponjas excepto de silicón, gelatinas absorbibles, cera para huesos, esparadrapo, soluciones desinfectantes, vendajes, guantes, hojas de bisturí, catéteres pericraneales, llaves de dos o mas vías, agrafes, suturas de cualquier tipo (catguts, absorbibles sintéticas, no absorbibles, tales como: sedas, nylon, poliéster, polipropileno, acero inoxidable).",160,[MAYOR] Texto del PDF
+7973,,cambiar,texto,"ARTICULO 86. Las curaciones que enfermería realiza en paciente ambulatorio y en forma programada, según la naturaleza de las mismas, la EPS-ISS pagará las siguientes tarifas, incluido el valor del material que se consume y la utilización de equipo, instrumental y área locativa:",160,[MENOR] Texto del PDF
+8012,,cambiar,texto,"PARAGRAFO 1. De la disposición anterior se exceptúan los elementos utilizados en la realización de un examen, estudio o procedimiento contenido en el Capítulo II, definidos en el Artículo 19 como integrantes de la tarifa.",161,[MENOR] Texto del PDF
+8054,,cambiar,texto,"ARTICULO 90. Para desarrollar las acciones de protección específica, detección temprana y atención de enfermedades de interés en salud pública, se pagarán las siguientes tarifas:",162,[MENOR] Texto del PDF
+8103,,cambiar,texto,APLICA: para valoración diagnóstica (316),163,[MAYOR] Texto del PDF
+8108,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),163,[MENOR] Texto del PDF
+8138,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),163,[MENOR] Texto del PDF
+8176,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),164,[MENOR] Texto del PDF
+8205,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),165,[MENOR] Texto del PDF
+8247,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),165,[MENOR] Texto del PDF
+8258,,cambiar,texto,APLICA: para programa de detección del cáncer y osteoporosis (414),165,[MENOR] Texto del PDF
+8276,,cambiar,texto,APLICA: únicamente para consulta de oftalmología (322),166,[MENOR] Texto del PDF
+8283,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),166,[MENOR] Texto del PDF
+8298,,cambiar,texto,APLICA: para programa de detección del cáncer y osteoporosis (414),166,[MENOR] Texto del PDF
+8323,,cambiar,texto,APLICA: para terapia de mantenimiento. INCLUYE: educación en higiene oral y profilaxis. (318),167,[MENOR] Texto del PDF
+8345,,cambiar,texto,EQUIPO O ELEMENTO M3 / HORA O FRACCIÓN,167,[MENOR] Texto del PDF
+8384,,cambiar,nombre,"Barranquilla, Bucaramanga, Cali, Medellín",168,[MENOR] Texto del PDF
+8408,,cambiar,nombre,"Barranquilla, Bucaramanga, Cali, Medellín",168,[MENOR] Texto del PDF
+8431,,cambiar,nombre,"Barranquilla, Bucaramanga, Cali, Medellín",169,[MENOR] Texto del PDF
+8450,,cambiar,nombre,"Barranquilla, Bucaramanga, Cali, Medellín",169,[MENOR] Texto del PDF
+8506,,eliminar,,,,"[MAYOR] Nota (362) de M09181, procedimiento que no existe en el PDF (ya eliminado)"
+8539,,cambiar,nombre,Servicio de rehabilitación psiquiátrica con internación,171,[MENOR] Texto del PDF
+8547,,cambiar,texto,"INCLUYE: consulta especializada de fisiatría y valoración por cada uno de los servicios de: terapias física, ocupacional y del lenguaje; sicología, trabajo social, y educación especial.",171,[MAYOR] Texto del PDF
+9125,,cambiar,texto,APLICA: únicamente para apéndice no perforado (392),183,[MENOR] Texto del PDF
+9221,,cambiar,texto,INCLUYE: la utilización de rayo láser (397),185,[MENOR] Texto del PDF
+9240,,cambiar,texto,"INCLUYE: la colocación de catéter hasta uretra, control fluoroscópico (242)",185,[MAYOR] Texto del PDF
+9300,,cambiar,nombre,Trasplante de médula ósea,186,[MAYOR] Texto del PDF
+9370,,cambiar,texto,"PARAGRAFO 8. Si durante la internación previa a la realización de la intervención o procedimiento el paciente presentare patología aguda diferente a la del objeto del Conjunto o exacerbación de proceso crónico, que dé lugar a tratamiento adicional, en dicha circunstancia, no aplica el valor del Conjunto y todos los servicios que se presten se facturarán por la tarifa determinada en el Manual para cada una de las actividades.",188,[MENOR] Texto del PDF
+9426,,cambiar,texto,"La atención intrahospitalaria integral del paciente durante el trasplante y post-procedimiento por el término de doce (12) meses a partir de la fecha del inicio de éste, para las complicaciones derivadas (infección, enfermedad venooclusiva, hemorragia o rechazo), e incluye: internación en cualquier unidad o servicio, aplicación de los procedimientos integrantes del proceso de trasplante, cálculo y aplicación del esquema de acondicionamiento (quimioterapia o quimioterapia más radioterapia corporal total), terapia de movilización de células progenitoras, extracción de la médula ósea y/o separación de las células progenitoras periféricas, criopreservación, almacenamiento, descongelación e implante de la médula ósea o de las células progenitoras periféricas; medicamentos, soluciones y sustancias para nutrición enteral y parenteral; factores de crecimiento de colonias granulocíticas, medios de cultivo y preservación de las células progenitoras; sangre y/o derivados, factores de coagulación; materiales de sutura y curación, agentes y gases anestésicos y cualquier elemento médico (reutilizable o desechable); servicios en sala de recuperación, especial y de cirugía; manejo nutricional; práctica de",191,[MENOR] Texto del PDF
+9439,,cambiar,texto,"Sólo serán objeto de referencia a un programa de rehabilitación integral cardiaca con monitoría electrocardiográfica, los pacientes que presenten cualquiera de las siguientes patologías",191,[MENOR] Texto del PDF
+9456,,cambiar,texto,"La internación del paciente en servicio distinto al de UCI y el manejo medico-quirúrgico por los especialistas, cualquiera sea los días de permanencia, no son causales de rompimiento del conjunto.",192,[MENOR] Texto del PDF
+9560,,cambiar,texto,"1. Calidad de la atención es el conjunto de características técnico-científicas y humanas que debe tener la atención de salud a proveer a los afiliados, para alcanzar los efectos deseados tanto por el Instituto, como por los usuarios del servicio. Las características, son, oportunidad, continuidad, suficiencia e integridad, racionalidad lógico-científica y grado de satisfacción de los usuarios.",194,[MENOR] Texto del PDF
+9562,,cambiar,texto,"2.Evaluación de calidad de la atención es la medición del nivel de calidad de la estructura, el proceso, el resultado y el impacto de un programa o servicio de salud; esta definición no incluye los aspectos remediales para modificar lo evaluado como inadecuado.",194,[MENOR] Texto del PDF
+9564,,cambiar,texto,"3.Garantía de calidad es el conjunto de mediciones sistematizadas, la comparación de normas contra situaciones dadas y los esfuerzos que se hacen para garantizar a los usuarios de los servicios el mayor beneficio y con el mínimo riesgo posible en la atención en salud.",195,[MENOR] Texto del PDF
+9577,,cambiar,texto,"a) Estudiar detenidamente el caso presentado, investigando los antecedentes del paciente, los datos de la historia clínica y el informe de remisión.",195,[MENOR] Texto del PDF
+9578,,cambiar,texto,"b) Ordenar los estudios paraclínicos que sean necesarios para validar el diagnóstico, si fuere el caso.",195,[MENOR] Texto del PDF
+9579,,cambiar,texto,c) Dictaminar la conducta a seguir.,195,[MENOR] Texto del PDF
+9580,,cambiar,texto,"d) Analizar los casos médico-quirúrgicos que por solicitud de autoridad competente sean requeridos, con fines de evaluación de calidad y de orden legal.",195,[MENOR] Texto del PDF
+9610,,cambiar,texto,a) En donante vivo.,196,[MENOR] Texto del PDF
+9613,,cambiar,texto,b) En donante cadáver.,196,[MENOR] Texto del PDF
+9622,,cambiar,texto,"a) Fase inicial que comprende: lavado, desbridamiento y aplicación de apósitos, más las curaciones siguientes que no requieran anestesia general, según el número de UVR o tarifa asignada al procedimiento efectuado.",196,[MENOR] Texto del PDF
+9624,,cambiar,texto,"b) Las intervenciones posteriores que se realicen bajo anestesia, se reconocerán independientemente según el número de U.V.R. de las mismas; estas intervenciones son cirugías plásticas reparadoras, injertos, abrasiones y trasplantes.",196,[MENOR] Texto del PDF
+9638,,cambiar,texto,"PARAGRAFO 1. La estabilización de los signos vitales implica realizar las acciones tendientes a elevarlos dentro de parámetros compatibles con el mínimo riesgo de muerte o complicación, no necesariamente involucra la recuperación a estándares normales. El diagnóstico de impresión, está referido a la identificación de la causa de inestabilidad de los signos vitales",197,[MENOR] Texto del PDF
+9646,,cambiar,texto,PARAGRAFO 4. La atención inicial de urgencias incorpora todas aquellas acciones inmediatas y necesarias para controlar los riesgos de posibles secuelas,197,[MENOR] Texto del PDF
+9660,,cambiar,texto,"a) Continuar con la atención de urgencia del paciente, si obtiene la autorización de la Gerencia de EPS de la Seccional respectiva, o la repartición que haga sus veces.",198,[MENOR] Texto del PDF
+9662,,cambiar,texto,"b) Trasladar bajo su responsabilidad el paciente, a la IPS que le señale la Gerencia de EPS de la Seccional respectiva, o la repartición que haga sus veces.",198,[MENOR] Texto del PDF
+9674,,cambiar,texto,"a) Resumen de la historia clínica, en el cual se establezca la ocurrencia del hecho, las circunstancias de tiempo, modo y lugar en que se presentó la urgencia y el tratamiento médico y/o quirúrgico que se hubiere efectuado.",198,[MENOR] Texto del PDF
+9676,,cambiar,texto,"b) Original de las facturas por los servicios estrictamente médicos prestados al asegurado. En el evento que el reintegro lo solicite directamente el asegurado o quien demuestre haber sufragado los gastos, es requisito presentar las facturas debidamente canceladas.",199,[MENOR] Texto del PDF
+9702,,cambiar,texto,"a) Original o fotocopia de la orden de servicio o de la fórmula, expedida por el médico tratante.",199,[MENOR] Texto del PDF
+9703,,cambiar,texto,"b) Original de la autorización del servicio o para la compra (elemento o medicamento), expedida por el Gerente de la EPS o seccional o en quien éste delegue.",200,[MENOR] Texto del PDF
+9704,,cambiar,texto,"c) Resumen en medio físico de la historia clínica correspondiente a la atención de pacientes hospitalizados o ambulatorios en quienes se halla realizado un procedimiento quirúrgico, terapéutico o intervensionista.",200,[MENOR] Texto del PDF
+9705,,cambiar,texto,"d) Facturas con el lleno de los requisitos DIAN y la constancia de que fueron canceladas, discriminadas por cada uno de los servicios objeto del gasto (exámenes, procedimientos, material medico-quirúrgico, medicamentos, internación, etc.).",200,[MENOR] Texto del PDF
+9721,,cambiar,texto,a) En las Seccionales que de acuerdo con la estructura interna del ISS existe el Departamento de Contratación de Servicios de Salud:,200,[MENOR] Texto del PDF
+9727,,cambiar,texto,"b) En las Seccionales que de acuerdo con la estructura interna del ISS no exista el Departamento de Contratación de Servicios de Salud conocerán, en todos los casos, en primera instancia los Gerentes de EPS o Seccionales y la segunda instancia se surtirá ante la Vicepresidencia de EPS.",200,[MENOR] Texto del PDF
+9735,,cambiar,texto,"a) Servicios profesionales de los especialistas de clínicas quirúrgicas, ginecoobstétricas y de anestesiología, así como de los médicos que actúan de ayudantes quirúrgicos (Artículo 59 códigos S41101, S41201, S41301 y S41401).",201,[MENOR] Texto del PDF
+9737,,cambiar,texto,b) “Valoración del recién nacido por el especialista en clínicas pediátricas” (Artículo 75 código S41602).,201,[MENOR] Texto del PDF
+9739,,cambiar,texto,"c) “Consulta de urgencias” (Artículo 76 códigos I39134, I39135 y I39136).",201,[MENOR] Texto del PDF
+9896,,cambiar,texto,"a) Treinta por ciento (30%) por la consulta general, especializada, interconsultas, servicios profesionales en urgencias, atención diaria intrahospitalaria, valoraciones intrahospitalarias, servicios profesionales de los especialistas en clínicas quirúrgicas, ginecoobstétricas y anestesiología, así como los de ayudante quirúrgico y derechos de salas, en las intervenciones quirúrgicas y los procedimientos enumerados en el Capítulo I de este Manual;",204,[MENOR] Texto del PDF
+9898,,cambiar,texto,"b) Quince por ciento (15%) para los exámenes, estudios y procedimientos clínicos de diagnóstico y tratamiento, contenidos en el Capítulo II del Manual.",204,[MENOR] Texto del PDF
+,,aceptar,texto_solo_pdf,SOD: Sin Otra Denominación,3,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,SOD: Sin Otra Denominación,9,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,NCOC: No Clasificable bajo Otro Concepto,10,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,NCOC: No Clasificable bajo Otro Concepto,15,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,SOD: Sin Otra Denominación,25,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,NCOC: No Clasificable bajo Otro Concepto,28,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,NCOC: No Clasificable bajo Otro Concepto,45,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,SOD: Sin Otra Denominación,72,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,NCOC: No Clasificable bajo Otro Concepto,119,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,SOD: Sin Otra Denominación,126,Aprobado: leyenda de abreviaturas al pie de tabla; la BD no guarda leyendas. Se sugiere aceptar (no agregarlas)
+,,aceptar,texto_solo_pdf,"COMUNÍQUESE, PUBLÍQUESE Y CUMPLASE. Dado en Bogotá, D.C., a los 19 días del mes de Diciembre de 2.001 FDO. FDO. ALVARO PATIÑO PULIDO IVAN MAURICIO RESTREPO FAJARDO PRESIDENTE SECRETARIO (E)",207,Aprobado: fórmula de cierre y firmas del Acuerdo; la BD no la guarda. Se sugiere aceptar
+8592,C40147,agregar,texto,"INCLUYE: evaluación por psicología, audiología y terapia de lenguaje.",173,[MAYOR] Nota del PDF que falta en el Excel
+8596,C40148,agregar,texto,"INCLUYE: instrucción a paciente y familia; encendido (decisión sobre tipo de parámetro de estimulación a utilizar, medición de la respuesta electrofísica del paciente a los electródos, elaboración y ajustes de mapeos, balanceo de electródos, revisión de umbrales, evaluación de pruebas audiométricas y primera fase del entrenamiento). Tarifa por paciente.",173,[MAYOR] Nota del PDF que falta en el Excel
+8597,C40149,agregar,texto,"INCLUYE: ajustes de programación, revisión electroacústica del mapeo, evaluación de pruebas audiométricas, etc. Tarifa por paciente.",173,[MAYOR] Nota del PDF que falta en el Excel
+3868,,cambiar,nombre,TRATAMIENTO EN QUEMADURAS (Incluye quemadura por fricción),73,[MAYOR] En el PDF es un solo título de dos líneas
+3869,,eliminar,,,73,[MAYOR] Segunda línea del título 'TRATAMIENTO EN QUEMADURAS'; sus procedimientos pasan a ese agrupador
+2594,,cambiar,tipo,agrupador,48,[MAYOR] En el PDF es un título (agrupador) y la BD lo tiene como nota; las filas siguientes quedan bajo el agrupador anterior
+2932,,cambiar,tipo,agrupador,55,[MAYOR] En el PDF es un título (agrupador) y la BD lo tiene como nota; las filas siguientes quedan bajo el agrupador anterior
+8346,S55201,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8347,S55202,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8348,S55203,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8349,S55204,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8350,S55205,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8351,S55206,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8352,S55207,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8353,S55208,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8354,S55209,aceptar,agrupador,EQUIPO O ELEMENTO M3 / HORA O,167,Falso positivo de la extracción: cabecera de columna fuera de la tabla (pág. 167); el agrupador de la BD es correcto
+8597,C40149,aceptar,agrupador,pruebas audiométricas y primera fase del entrenamiento). Tarifa por paciente.,173,Falso positivo de la extracción: líneas en negrita de una nota (pág. 173); el agrupador de la BD es correcto
+8598,C40150,aceptar,agrupador,pruebas audiométricas y primera fase del entrenamiento). Tarifa por paciente.,173,Falso positivo de la extracción: líneas en negrita de una nota (pág. 173); el agrupador de la BD es correcto
+2159,,cambiar,tipo,agrupador,41,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+4260,,cambiar,tipo,agrupador,81,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+5772,,cambiar,tipo,agrupador,108,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+5785,,cambiar,tipo,agrupador,109,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+8531,,cambiar,tipo,agrupador,171,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+8535,,cambiar,tipo,agrupador,171,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+8539,,cambiar,tipo,agrupador,171,[MAYOR] Subtítulo del PDF (título + subtítulo) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+1056,,cambiar,tipo,agrupador,21,[MAYOR] Título del PDF (nivel superior) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+8375,,cambiar,tipo,agrupador,168,[MAYOR] Título del PDF (nivel superior) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+8376,,cambiar,tipo,agrupador,168,[MAYOR] Título del PDF (nivel superior) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+8377,,cambiar,tipo,agrupador,168,[MAYOR] Título del PDF (nivel superior) que el Excel guarda como nota; pasa a agrupador (aprobado 2026-11-05: agrupador_padre)
+4945,,cambiar,tipo,capitulo,93,"[MAYOR] Título de capítulo que el Excel deja fuera de la columna 0 (quedaba como nota o agrupador); pasa a nota tipo capitulo, como el CAPITULO V"
+7441,,cambiar,tipo,capitulo,144,"[MAYOR] Título de capítulo que el Excel deja fuera de la columna 0 (quedaba como nota o agrupador); pasa a nota tipo capitulo, como el CAPITULO V"
+8487,,cambiar,tipo,capitulo,170,"[MAYOR] Título de capítulo que el Excel deja fuera de la columna 0 (quedaba como nota o agrupador); pasa a nota tipo capitulo, como el CAPITULO V"
