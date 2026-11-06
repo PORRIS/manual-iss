@@ -9,3 +9,6 @@ R27P16R,27,16,123,suma_fija,103225,por_paciente,automatica,,"codigos:920302,9203
 R95P6,95,6,188,porcentaje,0.55,por_estudio,bilateral,,art:95,aprobada,Conjunto realizado en forma bilateral (art. 64): +55% sobre el valor del conjunto
 R134B,134,b,204,porcentaje,0.15,por_estudio,region-134,,art:19-41,aprobada,Departamentos y regiones del art. 134: +15% sobre lo que se paga por exámenes y procedimientos del Capítulo II (arts. 19-41)
 R95P23,95,23,192,porcentaje,0.14,por_estudio,region-134,,art:95,aprobada,Departamentos y regiones del art. 134: +14% sobre la tarifa total del conjunto (incluido el +55% bilateral)
+R95P7A,95,7,188,sin_conjunto,0,por_estudio,mismo-acto,unico,art:95,aprobada,"Un solo conjunto en el mismo acto con otras cirugías o procedimientos: no procede el valor del conjunto; todo se cobra por la tarifa de cada actividad (literal a)"
+R95P7B,95,7,188,porcentaje,0.25,por_estudio,mismo-acto,igual,art:95,aprobada,"Más de un conjunto, mismo especialista e igual vía de acceso (art. 68): el de mayor tarifa al 100% y se adiciona, por una sola vez, el 25% del conjunto subsiguiente (literal b)"
+R95P7C,95,7,188,porcentaje,0.70,por_estudio,mismo-acto,diferente,art:95,aprobada,"Más de un conjunto con diferente vía de acceso o por médicos de distinta especialidad: el de mayor tarifa al 100% más el 70% de cada uno de los demás (literal b)"

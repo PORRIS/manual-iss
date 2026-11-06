@@ -6,8 +6,8 @@ portátil o un conjunto bilateral; eso lo declara quien cotiza). Las cifras y el
 de cada regla están en reglas_tarifas.csv, con artículo, parágrafo y página del PDF; las
 que tienen estado distinto de "aprobada" no se aplican.
 
-Lo demás que puede cambiar el valor (varios conjuntos en un mismo acto, contrato,
-insumos según consumo, ...) solo se avisa. Los procedimientos en UVR (arts. 1-18) no se
+Lo demás que puede cambiar el valor (contrato, insumos según consumo, ...) solo se
+avisa. Los procedimientos en UVR (arts. 1-18) no se
 suman: se liquidan con liquidar.py. Una cotización corresponde a un paciente.
 
 Uso:
@@ -18,6 +18,8 @@ Uso:
     uv run cotizar.py 951301 --portatil-eco 951301          # +$9.095 (art. 27 par. 12)
     uv run cotizar.py 920302 --tecnecio                     # +$13.120 por paciente
     uv run cotizar.py C40402 --bilateral C40402             # +55% (art. 95 par. 6)
+    uv run cotizar.py C40402 C40403 --mismo-acto igual      # 100% + 25% (art. 95 par. 7)
+    uv run cotizar.py C40402 C40403 --mismo-acto diferente  # 100% + 70% de los demás
     uv run cotizar.py 903801 C40402 --region-134 META:Granada   # +15% / +14% (art. 134)
     uv run cotizar.py 697100@41501                          # CODIGO@REF si hay varios valores
     uv run cotizar.py 903801 --csv cotizacion.csv
@@ -33,13 +35,15 @@ from rutas import BASE, conectar
 
 DB = BASE / "salida" / "manual_iss.db"
 REGLAS = BASE / "reglas_tarifas.csv"
+REGIONES = BASE / "regiones_134.csv"
 RE_ITEM = re.compile(r"^(?P<codigo>[A-Za-z]?\d{4,6})(?:x(?P<cant>\d+))?(?:@(?P<ref>\w+))?$")
 # Art. 134 (pág. 204): departamentos y región con incremento; par. 2 (pág. 205): ciudades
-# donde no aplica. "URABA" = municipios de la región de Urabá (el Manual no los enumera).
-DEPTOS_134 = {"AMAZONAS", "ARAUCA", "CASANARE", "CAQUETA", "CHOCO", "GUAJIRA", "LA GUAJIRA",
-              "GUAINIA", "GUAVIARE", "META", "PUTUMAYO", "SAN ANDRES", "SAN ANDRES Y PROVIDENCIA",
-              "SUCRE", "VAUPES", "VICHADA", "URABA"}
-EXCEPTUADAS_134 = {"ARAUCA", "FLORENCIA", "RIOHACHA", "SINCELEJO", "VILLAVICENCIO", "YOPAL"}
+# donde no aplica. Están en regiones_134.csv. "URABA" = municipios de la región de Urabá
+# (el Manual no los enumera).
+_REG = pd.read_csv(REGIONES, dtype=str, keep_default_na=False)
+ALIAS_134 = {"LA GUAJIRA": "GUAJIRA", "SAN ANDRES Y PROVIDENCIA": "SAN ANDRES"}
+DEPTOS_134 = set(_REG[_REG.clase != "ciudad_exceptuada"].clave)
+EXCEPTUADAS_134 = set(_REG[_REG.clase == "ciudad_exceptuada"].clave)
 RE_MODIFICA = re.compile(r"\d+\s*%|por ciento|adicional|se incrementa|incremento|"
                          r"se pagará el|descuento", re.I)
 
@@ -211,6 +215,8 @@ def aplicar(filas, op, d):
             r = regla(rid)
             for f in objetivos(r, op[opcion], opcion):
                 ajuste(r, f, por_item(r, f))
+    if op.get("mismo-acto"):
+        mismo_acto(op, pesos_, R, regla, ajuste, errores)
     for cod, variante in (op.get("portatil-rx") or {}).items():
         rr = R[(R.opcion == "portatil-rx") & (R.variante == variante)]
         if rr.empty:
@@ -236,6 +242,7 @@ def aplicar(filas, op, d):
     if op.get("region-134"):
         depto, _, muni = op["region-134"].partition(":")
         depto, muni = norm(depto), norm(muni)
+        depto = ALIAS_134.get(depto, depto)
         if depto not in DEPTOS_134:
             errores.append(f"--region-134 {op['region-134']}: '{depto}' no está entre los "
                            f"departamentos y regiones del art. 134 ({', '.join(sorted(DEPTOS_134))})")
@@ -263,6 +270,57 @@ def aplicar(filas, op, d):
     return ajustes, errores, avisos
 
 
+def mismo_acto(op, pesos_, R, regla, ajuste, errores):
+    """Art. 95 par. 7 (pág. 188): varios procedimientos en un mismo acto, alguno de Conjunto.
+    Cada unidad (CODIGOx2 = dos conjuntos) cuenta por separado; el de mayor tarifa es el
+    principal. Los casos que el texto no resuelve con claridad no se calculan."""
+    via = op["mismo-acto"]
+    rr = R[(R.opcion == "mismo-acto") & (R.variante == via) & (R.estado == "aprobada")]
+    if via not in ("igual", "diferente") or rr.empty:
+        errores.append(f"--mismo-acto {via}: vía no válida (igual | diferente)")
+        return
+    r = rr.iloc[0]
+    conj = [f for f in pesos_ if en_alcance(f, r.alcance)]
+    unidades = sorted(((f["valor"], f) for f in conj for _ in range(f["cantidad"])),
+                      key=lambda x: -x[0])
+    cita = f"art. 95 par. 7 (pág. {r.pagina_pdf})"
+    if not unidades:
+        errores.append(f"--mismo-acto: la cotización no tiene conjuntos del art. 95 ({cita})")
+    elif len(unidades) == 1:
+        errores.append(f"--mismo-acto: con un solo conjunto en el acto no procede su valor; "
+                       f"cobre cada actividad por su tarifa, las de UVR con liquidar.py "
+                       f"({cita}, literal a: {regla('R95P7A').texto})")
+    elif via == "igual" and len(unidades) > 2:
+        errores.append(f"--mismo-acto igual con {len(unidades)} conjuntos: el Manual dice que el "
+                       f"25% se adiciona «por una sola vez» y no aclara qué pasa con el tercero "
+                       f"y siguientes; caso pendiente de consulta ({cita})")
+    elif {normcod(c) for c in op.get("bilateral") or []} & {f["codigo"] for f in conj}:
+        errores.append(f"--mismo-acto con --bilateral: el Manual no dice si el +55% bilateral "
+                       f"se calcula antes o después de los porcentajes del par. 7; caso "
+                       f"pendiente de consulta ({cita})")
+    else:
+        rebaja = {}
+        for v, f in unidades[1:]:
+            rebaja.setdefault(f["codigo"], [f, 0.0])[1] -= v * (1 - float(r.valor))
+        for f, monto in rebaja.values():
+            ajuste(r, f, monto)
+
+
+def parrafos(filas, d):
+    """Parágrafos de los artículos cotizados que pueden modificar el valor."""
+    arts = {f["articulo"] for f in filas}
+    pa = d["parr"][d["parr"].articulo.isin(arts) & d["parr"].texto.str.contains(RE_MODIFICA)]
+    salida = []
+    for p in pa.itertuples():
+        rr = d["reglas"][(d["reglas"].articulo == str(p.articulo)) & d["reglas"].paragrafo.map(
+            lambda n, t=p.texto: t.startswith((f"PARAGRAFO {n}.", f"PARAGRAFO {n} ")))]
+        opcion = None
+        if len(rr):
+            opcion = rr.opcion.iloc[0] if (rr.estado == "aprobada").all() else "pendiente"
+        salida.append(dict(articulo=int(p.articulo), opcion=opcion, texto=p.texto))
+    return salida
+
+
 def cotizar(items, op, d):
     filas, errores, avisos = resolver(items, d)
     ajustes, err2, av2 = aplicar(filas, dict(op), d) if filas else ([], [], [])
@@ -283,6 +341,10 @@ def main():
     ap.add_argument("--portatil-eco", nargs="+", metavar="COD", help="ecografía portátil (art. 27 par. 12)")
     ap.add_argument("--tecnecio", action="store_true", help="medicina nuclear con tecnecio 99 (art. 27 par. 16)")
     ap.add_argument("--bilateral", nargs="+", metavar="COD", help="conjunto bilateral: +55%% (art. 95 par. 6)")
+    ap.add_argument("--mismo-acto", choices=["igual", "diferente"],
+                    help="varios conjuntos en un mismo acto (art. 95 par. 7): igual = mismo "
+                         "especialista e igual vía (100%% + 25%%); diferente = otra vía o "
+                         "especialidad (100%% + 70%% de cada uno de los demás)")
     ap.add_argument("--region-134", metavar="DEPTO:MUNICIPIO",
                     help="atención en los departamentos/región del art. 134, con recursos del "
                          "prestador en el área: +15%% Capítulo II, +14%% conjuntos")
@@ -295,7 +357,8 @@ def main():
         rx[normcod(cod)] = var.lower()
     op = {"solo-muestra": a.solo_muestra, "biopsia-multiple": a.biopsia_multiple or [],
           "portatil-rx": rx, "portatil-eco": a.portatil_eco or [], "tecnecio": a.tecnecio,
-          "bilateral": a.bilateral or [], "region-134": a.region_134}
+          "bilateral": a.bilateral or [], "mismo-acto": a.mismo_acto,
+          "region-134": a.region_134}
 
     d = cargar()
     filas, ajustes, errores, avisos = cotizar(a.items, op, d)
@@ -335,18 +398,13 @@ def main():
         print("\nAvisos (revíselos; no se aplicaron):")
         for x in avisos:
             print(" -", x[:160])
-    arts = {f["articulo"] for f in filas}
-    pa = d["parr"][d["parr"].articulo.isin(arts) & d["parr"].texto.str.contains(RE_MODIFICA)]
-    if len(pa):
+    pa = parrafos(filas, d)
+    if pa:
         print("\nParágrafos que pueden modificar el valor (revíselos):")
-        for p in pa.itertuples():
-            rr = d["reglas"][(d["reglas"].articulo == str(p.articulo)) & d["reglas"].paragrafo.map(
-                lambda n, t=p.texto: t.startswith((f"PARAGRAFO {n}.", f"PARAGRAFO {n} ")))]
-            marca = ""
-            if len(rr):
-                marca = (f" [opción --{rr.opcion.iloc[0]}]" if (rr.estado == "aprobada").all()
-                         else " [regla pendiente de aprobación]")
-            print(f" - art. {p.articulo}{marca}: {p.texto[:140]}")
+        for p in pa:
+            marca = ("" if not p["opcion"] else " [regla pendiente de aprobación]"
+                     if p["opcion"] == "pendiente" else f" [opción --{p['opcion']}]")
+            print(f" - art. {p['articulo']}{marca}: {p['texto'][:140]}")
 
 
 if __name__ == "__main__":

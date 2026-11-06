@@ -1,0 +1,22 @@
+clave,nombre,clase,departamento,pagina_pdf,observacion
+AMAZONAS,Amazonas,departamento,,204,
+ARAUCA,Arauca,departamento,,204,
+CASANARE,Casanare,departamento,,204,
+CAQUETA,Caquetá,departamento,,204,
+CHOCO,Chocó,departamento,,204,
+GUAJIRA,Guajira,departamento,,204,En el PDF figura como «Guajira»; también se acepta «La Guajira»
+GUAINIA,Guainía,departamento,,204,
+GUAVIARE,Guaviare,departamento,,204,
+META,Meta,departamento,,204,
+PUTUMAYO,Putumayo,departamento,,204,
+SAN ANDRES,San Andrés y Providencia,departamento,,204,
+SUCRE,Sucre,departamento,,204,
+VAUPES,Vaupés,departamento,,204,
+VICHADA,Vichada,departamento,,204,
+URABA,Municipios de la Región de Urabá,region,,204,El Manual no enumera los municipios (pendiente de consulta al experto)
+ARAUCA,Arauca,ciudad_exceptuada,ARAUCA,205,Art. 134 par. 2: no aplica el incremento
+FLORENCIA,Florencia,ciudad_exceptuada,CAQUETA,205,Art. 134 par. 2: no aplica el incremento
+RIOHACHA,Riohacha,ciudad_exceptuada,GUAJIRA,205,Art. 134 par. 2: no aplica el incremento
+SINCELEJO,Sincelejo,ciudad_exceptuada,SUCRE,205,Art. 134 par. 2: no aplica el incremento
+VILLAVICENCIO,Villavicencio,ciudad_exceptuada,META,205,Art. 134 par. 2: no aplica el incremento
+YOPAL,Yopal,ciudad_exceptuada,CASANARE,205,Art. 134 par. 2: no aplica el incremento

@@ -273,6 +273,13 @@ FROM v_laboratorio GROUP BY 1 ORDER BY n DESC;
 SELECT modalidad, COUNT(*) AS n, MIN(valor) AS minimo, MAX(valor) AS maximo
 FROM v_imagenes GROUP BY modalidad;
 
+-- @prueba Cotizador: reglas | aprobadas | regiones con incremento | ciudades exceptuadas
+-- @esperado 13|13|15|6
+SELECT (SELECT COUNT(*) FROM v_reglas_tarifas) || '|' ||
+       (SELECT COUNT(*) FROM v_reglas_tarifas WHERE estado = 'aprobada') || '|' ||
+       (SELECT COUNT(*) FROM regiones_134 WHERE clase <> 'ciudad_exceptuada') || '|' ||
+       (SELECT COUNT(*) FROM regiones_134 WHERE clase = 'ciudad_exceptuada');
+
 -- @prueba Los 5 paquetes con más componentes
 SELECT codigo, descripcion, valor, n_componentes FROM v_paquetes
 ORDER BY n_componentes DESC LIMIT 5;

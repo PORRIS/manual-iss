@@ -7,7 +7,7 @@ al_proyecto()
 
 D = cargar()
 OP0 = {"solo-muestra": None, "biopsia-multiple": [], "portatil-rx": {}, "portatil-eco": [],
-       "tecnecio": False, "bilateral": [], "region-134": None}
+       "tecnecio": False, "bilateral": [], "mismo-acto": None, "region-134": None}
 
 
 def total(items, **op):
@@ -39,6 +39,16 @@ CASOS = [
      184960, "81.735 + 103.225"),
     ("conjunto bilateral, art. 95 par. 6", ["C40402"], dict(bilateral=["C40402"]),
      2800338.5, "1.806.670 + 55%"),
+    # art. 95 par. 7: varios conjuntos en un mismo acto
+    ("mismo acto, igual vía, art. 95 par. 7 b", ["C40403", "C40402"], dict(mismo_acto="igual"),
+     2003560, "1.806.670 + 25% x 787.560"),
+    ("mismo acto, igual vía, mismo conjunto x2", ["C40403x2"], dict(mismo_acto="igual"),
+     984450, "787.560 + 25% x 787.560"),
+    ("mismo acto, diferente vía, 3 conjuntos", ["C40402", "C40403", "C40404"],
+     dict(mismo_acto="diferente"), 2824935.5, "1.806.670 + 70% x (787.560 + 667.105)"),
+    ("mismo acto + región art. 134", ["C40402", "C40403"],
+     dict(mismo_acto="diferente", region_134="La Guajira:Maicao"), 2688076.68,
+     "(1.806.670 + 70% x 787.560) + 14%"),
     # art. 134: al final, sobre lo que efectivamente se paga por cada ítem
     ("región art. 134, laboratorio", ["903801"], dict(region_134="META:Granada"),
      3812.25, "3.315 + 15%"),
@@ -60,6 +70,13 @@ ERRORES = [
     ("región 134 sin municipio", ["903801"], dict(region_134="META"), "indique también el municipio"),
     ("región 134 departamento fuera de la lista", ["903801"],
      dict(region_134="ANTIOQUIA:Medellín"), "no está entre los departamentos"),
+    ("mismo acto con un solo conjunto (literal a)", ["C40402", "903801"],
+     dict(mismo_acto="igual"), "no procede su valor"),
+    ("mismo acto igual vía con 3 conjuntos", ["C40402", "C40403", "C40404"],
+     dict(mismo_acto="igual"), "pendiente de consulta"),
+    ("mismo acto con bilateral", ["C40402", "C40403"],
+     dict(mismo_acto="diferente", bilateral=["C40402"]), "pendiente de consulta"),
+    ("mismo acto sin conjuntos", ["903801"], dict(mismo_acto="igual"), "no tiene conjuntos"),
     ("tecnecio sin medicina nuclear", ["903801"], dict(tecnecio=True), "ningún ítem"),
     ("TAC portátil no aplica", ["879111"], dict(portatil_rx={"879111": "simple"}), "no aplica"),
     ("código de la opción que no está en la cotización", ["898101"],

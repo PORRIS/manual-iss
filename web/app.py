@@ -6,6 +6,7 @@ Uso:  ./web.sh            (abre http://127.0.0.1:8000)
 - Búsqueda por código (exacto, varios separados por coma o espacio, prefijo con *) o por texto
   (todas las palabras, en cualquier orden, sin distinguir mayúsculas ni tildes).
 - Exportación a Excel de lo filtrado o de la vista completa.
+- Cotizador (/api/cotizar): el mismo cálculo de cotizar.py, con sus reglas y regiones.
 - Contraseña opcional: si existe la variable de entorno WEB_CLAVE, todo el sitio (salvo /salud)
   pide usuario y clave (HTTP Basic). Usuario: WEB_USUARIO, o "revisor" si no se define.
   Sin WEB_CLAVE (uso local) no pide nada.
@@ -26,11 +27,13 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import cotizar as cz  # noqa: E402
 from rutas import BASE, DB  # noqa: E402
 
 ESTATICO = Path(__file__).resolve().parent / "static"
@@ -58,6 +61,9 @@ ETIQUETAS = {
     "detalle": "Detalle", "filas_revisadas": "Filas revisadas",
     "diferencias_sin_explicar": "Diferencias sin explicar", "observacion": "Observación",
     "abreviatura": "Abreviatura", "significado": "Significado", "paginas_pdf": "Páginas PDF",
+    "regla": "Regla", "paragrafo": "Parágrafo", "opcion": "Opción", "variante": "Variante",
+    "base": "Base", "alcance": "Alcance", "estado": "Estado", "texto": "Texto",
+    "clase": "Clase", "departamento": "Departamento",
 }
 
 # vista -> configuración. codigo: columnas comparadas con el código; lista: columnas con códigos
@@ -75,6 +81,17 @@ VISTAS = {
                     "paquete del componente y honorario del cirujano.",
         codigo=["codigo", "ref", "paquete_codigo"], texto=["descripcion", "agrupador_ruta"],
         ocultas=["id", "descripcion_busqueda"], orden="id"),
+    "v_reglas_tarifas": dict(
+        titulo="Recargos y descuentos", grupo="Cotizador", icono="porcentaje",
+        descripcion="Reglas que aplica el cotizador, con artículo, parágrafo y página del PDF: "
+                    "toma de muestra, biopsia múltiple, portátiles, medicina nuclear, bilateral, "
+                    "varios conjuntos en un mismo acto y regiones del art. 134.",
+        codigo=["regla"], texto=["texto", "opcion", "alcance"], orden="articulo"),
+    "v_regiones_134": dict(
+        titulo="Regiones del art. 134", grupo="Cotizador", icono="mapa",
+        descripcion="Departamentos y región con incremento en las tarifas (art. 134, pág. 204) y "
+                    "ciudades donde no aplica (par. 2, pág. 205).",
+        codigo=[], texto=["nombre", "clase", "observacion"]),
     "v_laboratorio": dict(
         titulo="Laboratorio", grupo="Por sección", icono="matraz",
         descripcion="Laboratorio clínico (art. 25) y anatomía patológica (art. 26).",
@@ -427,6 +444,144 @@ def fuente(fid: str, descargar: bool = False):
     return FileResponse(ruta, media_type=FUENTES[fid]["tipo"], filename=ruta.name,
                         content_disposition_type="attachment" if descargar or fid != "pdf"
                         else "inline")
+
+
+# ---------------------------------------------------------------- cotizador
+OPC_ITEM = ("solo-muestra", "biopsia-multiple", "portatil-rx", "portatil-eco", "bilateral")
+_DATOS_COT = {}
+
+
+def datos_cotizador():
+    """Tarifas, notas y reglas de cotizar.py (se cargan una vez por proceso)."""
+    if "d" not in _DATOS_COT:
+        if not DB.exists():
+            raise HTTPException(503, f"No existe la base {DB}. Genérela con ./actualizar.sh")
+        _DATOS_COT["d"] = cz.cargar(DB)
+    return _DATOS_COT["d"]
+
+
+class Cotizacion(BaseModel):
+    items: list[str] = Field(default_factory=list, max_length=200)
+    solo_muestra: list[str] = Field(default_factory=list)
+    biopsia_multiple: list[str] = Field(default_factory=list)
+    portatil_rx: dict[str, str] = Field(default_factory=dict)
+    portatil_eco: list[str] = Field(default_factory=list)
+    bilateral: list[str] = Field(default_factory=list)
+    tecnecio: bool = False
+    mismo_acto: str | None = None
+    region: str | None = None  # DEPARTAMENTO:MUNICIPIO, como en cotizar.py --region-134
+
+
+def sin_nan(x):
+    """pandas deja NaN en los campos vacíos; JSON no los admite."""
+    if isinstance(x, dict):
+        return {k: sin_nan(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [sin_nan(v) for v in x]
+    return None if isinstance(x, float) and x != x else x
+
+
+def calcular(c: Cotizacion):
+    d = datos_cotizador()
+    op = {"solo-muestra": c.solo_muestra or None, "biopsia-multiple": c.biopsia_multiple,
+          "portatil-rx": {cz.normcod(k): v for k, v in c.portatil_rx.items()},
+          "portatil-eco": c.portatil_eco, "tecnecio": c.tecnecio, "bilateral": c.bilateral,
+          "mismo-acto": c.mismo_acto or None, "region-134": c.region or None}
+    items = [i for i in (x.strip() for x in c.items) if i]
+    filas, ajustes, errores, avisos = cz.cotizar(items, op, d)
+    R = d["reglas"]
+    R = R[R.estado == "aprobada"]
+    for f in filas:
+        f["aplicables"] = sorted({r.opcion for r in R[R.opcion.isin(OPC_ITEM)].itertuples()
+                                  if f["base"] is not None and cz.en_alcance(f, r.alcance)})
+    conj = [f for f in filas if f["base"] is not None and cz.en_alcance(f, "art:95")]
+    tec = R[R.opcion == "tecnecio"]
+    base = sum(f["base"] for f in filas if f["base"] is not None)
+    return sin_nan(dict(
+        filas=filas, ajustes=ajustes, errores=errores, avisos=avisos,
+        parrafos=cz.parrafos(filas, d), base=base,
+        total=None if errores else base + sum(a["monto"] for a in ajustes),
+        globales=dict(
+            tecnecio=any(cz.en_alcance(f, tec.alcance.iloc[0]) for f in filas
+                         if f["base"] is not None) if len(tec) else False,
+            conjuntos=sum(f["cantidad"] for f in conj))))
+
+
+@app.get("/api/cotizador")
+def api_cotizador():
+    """Opciones del formulario: reglas aprobadas y regiones del art. 134."""
+    R = datos_cotizador()["reglas"]
+    reg = cz._REG
+    return dict(
+        reglas=[dict(regla=r.regla, opcion=r.opcion, variante=r.variante, texto=r.texto,
+                     cita=f"art. {r.articulo} {cz.parte(r.paragrafo)} (pág. {r.pagina_pdf})")
+                for r in R[R.estado == "aprobada"].itertuples()],
+        regiones=[dict(clave=r.clave, nombre=r.nombre, clase=r.clase,
+                       exceptuadas=[dict(clave=e.clave, nombre=e.nombre) for e in
+                                    reg[(reg.clase == "ciudad_exceptuada")
+                                        & (reg.departamento == r.clave)].itertuples()],
+                       observacion=r.observacion)
+                  for r in reg[reg.clase != "ciudad_exceptuada"].itertuples()])
+
+
+@app.post("/api/cotizar")
+def api_cotizar(c: Cotizacion):
+    return calcular(c)
+
+
+@app.post("/api/cotizar/excel")
+def api_cotizar_excel(c: Cotizacion):
+    r = calcular(c)
+    if r["errores"]:
+        raise HTTPException(422, "Corrija los errores antes de exportar: " + r["errores"][0])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cotización"
+    ws.append(["Concepto", "Código", "Descripción", "Art.", "Unidad", "Valor", "Cantidad",
+               "Monto", "Cita"])
+    for f in r["filas"]:
+        ws.append(["Tarifa", f["codigo"], f["descripcion"], f["articulo"], f["unidad"],
+                   f["valor"], f["cantidad"], f["base"], ""])
+    for a in r["ajustes"]:
+        ws.append(["Recargo" if a["monto"] >= 0 else "Descuento", a["codigo"] or "por paciente",
+                   a["texto"], a["articulo"], "pesos", None, None, a["monto"], a["cita"]])
+    ws.append([])
+    ws.append(["Tarifas (pesos)", None, None, None, None, None, None, r["base"]])
+    ws.append(["TOTAL", None, None, None, None, None, None, r["total"]])
+    for celda in ws[1]:
+        celda.fill = PatternFill("solid", fgColor="1DBB99")
+        celda.font = Font(bold=True, color="FFFFFF")
+    for fila in ws.iter_rows(min_row=ws.max_row - 1):
+        fila[0].font = fila[7].font = Font(bold=True)
+    for (v,) in ws.iter_rows(min_row=2, min_col=6, max_col=6):
+        v.number_format = "#,##0"
+    for (m,) in ws.iter_rows(min_row=2, min_col=8, max_col=8):
+        m.number_format = "#,##0.00"
+    for col, ancho in zip("ABCDEFGHI", (14, 14, 60, 6, 8, 14, 9, 16, 34)):
+        ws.column_dimensions[col].width = ancho
+    ws.freeze_panes = "A2"
+
+    info = wb.create_sheet("Avisos")
+    info.append(["Tipo", "Texto"])
+    for x in r["avisos"]:
+        info.append(["Aviso (no aplicado)", x])
+    for p in r["parrafos"]:
+        info.append([f"Parágrafo art. {p['articulo']}", p["texto"]])
+    info.append(["Opciones", c.model_dump_json(exclude_defaults=True)])
+    info.append(["Generado", datetime.now().strftime("%Y-%m-%d %H:%M")])
+    info.append(["Fuente", "Manual Tarifario ISS 2001 (Acuerdo 256 de 2001) - cotizar.py"])
+    info.column_dimensions["A"].width = 22
+    info.column_dimensions["B"].width = 120
+    for celda in info[1]:
+        celda.font = Font(bold=True)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nombre = f"cotizacion_{datetime.now():%Y%m%d_%H%M}.xlsx"
+    return StreamingResponse(
+        buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
 
 
 @app.get("/")

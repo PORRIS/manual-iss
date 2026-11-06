@@ -57,6 +57,12 @@
     `control_extraccion.controlar()` reutilizable. Web: grupo "Validación", página "PDF y Excel
     originales" (ver/descargar, SHA-256) y número de página del PDF como enlace.
 
+19. Cotizador: art. 95 par. 7 (`--mismo-acto igual|diferente`, reglas R95P7A/B/C);
+    `regiones_134.csv` (departamentos, región de Urabá y ciudades exceptuadas del art. 134) en
+    vez de listas fijas en cotizar.py; tablas y vistas v_reglas_tarifas y v_regiones_134;
+    página web "Cotizar" (POST /api/cotizar, exportar a Excel). pruebas_cotizar.py 28/28.
+    `.idea/` en .gitignore.
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -71,8 +77,11 @@
 - Confirmar (hoy funcionan así): el +15 % del art. 134 también se aplica a los adicionales por
   paciente del Capítulo II (tecnecio, radioaerosoles); Urabá se declara `URABA:municipio`
   (el Manual no enumera sus municipios).
-- No automatizado en cotizar.py: art. 95 par. 7 (varios conjuntos en un mismo acto) y
-  par. 22 (anestesia general en hemodinamia/radiología intervencionista: falta la lista de
+- Art. 95 par. 7, pendiente de consulta (hoy da error, no calcula): con igual vía y 3 o más
+  conjuntos, ¿qué se paga del tercero en adelante? ¿El +55 % bilateral va antes o después de
+  los porcentajes del par. 7? El +14 % regional se calcula sobre lo que se paga de cada conjunto
+  (ya con el 25 % / 70 %).
+- No automatizado en cotizar.py: art. 95 par. 22 (anestesia general en hemodinamia/radiología intervencionista: falta la lista de
   conjuntos a los que aplica).
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 

@@ -193,6 +193,7 @@ Las vistas **no aplican** recargos ni descuentos de los parágrafos: dependen de
 uv run cotizar.py 903801 871112x2 C40402                  # CODIGO, CODIGOxCANTIDAD, CODIGO@REF
 uv run cotizar.py 871112 --portatil-rx 871112:fluoroscopia
 uv run cotizar.py 903801 C40402 --region-134 META:Granada
+uv run cotizar.py C40402 C40403 --mismo-acto igual        # varios conjuntos en un mismo acto
 uv run pruebas_cotizar.py                                  # pruebas con resultados calculados a mano
 ```
 
@@ -213,10 +214,17 @@ el código no dice si un estudio fue portátil o un conjunto bilateral. Cifras y
 | `--tecnecio` | Art. 27 par. 16 (pág. 123) | Medicina nuclear con tecnecio 99: +$13.120 por paciente |
 | (automático) | Art. 27 par. 16 (pág. 123) | Códigos 920302, 920304, 920305, 920306: +$103.225 por paciente (radioaerosoles) |
 | `--bilateral COD…` | Art. 95 par. 6 (pág. 188) | Conjunto bilateral: +55 % |
+| `--mismo-acto igual\|diferente` | Art. 95 par. 7 (pág. 188) | Varios conjuntos en un mismo acto: el de mayor tarifa al 100 %; `igual` (mismo especialista, igual vía) + 25 % del siguiente; `diferente` (otra vía o especialidad) + 70 % de cada uno de los demás. Con un solo conjunto no procede el conjunto (literal a): error. Quedan como error, pendientes de consulta: `igual` con 3 o más conjuntos y la combinación con `--bilateral` |
 | `--region-134 DEPTO:MUNICIPIO` | Art. 134 (págs. 204-205) y art. 95 par. 23 (pág. 192) | +15 % Capítulo II (arts. 19-41), +14 % conjuntos. Va al final, sobre lo que efectivamente se paga (incluye bilateral, 12 % de toma de muestra y adicionales por paciente del Capítulo II). No aplica en Arauca, Florencia, Riohacha, Sincelejo, Villavicencio ni Yopal. `URABA` = municipios de la región de Urabá |
 
-No se automatizan (solo se avisan): varios conjuntos en un mismo acto (art. 95 par. 7),
-anestesia general en hemodinamia o radiología intervencionista (art. 95 par. 22: falta la
+Los departamentos, la región y las ciudades exceptuadas del art. 134 están en `regiones_134.csv`
+(vista `v_regiones_134`); las reglas, en la vista `v_reglas_tarifas`.
+
+En la web, el menú **Cotizador > Cotizar** hace el mismo cálculo (POST `/api/cotizar`): se agregan
+códigos, se marcan por fila las opciones que aplican a cada uno, se elige el lugar de la atención y
+si hubo varios conjuntos en un mismo acto, y se exporta la cotización a Excel.
+
+No se automatizan (solo se avisan): anestesia general en hemodinamia o radiología intervencionista (art. 95 par. 22: falta la
 lista de conjuntos a los que aplica) y todo lo que depende del contrato o del consumo.
 
 Si se define `DB_URL` (en `.env`), el ETL también carga las tablas en PostgreSQL, MySQL o SQL Server.

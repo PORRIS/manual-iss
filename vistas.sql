@@ -201,3 +201,17 @@ SELECT abreviatura, significado, paginas_pdf FROM abreviaturas ORDER BY abreviat
 CREATE VIEW v_auditoria_visual AS
 SELECT pagina AS pagina_pdf, filas_revisadas, diferencias_sin_explicar, observacion
 FROM auditoria_visual ORDER BY pagina;
+
+-- Cotizador: reglas de recargo/descuento (reglas_tarifas.csv) y regiones del art. 134.
+CREATE VIEW v_reglas_tarifas AS
+SELECT regla, articulo, paragrafo, pagina_pdf, opcion, variante, tipo, valor, base, alcance,
+       estado, texto
+FROM reglas_tarifas ORDER BY CAST(articulo AS INTEGER), regla;
+
+CREATE VIEW v_regiones_134 AS
+SELECT nombre, CASE clase WHEN 'departamento' THEN 'Departamento (+ incremento)'
+                          WHEN 'region' THEN 'Región (+ incremento)'
+                          ELSE 'Ciudad exceptuada (sin incremento)' END AS clase,
+       departamento, pagina_pdf, observacion
+FROM regiones_134
+ORDER BY CASE regiones_134.clase WHEN 'departamento' THEN 1 WHEN 'region' THEN 2 ELSE 3 END, nombre;

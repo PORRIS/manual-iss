@@ -26,3 +26,6 @@ diferencias_pendientes.csv
 auditoria_filas.csv
 # Propuesta ya revisada y fusionada en correcciones.csv (proponer_correcciones.py la regenera)
 correcciones_propuestas.csv
+
+# Configuración local del IDE (JetBrains)
+.idea/

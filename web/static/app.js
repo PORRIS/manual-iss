@@ -30,6 +30,10 @@ const ICONOS = {
   izq: '<path d="m15 18-6-6 6-6"/>',
   der: '<path d="m9 18 6-6-6-6"/>',
   copiar: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  porcentaje: '<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  mapa: '<path d="M12 22s7-6.1 7-12a7 7 0 0 0-14 0c0 5.9 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
+  calculadora: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4"/>',
+  mas: '<path d="M12 5v14M5 12h14"/>',
   vacio: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/>',
 };
 const icono = (n) => `<svg class="icono" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[n] || ""}</svg>`;
@@ -136,6 +140,7 @@ function pintarMenu() {
   let h = `<a class="menu__item" href="#/" data-vista="">${icono("inicio")}<span>Inicio</span></a>`;
   for (const [g, vs] of Object.entries(grupos)) {
     h += `<div class="menu__grupo">${esc(g)}</div>`;
+    if (g === "Cotizador") h += `<a class="menu__item" href="#/cotizar" data-vista="cotizar">${icono("calculadora")}<span>Cotizar</span></a>`;
     h += vs.map((v) => `<a class="menu__item" href="#/${v.id}" data-vista="${v.id}">${icono(v.icono)}
       <span>${esc(v.titulo)}</span><small>${fmt.format(v.total)}</small></a>`).join("");
   }
@@ -213,7 +218,10 @@ async function pintarInicio() {
       conteos = Object.fromEntries((await api(`/api/buscar?${new URLSearchParams({ q: estado.q, modo: estado.modo })}`)).map((r) => [r.id, r]));
     } catch (e) { avisar(e.message, true); }
   }
-  $("#rejilla").innerHTML = VISTAS.map((v) => {
+  $("#rejilla").innerHTML = `<button class="tarjeta-vista tarjeta-cotizar" data-vista="cotizar">
+      <div class="tarjeta-vista__icono">${icono("calculadora")}</div>
+      <div><h3>Cotizar</h3><p>Sume las tarifas de varios códigos y aplique los recargos y descuentos del Manual:
+        portátil, bilateral, varios conjuntos en un mismo acto y regiones del art. 134.</p></div></button>` + VISTAS.map((v) => {
     const r = conteos?.[v.id];
     const clase = conteos ? (r?.coincidencias ? "con-resultados" : "sin-resultados") : "";
     const insignia = conteos ? `<span class="insignia">${r ? fmt.format(r.coincidencias) : "—"}</span>` : "";
@@ -481,10 +489,309 @@ async function pintarFuentes() {
       es un enlace: abre el PDF directamente en esa página.</p>`;
 }
 
+// ---------- Cotizador ----------
+// Mismo cálculo que cotizar.py (POST /api/cotizar). La cotización se guarda en este navegador.
+const OPC_ETIQUETA = {
+  "solo-muestra": "Solo toma de muestra", "biopsia-multiple": "Biopsia múltiple",
+  "portatil-eco": "Ecografía portátil", bilateral: "Bilateral", "portatil-rx": "Radiología portátil",
+};
+const RE_ITEM = /^([A-Za-z]?\d{4,6})(?:x(\d+))?(?:@(\w+))?$/i;
+const pesos = (v) => (v < 0 ? "−" : "") + "$" + new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(Math.abs(v));
+const normCod = (c) => { c = c.toUpperCase(); return /^\d+$/.test(c) ? c.padStart(6, "0") : c; };
+const partesItem = (s) => { const m = s.match(RE_ITEM); return m ? { cod: normCod(m[1]), cant: +(m[2] || 1), ref: m[3] || "" } : null; };
+const armarItem = (p) => p.cod + (p.cant > 1 ? "x" + p.cant : "") + (p.ref ? "@" + p.ref : "");
+const cotVacia = () => ({ items: [], opc: {}, rx: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
+let COT_CFG = null;
+let cotRes = null;
+let cotSeq = 0;
+let cot = (() => {
+  try { return { ...cotVacia(), ...JSON.parse(localStorage.getItem("cotizacion") || "{}") }; } catch { return cotVacia(); }
+})();
+function guardarCot() { try { localStorage.setItem("cotizacion", JSON.stringify(cot)); } catch { /* sin almacenamiento */ } }
+
+function pedidoCot() {
+  const lista = (op) => Object.keys(cot.opc).filter((c) => cot.opc[c][op]);
+  return {
+    items: cot.items,
+    solo_muestra: lista("solo-muestra"), biopsia_multiple: lista("biopsia-multiple"),
+    portatil_eco: lista("portatil-eco"), bilateral: lista("bilateral"),
+    portatil_rx: Object.fromEntries(Object.entries(cot.rx).filter(([, v]) => v)),
+    tecnecio: cot.tecnecio, mismo_acto: cot.mismoActo || null,
+    region: cot.depto ? `${cot.depto}:${cot.muni || "OTRO"}` : null,
+  };
+}
+
+/** Quita las opciones de los códigos que ya no están en la cotización. */
+function podarCot() {
+  const vivos = new Set(cot.items.map((i) => partesItem(i)?.cod || i.toUpperCase()));
+  for (const k of Object.keys(cot.opc)) if (!vivos.has(k)) delete cot.opc[k];
+  for (const k of Object.keys(cot.rx)) if (!vivos.has(k)) delete cot.rx[k];
+}
+
+async function postJSON(url, cuerpo) {
+  return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
+}
+
+const recalcular = debounce(async () => {
+  guardarCot();
+  const n = ++cotSeq;
+  $("#cotItems")?.classList.add("cargando");
+  try {
+    const r = await postJSON("/api/cotizar", pedidoCot());
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const d = await r.json();
+    if (n !== cotSeq) return;
+    // opciones globales que dejaron de aplicar (se quitó el código que las permitía)
+    let otraVez = false;
+    if (cot.tecnecio && !d.globales.tecnecio) { cot.tecnecio = false; otraVez = true; }
+    if (cot.mismoActo && !d.globales.conjuntos) { cot.mismoActo = ""; otraVez = true; }
+    cotRes = d;
+    pintarCotResultado();
+    if (otraVez) recalcular();
+  } catch (e) {
+    avisar("No se pudo cotizar: " + e.message, true);
+  } finally {
+    if (n === cotSeq) $("#cotItems")?.classList.remove("cargando");
+  }
+}, 120);
+
+function agregarItems(texto) {
+  const nuevos = texto.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+  if (!nuevos.length) return;
+  cot.items.push(...nuevos);
+  recalcular();
+}
+
+async function pintarCotizar() {
+  $("#migaVista").textContent = "Cotizar";
+  const c = $("#contenido");
+  c.dataset.vista = "cotizar";
+  if (!COT_CFG) {
+    try { COT_CFG = await api("/api/cotizador"); } catch (e) {
+      c.innerHTML = `<div class="panel estado">${icono("alerta")}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+  }
+  c.innerHTML = `
+    <section class="panel">
+      <div class="cabecera">
+        <div class="cabecera__icono">${icono("calculadora")}</div>
+        <div><h1>Cotizar</h1><p>Agregue los códigos de la atención de un paciente. Se suman las tarifas en pesos y se
+          aplican solo los recargos y descuentos que usted marque, con el artículo y la página del PDF de cada uno.
+          Los procedimientos en UVR (arts. 1-18) no se suman.</p></div>
+      </div>
+      <form class="cot-agregar" id="cotForm" autocomplete="off">
+        <label class="buscador">${icono("mas")}
+          <input id="cotCodigo" placeholder="Códigos: 903801, 871112x2, C40402, 697100@41501" aria-label="Códigos a agregar"></label>
+        <button class="boton boton--verde" type="submit">${icono("mas")}Agregar</button>
+      </form>
+      <div class="ayuda"><code>CODIGO</code> una vez, <code>CODIGOx2</code> con cantidad, <code>CODIGO@REF</code> cuando el código
+        tiene varios valores en el Manual. Puede pegar varios separados por coma o espacio.</div>
+    </section>
+    <div class="cot-rejilla">
+      <div class="cot-principal">
+        <section class="panel" id="cotItems"></section>
+        <section class="panel" id="cotNotas"></section>
+      </div>
+      <aside class="cot-lateral">
+        <section class="panel" id="cotCondiciones"></section>
+        <section class="panel cot-total" id="cotTotal"></section>
+      </aside>
+    </div>`;
+  $("#cotForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    agregarItems($("#cotCodigo").value);
+    $("#cotCodigo").value = "";
+  });
+  enlazarCotizar();
+  if (cotRes) pintarCotResultado();
+  recalcular();
+  $("#cotCodigo").focus();
+}
+
+function enlazarCotizar() {
+  $("#cotItems").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-quitar]");
+    if (!b) return;
+    cot.items.splice(+b.dataset.quitar, 1);
+    podarCot();
+    recalcular();
+  });
+  $("#cotItems").addEventListener("change", (ev) => {
+    const t = ev.target;
+    if (t.dataset.cant !== undefined) {
+      const p = partesItem(cot.items[+t.dataset.cant]);
+      p.cant = Math.max(1, Math.min(999, parseInt(t.value, 10) || 1));
+      cot.items[+t.dataset.cant] = armarItem(p);
+    } else if (t.dataset.rx !== undefined) {
+      cot.rx[t.dataset.rx] = t.value;
+    } else if (t.dataset.op !== undefined) {
+      (cot.opc[t.dataset.cod] ||= {})[t.dataset.op] = t.checked;
+    } else return;
+    recalcular();
+  });
+  $("#cotCondiciones").addEventListener("change", (ev) => {
+    const t = ev.target;
+    if (t.id === "cotDepto") { cot.depto = t.value; cot.muni = ""; }
+    else if (t.id === "cotMuni") cot.muni = t.value;
+    else if (t.name === "mismoActo") cot.mismoActo = t.value;
+    else if (t.id === "cotTecnecio") cot.tecnecio = t.checked;
+    else return;
+    recalcular();
+  });
+  $("#cotTotal").addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    if (b.id === "cotLimpiar") {
+      if (cot.items.length && !confirm("¿Borrar la cotización?")) return;
+      cot = cotVacia();
+      recalcular();
+    } else if (b.id === "cotExcel") exportarCot(b);
+  });
+}
+
+function htmlOpciones(f) {
+  const regla = (op, variante = "") => COT_CFG.reglas.find((r) => r.opcion === op && (!variante || r.variante === variante));
+  const titulo = (r) => (r ? `${r.texto} — ${r.cita}` : "");
+  return f.aplicables.map((op) => {
+    if (op === "portatil-rx") {
+      const v = cot.rx[f.codigo] || "";
+      return `<label class="opcion${v ? " activa" : ""}" title="${esc(titulo(regla(op, "simple")))}">${OPC_ETIQUETA[op]}
+        <select data-rx="${esc(f.codigo)}"><option value="">no</option>
+          <option value="simple"${v === "simple" ? " selected" : ""}>simple</option>
+          <option value="fluoroscopia"${v === "fluoroscopia" ? " selected" : ""}>con fluoroscopia</option></select></label>`;
+    }
+    const marcado = cot.opc[f.codigo]?.[op];
+    return `<label class="opcion${marcado ? " activa" : ""}" title="${esc(titulo(regla(op)))}">
+      <input type="checkbox" data-op="${op}" data-cod="${esc(f.codigo)}"${marcado ? " checked" : ""}>${OPC_ETIQUETA[op] || op}</label>`;
+  }).join("");
+}
+
+function pintarCotResultado() {
+  if (!$("#cotItems") || !cotRes) return;
+  const d = cotRes;
+  // empareja cada ítem escrito con su fila resuelta (los que tienen error no traen fila)
+  const pendientes = [...d.filas];
+  const filasHtml = cot.items.map((it, i) => {
+    const p = partesItem(it);
+    const k = pendientes.findIndex((f) => p && f.codigo === p.cod && f.cantidad === p.cant);
+    const quitar = `<button class="boton-icono" type="button" data-quitar="${i}" title="Quitar">${icono("x")}</button>`;
+    if (k < 0) {
+      const err = d.errores.find((e) => e.startsWith(p ? p.cod : it) || e.startsWith(it)) || "Revise el código";
+      return `<tr class="cot-error"><td class="cod">${esc(it)}</td><td colspan="5">${esc(err)}</td><td></td><td>${quitar}</td></tr>`;
+    }
+    const f = pendientes.splice(k, 1)[0];
+    const enPesos = f.unidad === "pesos";
+    return `<tr>
+      <td class="cod">${esc(f.codigo)}${p.ref ? `<small>@${esc(p.ref)}</small>` : ""}</td>
+      <td><div class="recorte">${esc(f.descripcion)}</div><small class="sutil">${esc(f.agrupador || "")}</small></td>
+      <td class="num">${f.articulo}</td>
+      <td class="num">${enPesos ? pesos(f.valor) : `${fmt.format(f.valor)} ${esc(f.unidad)}`}</td>
+      <td class="num"><input class="cant" type="number" min="1" max="999" value="${f.cantidad}" data-cant="${i}" aria-label="Cantidad"></td>
+      <td class="num"><b>${f.base == null ? "—" : pesos(f.base)}</b></td>
+      <td><div class="opciones">${htmlOpciones(f)}</div></td>
+      <td>${quitar}</td></tr>`;
+  }).join("");
+  $("#cotItems").innerHTML = `
+    <h2 class="subtitulo">${icono("lista")}Servicios (${cot.items.length})</h2>
+    ${cot.items.length ? `<div class="tabla-marco cot-tabla"><table>
+      <thead><tr><th>Código</th><th>Descripción</th><th class="num">Art.</th><th class="num">Valor</th>
+        <th class="num">Cant.</th><th class="num">Subtotal</th><th>Recargos y descuentos</th><th></th></tr></thead>
+      <tbody>${filasHtml}</tbody></table></div>`
+      : `<div class="estado">${icono("calculadora")}<div>Agregue códigos para empezar.</div></div>`}`;
+
+  // ajustes aplicados
+  const ajustes = d.ajustes.length ? `<h2 class="subtitulo">${icono("porcentaje")}Recargos y descuentos aplicados</h2>
+    <div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Regla</th><th>Cita</th><th class="num">Monto</th></tr></thead>
+    <tbody>${d.ajustes.map((a) => `<tr><td class="cod">${esc(a.codigo || "por paciente")}</td><td>${esc(a.texto)}</td>
+      <td class="sin-salto">${enlacesCita(a.cita)}</td>
+      <td class="num monto ${a.monto < 0 ? "neg" : "pos"}">${a.monto < 0 ? "" : "+"}${pesos(a.monto)}</td></tr>`).join("")}</tbody></table></div>` : "";
+  const avisos = d.avisos.length ? `<details class="cot-detalles" open><summary>${icono("alerta")}Avisos (${d.avisos.length}): revíselos, no se aplicaron</summary>
+    <ul>${d.avisos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "";
+  const parr = d.parrafos.length ? `<details class="cot-detalles"><summary>${icono("documento")}Parágrafos que pueden modificar el valor (${d.parrafos.length})</summary>
+    <ul>${d.parrafos.map((p) => `<li><span class="chip ${p.opcion ? "" : "chip--gris"}">art. ${p.articulo}${p.opcion === "pendiente" ? " · pendiente" : p.opcion ? " · se puede marcar" : ""}</span> ${esc(p.texto)}</li>`).join("")}</ul></details>` : "";
+  $("#cotNotas").innerHTML = ajustes + avisos + parr;
+  $("#cotNotas").hidden = !(ajustes || avisos || parr);
+
+  pintarCondiciones();
+  const sumaAj = d.ajustes.reduce((s, a) => s + a.monto, 0);
+  $("#cotTotal").innerHTML = `
+    <div class="cot-linea"><span>Tarifas</span><b>${pesos(d.base)}</b></div>
+    <div class="cot-linea"><span>Recargos y descuentos</span><b class="monto ${sumaAj < 0 ? "neg" : "pos"}">${sumaAj < 0 ? "" : "+"}${pesos(sumaAj)}</b></div>
+    <div class="cot-gran-total"><span>Total</span><strong>${d.total == null ? "—" : pesos(d.total)}</strong></div>
+    ${d.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>No se calcula el total mientras haya errores:</b>
+      <ul>${d.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}
+    <div class="cot-acciones">
+      <button class="boton boton--verde" id="cotExcel" type="button"${d.total == null || !cot.items.length ? " disabled" : ""}>${icono("excel")}Excel</button>
+      <button class="boton boton--borde" id="cotLimpiar" type="button">${icono("papelera")}Limpiar</button>
+    </div>`;
+}
+
+/** "art. 95 par. 7 (pág. 188)" -> la página enlazada al PDF. */
+function enlacesCita(cita) {
+  return esc(cita).replace(/pág\. (\d+)/, (_, n) => `pág. <a class="pagina" href="/fuentes/pdf#page=${n}" target="_blank" rel="noopener">${n}</a>`);
+}
+
+function pintarCondiciones() {
+  const g = cotRes.globales;
+  const deptos = COT_CFG.regiones.filter((r) => r.clase === "departamento");
+  const regiones = COT_CFG.regiones.filter((r) => r.clase === "region");
+  const sel = COT_CFG.regiones.find((r) => r.clave === cot.depto);
+  const opt = (r) => `<option value="${esc(r.clave)}"${r.clave === cot.depto ? " selected" : ""}>${esc(r.nombre)}</option>`;
+  const muni = sel ? `<label class="campo-form"><span>Municipio</span><select id="cotMuni">
+      <option value="">${sel.clase === "region" ? "Municipio de la región (con incremento)" : "Otro municipio (con incremento)"}</option>
+      ${sel.exceptuadas.map((e) => `<option value="${esc(e.clave)}"${e.clave === cot.muni ? " selected" : ""}>${esc(e.nombre)} (sin incremento, par. 2)</option>`).join("")}
+    </select></label>${sel.observacion ? `<p class="nota-campo">${esc(sel.observacion)}</p>` : ""}` : "";
+  const radio = (v, t, sub) => `<label class="radio"><input type="radio" name="mismoActo" value="${v}"${cot.mismoActo === v ? " checked" : ""}>
+    <span>${t}${sub ? `<small>${sub}</small>` : ""}</span></label>`;
+  $("#cotCondiciones").innerHTML = `
+    <h2 class="subtitulo">${icono("mapa")}Lugar de la atención</h2>
+    <label class="campo-form"><span>Departamento o región (art. 134, <a class="pagina" href="/fuentes/pdf#page=204" target="_blank" rel="noopener">pág. 204</a>)</span>
+      <select id="cotDepto"><option value="">Fuera de las regiones del art. 134</option>
+        <optgroup label="Departamentos">${deptos.map(opt).join("")}</optgroup>
+        <optgroup label="Región">${regiones.map(opt).join("")}</optgroup></select></label>
+    ${muni}
+    <p class="nota-campo">Con incremento: +15 % en exámenes y procedimientos del Capítulo II (arts. 19-41) y +14 % en los conjuntos (art. 95).
+      Solo si el prestador aporta los recursos dentro del área.</p>
+    <h2 class="subtitulo">${icono("bisturi")}Varios conjuntos en un mismo acto</h2>
+    ${g.conjuntos ? `${radio("", "No")}
+      ${radio("igual", "Mismo especialista, igual vía de acceso", "100 % del mayor + 25 % del siguiente")}
+      ${radio("diferente", "Otra vía de acceso o distinta especialidad", "100 % del mayor + 70 % de cada uno de los demás")}
+      <p class="nota-campo">Art. 95 par. 7, <a class="pagina" href="/fuentes/pdf#page=188" target="_blank" rel="noopener">pág. 188</a>.</p>`
+      : `<p class="nota-campo">Aplica cuando la cotización tiene conjuntos del art. 95 (códigos C…).</p>`}
+    ${g.tecnecio ? `<h2 class="subtitulo">${icono("radiografia")}Medicina nuclear</h2>
+      <label class="radio"><input type="checkbox" id="cotTecnecio"${cot.tecnecio ? " checked" : ""}>
+        <span>Con tecnecio 99<small>+$13.120 por paciente (art. 27 par. 16)</small></span></label>` : ""}`;
+}
+
+async function exportarCot(boton) {
+  const original = boton.innerHTML;
+  boton.disabled = true;
+  boton.innerHTML = `<span class="giro"></span><span>Generando…</span>`;
+  try {
+    const r = await postJSON("/api/cotizar/excel", pedidoCot());
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const nombre = (r.headers.get("Content-Disposition") || "").match(/filename="(.+)"/)?.[1] || "cotizacion.xlsx";
+    const url = URL.createObjectURL(await r.blob());
+    const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    avisar(`Descargado ${nombre}`);
+  } catch (e) {
+    avisar("No se pudo exportar: " + e.message, true);
+  } finally {
+    boton.disabled = false;
+    boton.innerHTML = original;
+  }
+}
+
 // ---------- Arranque ----------
 function render() {
   marcarMenu();
   if (estado.vista === "fuentes") pintarFuentes();
+  else if (estado.vista === "cotizar") pintarCotizar();
   else if (estado.vista) pintarVista();
   else { $("#contenido").dataset.vista = ""; pintarInicio(); }
 }

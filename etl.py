@@ -458,6 +458,10 @@ for _c in ("pdf", "bd"):
 tablas["validacion_resumen"].insert(0, "orden", range(1, len(tablas["validacion_resumen"]) + 1))
 tablas["auditoria_visual"] = auditoria
 
+# Recargos y descuentos que aplica cotizar.py, y regiones del art. 134 (para consultarlos en la web)
+tablas["reglas_tarifas"] = pd.read_csv("reglas_tarifas.csv", dtype={"paragrafo": str})
+tablas["regiones_134"] = pd.read_csv("regiones_134.csv", keep_default_na=False)
+
 # Art. 59: valor de la UVR en pesos por tipo de profesional
 tablas["parametros"] = (
     pr[(pr.articulo == 59) & (pr.tipo == "con_valor")][["codigo", "descripcion", "valor"]]
