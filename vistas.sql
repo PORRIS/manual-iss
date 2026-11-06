@@ -260,3 +260,25 @@ SELECT cups, descripcion_cups, codigo_iss AS codigo_iss_actual, descripcion_iss 
        parecido_actual, codigo_sugerido, descripcion_sugerida, parecido_sugerido, tipo, motivo,
        estado_revision, codigo_en_homologacion
 FROM relacion_cups_revision ORDER BY tipo, cups;
+
+-- ---------------- Otros tarifarios (tarifarios.py) ----------------
+CREATE VIEW v_tarifarios AS
+SELECT id, nombre, vigencia, unidad, fuente, descripcion FROM tarifarios
+ORDER BY CASE id WHEN 'iss' THEN 1 WHEN 'soat' THEN 2 ELSE 3 END;
+
+-- SOAT 2026: códigos con tarifa (valor = factor UVB x UVB 2026).
+CREATE VIEW v_soat_tarifas AS
+SELECT t.codigo, t.descripcion, t.factor_uvb, t.factor_uvt, t.factor_smlv, t.valor_2026
+FROM soat_tarifas t ORDER BY CAST(t.codigo AS INTEGER);
+
+-- Relación CUPS -> SOAT con la tarifa SOAT 2026 (vacía en cirugía: va por grupo quirúrgico).
+CREATE VIEW v_soat_relacion_cups AS
+SELECT r.cups, r.nombre_cups, r.codigo_soat, COALESCE(t.descripcion, r.descripcion_soat) AS descripcion_soat,
+       t.factor_uvb, t.valor_2026,
+       (SELECT COUNT(*) FROM soat_relacion_cups r2 WHERE r2.cups = r.cups) AS codigos_soat_del_cups,
+       CASE WHEN t.codigo IS NULL THEN 'Sin tarifa en la tabla SOAT 2026 (cirugía: grupo quirúrgico)'
+            ELSE '' END AS observacion
+FROM soat_relacion_cups r LEFT JOIN soat_tarifas t ON t.codigo = r.codigo_soat
+ORDER BY r.cups, r.codigo_soat;
+
+

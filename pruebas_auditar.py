@@ -1,6 +1,11 @@
 """Pruebas de auditar.py con las facturas ficticias de ejemplos/ (resultados calculados a mano).
 Uso: uv run pruebas_auditar.py"""
-from auditar import auditar, leer_factura
+import io
+
+import openpyxl
+
+import tarifas_propias as tp
+from auditar import auditar, auditar_tarifa, cargar_tarifas, leer_factura
 from cotizar import cargar
 from rutas import BASE, al_proyecto
 
@@ -37,6 +42,60 @@ homo_rips = auditar([dict(codigo="903883", cantidad=1, valor_unitario=3125, secc
 sin_pdf = auditar([dict(codigo="783001", cantidad=1, valor_unitario=1000, seccion="procedimientos")], OP0, D)
 homo_dig = auditar([dict(codigo="028302", cantidad=1, valor_unitario=227340)], OP0, D)
 
+T = cargar_tarifas()
+
+
+def tarifa(t, lineas, **k):
+    return auditar_tarifa(lineas, t, T, **k)["lineas"]
+
+
+P = "procedimientos"
+soat = tarifa("soat", [dict(codigo="903841", valor_unitario=22887.9, seccion=P),
+                       dict(codigo="903841", valor_unitario=30000, seccion=P),
+                       dict(codigo="890202", valor_unitario=79078.3, seccion="consultas"),
+                       dict(codigo="890202", valor_unitario=50000, seccion="consultas"),
+                       dict(codigo="010101", valor_unitario=100000, seccion=P)])
+soat_uvb = tarifa("soat", [dict(codigo="903841", valor_unitario=21833.28, seccion=P)], uvb=11552)
+soat_contrato = tarifa("soat", [dict(codigo="903841", valor_unitario=23803.42, seccion=P)], contrato_pct=4)
+
+
+def excel(hojas):
+    """Excel en memoria: {hoja: [filas]} (la primera fila es la cabecera)."""
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    for nombre, filas in hojas.items():
+        ws = wb.create_sheet(nombre)
+        for f in filas:
+            ws.append(f)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# Manuales de tarifas propias en una base temporal (en memoria)
+ENG = tp.motor("sqlite://")
+CAB = ["Código", "Descripción", "Tarifa", "Tipo liquidación", "Factor %"]
+va = tp.guardar(excel({
+    "CUPS": [["Tarifario de prueba"], [], CAB, ["890202", "CONSULTA ESPECIALISTA", "$ 79.000", "", ""],
+             ["903841", "GLUCOSA", "", "SOAT", "-10"], ["903883", "GLUCOMETRIA", "", "ISS", ""],
+             ["890202", "CONSULTA ESPECIALISTA", 79000, "", ""]],
+    "CUMS": [CAB, ["MED-001", "ACETAMINOFEN", 58000]],
+    "INSUMOS": [CAB, [50010194, "PROTESIS FACIAL", "11.292.000"]],
+    "OTRA HOJA": [["x"]]}), "a.xlsx", "tar-prueba-01", "Tarifario de prueba", "valor_fijo",
+    estado="activo", inicio="2026-01-01", fin="2026-12-31", eng=ENG)
+vb = tp.guardar(excel({"CUPS": [CAB, ["890202", "CONSULTA", 79000]]}), "b.xlsx", "TAR-PRUEBA-01",
+                "Tarifario de prueba", "soat", -5, estado="borrador", eng=ENG)
+PA, PB = tp.cargar_version(va["id"], ENG), tp.cargar_version(vb["id"], ENG)
+lp = [dict(codigo="890202", valor_unitario=80000, seccion="consultas"),
+      dict(codigo="50010194", valor_unitario=11292000, seccion="otrosServicios", datos={"tipoOS": "01"}),
+      dict(codigo="MED-001", valor_unitario=58000, seccion="medicamentos"),
+      dict(codigo="903841", valor_unitario=20599.11, seccion=P),
+      dict(codigo="903883", valor_unitario=3125, seccion=P),
+      dict(codigo="903801", valor_unitario=5000, seccion=P)]
+propia_a = auditar_tarifa(lp, "propia", T, propia=PA, d=D)
+propia_b = auditar_tarifa([dict(codigo="903841", valor_unitario=21743.51, seccion=P)], "propia", T,
+                          propia=PB, d=D)
+
 CASOS = [
     ("RIPS: 2 usuarios, 6 líneas + 1 medicamento no tarifado (art. 87)",
      [len(rips["grupos"]), len(rips["grupos"][0]["lineas"]), len(rips["grupos"][0]["no_tarifadas"])], [2, 6, 1]),
@@ -68,6 +127,26 @@ CASOS = [
      (sin_pdf["lineas"][0]["estado"], "novedad registrada" in sin_pdf["lineas"][0]["alertas"][0]["texto"]),
      ("Revisar", True)),
     ("línea digitada: el código se toma como ISS, sin homologar", homo_dig["lineas"][0]["manual"]["codigo"], "028302"),
+    ("SOAT: 903841 -> 19490 (1,89 UVB x 12.110 = 22.887,9): igual Conforme, 30.000 Glosa 7.112,1",
+     [(x["manual"]["codigo"], x["estado"], round(x["glosa"], 1)) for x in soat[:2]],
+     [("19490", "Conforme", 0), ("19490", "Glosa", 7112.1)]),
+    ("SOAT con varias opciones: coincide con una -> Conforme; entre opciones -> Revisar",
+     [(x["estado"], x["alertas"][0]["tipo"]) for x in soat[2:4]], [("Conforme", "Varias opciones"), ("Revisar", "Varias opciones")]),
+    ("SOAT cirugía sin tarifa (grupo quirúrgico) -> Revisar", (soat[4]["estado"], "grupo quirúrgico" in soat[4]["alertas"][0]["texto"]),
+     ("Revisar", True)),
+    ("SOAT con otra UVB (11.552): 1,89 x 11.552 = 21.833,28", (round(soat_uvb[0]["esperado"], 2), soat_uvb[0]["estado"]), (21833.28, "Conforme")),
+    ("SOAT + 4 %: 22.887,9 x 1,04 = 23.803,42", round(soat_contrato[0]["esperado"], 2), 23803.42),
+    ("manual propio: versiones 1 y 2 del mismo código; 5 códigos (repetido y hoja ajena avisados)",
+     (va["version"], vb["version"], va["filas"], len(va["avisos"])), (1, 2, 5, 2)),
+    ("manual propio v1: valor fijo (glosa 1.000), insumo, CUM, fila SOAT -10 %, fila ISS (vía relación), "
+     "código fuera del manual",
+     [(x["manual"]["codigo"] if x["manual"] else x["codigo"], x["estado"], round(x["glosa"], 2))
+      for x in propia_a["lineas"]],
+     [("890202", "Glosa", 1000.0), ("50010194", "Conforme", 0.0), ("MED-001", "Conforme", 0.0),
+      ("19490", "Conforme", 0.0), ("903840", "Conforme", 0.0), ("903801", "Revisar", 0.0)]),
+    ("manual propio v2 (base SOAT -5 %, borrador): código fuera del manual usa la base y avisa el estado",
+     (round(propia_b["lineas"][0]["esperado"], 2), propia_b["lineas"][0]["estado"], len(propia_b["avisos"])),
+     (21743.51, "Conforme", 1)),
     ("región art. 134: 903801 = 3.315 + 15 %", next(x["esperado"] for x in choco["lineas"] if x["codigo"] == "903801"), 3812.25),
 ]
 fallas = 0

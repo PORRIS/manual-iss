@@ -397,3 +397,26 @@ tr.aud-detalle td { background: #fafcfc; padding: 14px 18px 18px; }
 #audContrato { width: 100%; height: 40px; text-align: left; }
 .aud-homo { display: block; margin-top: 3px; font-size: 11px; color: var(--morado); font-family: ui-monospace, Consolas, monospace; }
 .t-relación-dudosa { background: #fff4d6; color: #8a6100; }
+.aud-tarifario { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding: 12px 14px;
+  border: 1px solid var(--borde); border-radius: var(--radio); background: #fafcfc; }
+.aud-tarifario > span { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.aud-tarifario > span svg.icono { color: var(--morado); }
+.aud-tarifario.pendiente { border: 2px solid var(--morado); background: var(--morado-claro); animation: pulso 1.6s ease-in-out 3; }
+@keyframes pulso { 50% { box-shadow: 0 0 0 6px rgba(109, 94, 172, .18); } }
+.aud-tarifario__opciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.aud-tarifario__opciones button { display: grid; text-align: left; gap: 2px; padding: 8px 14px; border: 1px solid var(--borde);
+  border-radius: 10px; background: #fff; cursor: pointer; min-width: 150px; }
+.aud-tarifario__opciones button small { color: var(--texto-suave); font-size: 11px; }
+.aud-tarifario__opciones button:hover { border-color: var(--verde); }
+.aud-tarifario__opciones button.activo { background: var(--verde); border-color: var(--verde); color: #fff; }
+.aud-tarifario__opciones button.activo small { color: rgba(255, 255, 255, .85); }
+.t-varias-opciones { background: var(--morado-claro); color: var(--morado); }
+/* ---------- Manuales de tarifas propias ---------- */
+.propia-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; align-items: end; }
+.propia-form .aud-input, .propia-form select { width: 100%; height: 40px; text-align: left; border: 1px solid var(--borde); border-radius: 8px; padding: 0 10px; background: #fff; }
+.propia-ancho { grid-column: 1 / -1; }
+.propia-previa { margin-top: 16px; display: grid; gap: 12px; }
+.propia-manual + .propia-manual { margin-top: 20px; }
+.propia-manual h3 { font-size: 14px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.propia-manual h3 .cod { font-family: ui-monospace, Consolas, monospace; color: var(--morado); }
+a.boton { text-decoration: none; }

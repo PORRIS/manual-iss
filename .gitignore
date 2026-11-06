@@ -35,3 +35,11 @@ examples/
 
 # Archivos temporales de Office (documento abierto)
 ~$*
+
+# Manuales de tarifas propias subidos en local (en Render van a TARIFAS_DB_URL)
+datos/
+
+# Fuentes que no usa el código: el PDF del Decreto 780 (25 MB) y el Excel de ejemplo de
+# tarifas propias (los manuales se suben desde la web o con tarifas_propias.py)
+soat/*.pdf
+tarifas propias/

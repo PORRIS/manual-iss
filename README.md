@@ -277,6 +277,70 @@ comparan (el Manual no los tarifa, art. 87). En la web (**Cotizar y auditar > Au
 carga el archivo o se digitan las líneas, el auditor confirma o cambia cada estado, ajusta el valor a
 glosar, escribe la observación y exporta el informe a Excel. El archivo no se guarda en el servidor.
 
+## SOAT y tarifas propias
+
+`tarifarios.py` (lo llama el ETL) carga el SOAT aparte, con tablas relacionales propias (llaves
+primarias y foráneas; prefijo `soat_`), sin tocar las del Manual ISS:
+
+| Tabla | Contenido | Fuente |
+|---|---|---|
+| `tarifarios` | Catálogo: `iss`, `soat`, `propia` | — |
+| `soat_parametros` | UVB, UVT, SMLV y SMLDV 2026 con su norma | `soat/SOAT A SALARIO MINIMO_UVT_UVB.xlsx` (hoja TD) |
+| `soat_procedimientos` | Todos los códigos SOAT (PK) | tabla SOAT y relación CUPS-SOAT |
+| `soat_tarifas` | Factores UVB/UVT/SMLV y valor 2026 = factor UVB × UVB (FK → `soat_procedimientos`) | hoja TABLA (1.426 códigos) |
+| `soat_relacion_cups` | CUPS → código SOAT, PK (cups, código) (FK → `soat_procedimientos`) | `soat/CUPS A SOAT_ANDER_OKANDER.xlsb` (10.300 pares) |
+
+Vistas: `v_tarifarios`, `v_soat_tarifas`, `v_soat_relacion_cups` (menú «SOAT y tarifas propias»).
+
+### Manuales de tarifas propias (`tarifas_propias.py`)
+
+Parametrización, versionamiento y aplicación de tarifas propias por pagador. Cada **manual** tiene
+un código propio (ej. `TAR-PROPIA-2026-01`), nombre y pagador; cada **versión** guarda el tipo de
+liquidación base (valor fijo en pesos, o factor % sobre SOAT o ISS), la vigencia (inicio y fin del
+contrato), el estado (borrador, activo, inactivo; «vencido» si ya pasó la fecha de fin), el Excel
+original (anexo de contratación, descargable) y sus códigos. Subir un Excel a un código existente
+crea una versión nueva y conserva las anteriores (glosas de vigencias pasadas).
+
+| Tabla | Contenido |
+|---|---|
+| `tarifa_manuales` | código (PK), nombre, pagador |
+| `tarifa_versiones` | id (PK), manual (FK), versión (única por manual), tipo base, factor %, vigencia, estado, archivo, SHA-256 |
+| `tarifa_archivos` | el Excel original de cada versión (FK → versión) |
+| `tarifa_items` | versión (FK), tipo (`cups`, `cum`, `insumo`, `material`), código, descripción, tarifa, tipo de liquidación y factor % propios de la fila (únicos por versión, tipo y código) |
+
+Se guardan en la base de `TARIFAS_DB_URL` (PostgreSQL externo, p. ej. Neon o Supabase:
+`postgresql://usuario:clave@servidor/base`), independiente de `salida/manual_iss.db` y que sobrevive
+a los despliegues de Render; sin esa variable, en `datos/tarifas_propias.db` (SQLite local, fuera de
+git). En Render se configura como variable de entorno del servicio.
+
+Excel: una hoja por tipo (CUPS; CUMS o MEDICAMENTOS; INSUMOS; MATERIALES) con Código, Descripción,
+Tarifa y, opcionales, «Tipo liquidación» (valor fijo, SOAT, ISS) y «Factor %»; la cabecera puede no
+estar en la primera fila. La web muestra una vista previa (conteos, primeras filas, avisos y errores)
+antes de guardar y ofrece una plantilla.
+
+```bash
+uv run tarifas_propias.py cargar "tarifas propias/TARIFAS PROPIAS.xlsx" --codigo TAR-PROPIA-2026-01 \
+    --nombre "Tarifario ejemplo" --tipo-base valor_fijo --inicio 2026-01-01 --fin 2026-12-31 --estado activo
+uv run tarifas_propias.py listar
+uv run tarifas_propias.py plantilla
+```
+
+Al auditar con tarifa propia el auditor elige el manual y la versión (o sube uno nuevo). Cada código
+usa su tipo de liquidación (o el del manual); los códigos que no están en el manual usan la base del
+manual si es SOAT o ISS, y quedan en Revisar si es valor fijo.
+
+Al auditar se elige el tarifario (en la web se pregunta al cargar el RIPS; en consola `--tarifario
+iss|soat|propia`):
+
+- **SOAT**: el CUPS se lleva a código SOAT con la relación; valor = factor UVB × UVB (2026: $12.110;
+  para facturas de otro año se indica la UVB de ese año con `--uvb`). Se acepta una diferencia de
+  hasta $100 por el redondeo. Si el CUPS tiene varias opciones SOAT: si lo facturado coincide con una,
+  Conforme; si supera a todas, Glosa sobre la de mayor valor; si no, Revisar. La cirugía SOAT (grupo
+  quirúrgico, Decreto 780 de 2016) aún no se liquida: esas líneas quedan en Revisar.
+- **Tarifa propia**: manual y versión elegidos (`--version-propia ID`); compara también insumos y
+  materiales (`tipoOS` 01) y medicamentos (CUM).
+- Con ISS y SOAT, `--contrato PCT` aplica el porcentaje pactado sobre la tarifa (ej. `-5` = SOAT − 5 %).
+
 Si se define `DB_URL` (en `.env`), el ETL también carga las tablas en PostgreSQL, MySQL o SQL Server.
 
 ## Particularidades del PDF

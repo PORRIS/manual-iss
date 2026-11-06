@@ -19,6 +19,7 @@ import pandas as pd
 from rutas import al_proyecto
 
 al_proyecto()
+import tarifarios
 from control_extraccion import controlar
 from revision_relacion_cups import leer_homologacion, proponer_homologaciones, revisar
 from validar_completo import PDF_TABLAS, PDF_TEXTOS, cargar_pdf, comparar, fuerte
@@ -564,6 +565,9 @@ con.execute("CREATE INDEX ix_proc_art ON procedimientos(articulo)")
 con.execute("CREATE INDEX ix_proc_padre ON procedimientos(padre_id)")
 con.execute("CREATE INDEX ix_notas_art ON notas(articulo)")
 con.execute("CREATE INDEX ix_agr_padre ON agrupadores(padre_id)")
+# SOAT 2026 y tarifas propias: tablas aparte (soat_*, tarifa_*) con llaves (tarifarios.py)
+for _linea in tarifarios.crear(con):
+    print(_linea)
 if os.path.exists(VISTAS):
     con.executescript(open(VISTAS, encoding="utf-8").read())
     print("vistas creadas desde", VISTAS)

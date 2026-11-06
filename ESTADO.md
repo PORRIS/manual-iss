@@ -79,6 +79,20 @@
     en homologacion.csv con estado por_revisar (no se aplican). Auditoría: alerta "Relación
     dudosa" (Revisar). Pruebas: BD 56/56, auditoría 19/19.
 
+23. SOAT 2026 y tarifas propias (tarifarios.py): tablas soat_* y tarifa_* con PK/FK, catálogo
+    tarifarios, vistas y menú propio. Auditoría con tarifario a elegir (ISS, SOAT, propia), UVB
+    ajustable y contrato %. Con los RIPS reales: CLI38853 cuadra con SOAT 2026 + 4 % (glosa
+    sugerida $4.638 contra $72 millones con ISS); FE4158410 con SOAT − 5 % aprox. (o UVB 2025).
+    Pruebas: BD 57/57, auditoría 25/25. Dependencia nueva: pyxlsb (lee el .xlsb).
+
+24. Manuales de tarifas propias (HU de parametrización y versionamiento): tarifas_propias.py con
+    tarifa_manuales / tarifa_versiones / tarifa_archivos / tarifa_items en la base TARIFAS_DB_URL
+    (PostgreSQL externo; SQLite local si no está). Web: página «Manuales de tarifas propias»
+    (subir con vista previa, versiones, estado, descargar original, plantilla) y elección de
+    manual/versión en la auditoría. Liquidación por manual y por fila (valor fijo o factor sobre
+    SOAT/ISS). Decisiones del usuario: SQLite por ahora, cualquiera con la clave administra,
+    el auditor elige la versión. Pruebas auditoría 27/27. Dependencia: psycopg[binary].
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -111,6 +125,12 @@
   ISS 012205 y 783001 no están en el Manual: registrados como novedad (v_novedades_relacion_cups;
   783001 viene de la fila 3466 del Excel, eliminada porque no está en el PDF pág. 65; 012205 no
   está ni en el Excel ni en el PDF). El doble cobro se sugiere como Revisar (confirmado por el usuario).
+- SOAT: liquidar la cirugía por grupo quirúrgico (tablas del Decreto 780 de 2016, anexo
+  técnico 1, en soat/anexo-tecnico1-decreto-780-de-2016.pdf); confirmar la tolerancia de $100 por
+  redondeo y la regla de varias opciones SOAT por CUPS.
+- Tarifas propias: por decisión del usuario se guardan en SQLite (datos/tarifas_propias.db). En
+  Render gratuito ese archivo se borra en cada despliegue o reinicio: los manuales subidos allí se
+  pierden. Para conservarlos: base PostgreSQL (Neon o Supabase) en la variable TARIFAS_DB_URL.
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

@@ -297,6 +297,13 @@ SELECT (SELECT COUNT(*) FROM v_homologacion_cups) || '|' ||
        (SELECT COUNT(*) FROM homologacion_cups WHERE existe_en_manual = 1) || '|' ||
        (SELECT codigo_iss FROM v_homologacion_cups WHERE cups = '903883');
 
+-- @prueba Tarifarios: catálogo | SOAT tarifas | relación CUPS-SOAT | UVB | 19490 valor 2026
+-- @esperado 3|1426|10300|12110.0|22887.9
+SELECT (SELECT COUNT(*) FROM v_tarifarios) || '|' || (SELECT COUNT(*) FROM v_soat_tarifas) || '|' ||
+       (SELECT COUNT(*) FROM v_soat_relacion_cups) || '|' ||
+       (SELECT valor FROM soat_parametros WHERE concepto = 'UVB') || '|' ||
+       (SELECT valor_2026 FROM soat_tarifas WHERE codigo = '19490');
+
 -- @prueba Los 5 paquetes con más componentes
 SELECT codigo, descripcion, valor, n_componentes FROM v_paquetes
 ORDER BY n_componentes DESC LIMIT 5;

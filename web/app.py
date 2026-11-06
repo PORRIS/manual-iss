@@ -25,7 +25,7 @@ import sqlite3
 import sys
 import unicodedata
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -38,6 +38,7 @@ from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import auditar as au  # noqa: E402
+import tarifas_propias as tp  # noqa: E402
 import cotizar as cz  # noqa: E402
 from rutas import BASE, DB  # noqa: E402
 
@@ -69,6 +70,10 @@ ETIQUETAS = {
     "regla": "Regla", "paragrafo": "Parágrafo", "opcion": "Opción", "variante": "Variante",
     "base": "Base", "alcance": "Alcance", "estado": "Estado", "texto": "Texto",
     "clase": "Clase", "departamento": "Departamento",
+    "vigencia": "Vigencia", "fuente": "Fuente", "factor_uvb": "Factor UVB", "factor_uvt": "Factor UVT",
+    "factor_smlv": "Factor SMLV", "valor_2026": "Valor 2026", "codigo_soat": "Código SOAT",
+    "nombre_cups": "Nombre CUPS", "descripcion_soat": "Descripción SOAT",
+    "codigos_soat_del_cups": "Opciones SOAT del CUPS", "tipo_descripcion": "Tipo",
     "cups": "CUPS 2026", "descripcion_cups": "Descripción CUPS", "codigo_iss": "Código ISS",
     "descripcion_iss": "Descripción ISS",
     "codigo_iss_actual": "ISS actual", "descripcion_iss_actual": "Descripción ISS actual",
@@ -105,6 +110,21 @@ VISTAS = {
                     "comparar los RIPS.",
         codigo=["cups", "codigo_iss"], texto=["descripcion_cups", "descripcion_iss", "observacion"],
         orden="cups"),
+    "v_tarifarios": dict(
+        titulo="Tarifarios", grupo="SOAT y tarifas propias", icono="capas",
+        descripcion="Tarifarios con los que se puede auditar: Manual ISS 2001, SOAT 2026 y "
+                    "tarifas propias, con su fuente y cómo se calcula el valor.",
+        codigo=["id"], texto=["nombre", "descripcion", "fuente"]),
+    "v_soat_tarifas": dict(
+        titulo="SOAT 2026", grupo="SOAT y tarifas propias", icono="etiqueta",
+        descripcion="Códigos SOAT con tarifa: factor UVB, UVT y SMLV y valor 2026 "
+                    "(factor UVB x $12.110).",
+        codigo=["codigo"], texto=["descripcion"]),
+    "v_soat_relacion_cups": dict(
+        titulo="Relación CUPS → SOAT", grupo="SOAT y tarifas propias", icono="piezas",
+        descripcion="Códigos SOAT relacionados con cada CUPS y su valor 2026. La cirugía SOAT "
+                    "(grupo quirúrgico) aparece sin valor.",
+        codigo=["cups", "codigo_soat"], texto=["nombre_cups", "descripcion_soat", "observacion"]),
     "v_regiones_134": dict(
         titulo="Regiones del art. 134", grupo="Cotizar y auditar", icono="mapa",
         descripcion="Departamentos y región con incremento en las tarifas (art. 134, pág. 204) y "
@@ -650,6 +670,9 @@ class Auditoria(Cotizacion):
     decisiones: list[Decision] = Field(default_factory=list, max_length=6000)
     no_tarifadas: list[Linea] = Field(default_factory=list, max_length=6000)
     contrato_pct: float = Field(0, ge=-100, le=1000)
+    tarifario: str = Field("iss", pattern="^(iss|soat|propia)$")
+    uvb: float = Field(au.UVB_2026, gt=0, le=1_000_000)
+    propia_version_id: int | None = None
     factura: str = Field("", max_length=100)
     grupo: str = Field("", max_length=200)
 
@@ -662,9 +685,38 @@ def api_auditar_leer(a: Archivo):
         raise HTTPException(422, f"No se pudo leer {a.nombre}: {e}") from e
 
 
+def tarifas_otras():
+    """SOAT y tarifas propias (se cargan una vez por proceso)."""
+    if "t" not in _DATOS_COT:
+        datos_cotizador()  # verifica que exista la base
+        _DATOS_COT["t"] = au.cargar_tarifas()
+    return _DATOS_COT["t"]
+
+
 def calcular_auditoria(a: Auditoria):
-    return sin_nan(au.auditar([ln.model_dump() for ln in a.lineas], opciones(a),
-                              datos_cotizador(), a.contrato_pct))
+    lineas = [ln.model_dump() for ln in a.lineas]
+    if a.tarifario == "iss":
+        return sin_nan(au.auditar(lineas, opciones(a), datos_cotizador(), a.contrato_pct))
+    propia = None
+    if a.tarifario == "propia":
+        if not a.propia_version_id:
+            raise HTTPException(422, "Elija el manual de tarifas propias (y su versión) o suba uno nuevo")
+        try:
+            propia = tp.cargar_version(a.propia_version_id)
+        except ValueError as e:
+            raise HTTPException(404, str(e)) from e
+    return sin_nan(au.auditar_tarifa(lineas, a.tarifario, tarifas_otras(), a.contrato_pct, a.uvb,
+                                     propia, datos_cotizador()))
+
+
+@app.get("/api/tarifarios")
+def api_tarifarios():
+    """Tarifarios disponibles para auditar (catálogo de la base) y la UVB 2026 del SOAT."""
+    with conexion() as con:
+        cat = [dict(id=i, nombre=n, vigencia=v, descripcion=d) for i, n, v, d in con.execute(
+            "SELECT id, nombre, vigencia, descripcion FROM v_tarifarios")]
+        uvb = con.execute("SELECT valor FROM soat_parametros WHERE UPPER(concepto) = 'UVB'").fetchone()
+    return dict(tarifarios=cat, uvb=uvb[0] if uvb else au.UVB_2026)
 
 
 @app.post("/api/auditar")
@@ -678,8 +730,8 @@ def api_auditar_excel(a: Auditoria):
     wb = Workbook()
     ws = wb.active
     ws.title = "Auditoría"
-    cab = ["Origen", "Código", "Descripción (Manual)", "Art.", "Cant.", "Valor facturado",
-           "Valor Manual", "Diferencia", "Estado", "Valor a glosar", "Motivo", "Observación",
+    cab = ["Origen", "Código", "Descripción (tarifa)", "Art.", "Cant.", "Valor facturado",
+           "Valor según tarifa", "Diferencia", "Estado", "Valor a glosar", "Motivo", "Observación",
            "Alertas", "Citas", "Fecha", "Autorización", "Diagnóstico principal"]
     ws.append(cab)
     total_glosa = 0.0
@@ -701,7 +753,7 @@ def api_auditar_excel(a: Auditoria):
                               and not k.endswith("E"))])
     ws.append([])
     s = r["resumen"]
-    for etiqueta, valor in (("Total facturado", s["facturado"]), ("Total según el Manual", s["esperado"]),
+    for etiqueta, valor in (("Total facturado", s["facturado"]), ("Total según la tarifa", s["esperado"]),
                             ("Total a glosar", total_glosa)):
         ws.append([etiqueta, None, None, None, None, valor if "facturado" in etiqueta else None,
                    valor if "Manual" in etiqueta else None, None, None,
@@ -742,7 +794,10 @@ def api_auditar_excel(a: Auditoria):
 
     info = wb.create_sheet("Datos")
     for k, v in (("Factura", a.factura), ("Paciente / grupo", a.grupo),
-                 ("Condiciones", opciones(a)), ("Contrato (% sobre el Manual)", f"{a.contrato_pct:g}"), ("Errores", "; ".join(r["errores"])),
+                 ("Tarifario", {"iss": "Manual ISS 2001", "soat": f"SOAT (UVB {a.uvb:g})",
+                                "propia": f"Tarifas propias (versión id {a.propia_version_id})"}[a.tarifario]),
+                 ("Condiciones", opciones(a) if a.tarifario == "iss" else "—"),
+                 ("Contrato (% sobre la tarifa)", f"{a.contrato_pct:g}"), ("Errores", "; ".join(r["errores"])),
                  ("Generado", datetime.now().strftime("%Y-%m-%d %H:%M")),
                  ("Fuente", "Manual Tarifario ISS 2001 (Acuerdo 256 de 2001) - auditar.py"),
                  ("Nota", "Estados y valores a glosar sugeridos por la herramienta y revisados por "
@@ -763,6 +818,107 @@ def api_auditar_excel(a: Auditoria):
     return StreamingResponse(
         buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+# ---------------------------------------------------------------- manuales de tarifas propias
+def _json(x):
+    """Fechas a texto para JSON."""
+    if isinstance(x, dict):
+        return {k: _json(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_json(v) for v in x]
+    return x.isoformat() if hasattr(x, "isoformat") else x
+
+
+class ArchivoExcel(BaseModel):
+    nombre: str = Field(max_length=300)
+    contenido_b64: str = Field(max_length=int(tp.MAX_ARCHIVO * 1.4))
+    tipo_base: str = Field("valor_fijo", pattern="^(valor_fijo|soat|iss)$")
+
+
+class ManualNuevo(ArchivoExcel):
+    codigo: str = Field(max_length=50)
+    nombre_manual: str = Field(max_length=200)
+    pagador: str = Field("", max_length=200)
+    factor_pct: float = Field(0, ge=-100, le=1000)
+    vigencia_inicio: date | None = None
+    vigencia_fin: date | None = None
+    estado: str = Field("borrador", pattern="^(borrador|activo|inactivo)$")
+    observacion: str = Field("", max_length=2000)
+
+
+class CambioEstado(BaseModel):
+    estado: str = Field(pattern="^(borrador|activo|inactivo)$")
+
+
+def _bytes(b64):
+    try:
+        return base64.b64decode(b64, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise HTTPException(422, "Archivo mal codificado") from e
+
+
+@app.get("/api/propias")
+def api_propias():
+    try:
+        return _json(dict(destino=tp.destino(), manuales=tp.listar()))
+    except Exception as e:  # noqa: BLE001 - p. ej. TARIFAS_DB_URL inaccesible
+        raise HTTPException(503, f"No se pudo abrir la base de tarifas propias: {e.__class__.__name__}") from e
+
+
+@app.post("/api/propias/previa")
+def api_propias_previa(a: ArchivoExcel):
+    """Lee el Excel sin guardarlo: conteos, primeras filas, avisos y errores."""
+    try:
+        filas, avisos = tp.leer_excel(_bytes(a.contenido_b64))
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    conteo = {}
+    for f in filas:
+        conteo[f["tipo"]] = conteo.get(f["tipo"], 0) + 1
+    return dict(filas=len(filas), por_tipo=conteo, muestra=filas[:20], avisos=avisos,
+                errores=tp.validar(filas, a.tipo_base))
+
+
+@app.post("/api/propias")
+def api_propias_guardar(m: ManualNuevo):
+    try:
+        v = tp.guardar(_bytes(m.contenido_b64), m.nombre, m.codigo, m.nombre_manual, m.tipo_base,
+                       m.factor_pct, m.vigencia_inicio, m.vigencia_fin, m.estado, m.pagador,
+                       m.observacion)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return v
+
+
+@app.post("/api/propias/{version_id}/estado")
+def api_propias_estado(version_id: int, c: CambioEstado):
+    try:
+        tp.cambiar_estado(version_id, c.estado)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return {"ok": True}
+
+
+@app.get("/api/propias/{version_id}/items")
+def api_propias_items(version_id: int):
+    return _json(tp.items_version(version_id))
+
+
+@app.get("/api/propias/{version_id}/archivo")
+def api_propias_archivo(version_id: int):
+    try:
+        nombre, contenido = tp.archivo(version_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return Response(contenido, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{nombre or "manual.xlsx"}"'})
+
+
+@app.get("/api/propias-plantilla")
+def api_propias_plantilla():
+    return Response(tp.plantilla(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="plantilla_tarifas_propias.xlsx"'})
 
 
 @app.get("/")

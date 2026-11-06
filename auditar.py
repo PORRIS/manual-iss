@@ -18,6 +18,9 @@ Uso:
     uv run auditar.py factura.xml --region-134 META:Granada
     uv run auditar.py factura_rips.json --usuario 2 --csv auditoria.csv
     uv run auditar.py factura_rips.json --contrato 30         # contrato ISS 2001 + 30%
+    uv run auditar.py factura_rips.json --tarifario soat --contrato -5   # SOAT 2026 - 5 %
+    uv run auditar.py factura_rips.json --tarifario soat --uvb 11552     # SOAT con otra UVB
+    uv run auditar.py factura_rips.json --tarifario propia --version-propia 1   # manual propio
 """
 import argparse
 import json
@@ -28,6 +31,8 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 
 import cotizar as cz
+import tarifarios
+import tarifas_propias as tp
 from revision_relacion_cups import leer_homologacion
 from rutas import BASE, DB, conectar
 
@@ -453,6 +458,211 @@ def auditar(lineas, op, d, contrato_pct=0.0):
                      en_revision=sum(1 for r in res if r["estado"] == "Revisar")))
 
 
+# ---------------------------------------------------------------- SOAT y tarifa propia
+TOLERANCIA_SOAT = 100.0  # pesos: el valor SOAT en UVB da decimales; se acepta el redondeo a la centena
+UVB_2026 = 12110.0
+ETQ_BASE = {"soat": "SOAT", "iss": "ISS 2001", "valor_fijo": "valor fijo"}
+
+
+def _tipos_item(ln):
+    """Tipos del manual propio en los que se busca la línea del RIPS (digitada: en todos)."""
+    sec = ln.get("seccion")
+    if sec == "medicamentos":
+        return ["cum"]
+    if sec == "otrosServicios" and str((ln.get("datos") or {}).get("tipoOS", "")).zfill(2) == "01":
+        return ["insumo", "material"]
+    if sec:
+        return ["cups"]
+    return ["cups", "cum", "insumo", "material"]
+
+
+def _soat(cod, ln, T, uvb):
+    """[(código SOAT, descripción, valor unitario|None)] y la explicación si no hay valor."""
+    cups = cod.zfill(6) if cod.isdigit() else cod
+    if cups in T["soat"]:
+        c = [(k, dsc, None if v is None else v / UVB_2026 * uvb) for k, dsc, v in T["soat"][cups]]
+        return c, ("" if any(v for *_, v in c) else
+                   f"El CUPS {cod} se relaciona con códigos SOAT sin tarifa en la tabla SOAT 2026 "
+                   f"({', '.join(k for k, *_ in c)}): la cirugía SOAT se liquida por grupo "
+                   "quirúrgico (Decreto 780 de 2016), aún no implementado")
+    if not ln.get("seccion") and cod in T["soat_directo"]:  # digitado como código SOAT
+        k, dsc, v = T["soat_directo"][cod]
+        return [(k, dsc, None if v is None else v / UVB_2026 * uvb)], (
+            "" if v else f"El código SOAT {cod} no tiene tarifa en la tabla SOAT 2026")
+    return [], f"El código {cod} no está en la relación CUPS-SOAT ni en la tabla SOAT"
+
+
+def _iss(cod, ln, d):
+    """[(código ISS, descripción, valor en pesos)] usando la relación CUPS -> ISS."""
+    if "homologacion" not in d:
+        d["homologacion"] = homologacion()
+    homo, _ = d["homologacion"]
+    iss = homo[cod.upper()][0] if ln.get("seccion") and cod.upper() in homo else cod
+    f, err, _ = cz.resolver([iss], d)
+    if err:
+        return [], err[0]
+    f = f[0]
+    if f["unidad"] != "pesos":
+        return [], f"El código ISS {iss} está en {f['unidad']} ({f['valor']:g}): no se compara solo"
+    return [(f["codigo"], f["descripcion"], f["valor"])], ""
+
+
+def candidatos(ln, cod, tarifario, T, uvb, contrato_pct=0.0, propia=None, d=None):
+    """[(código de referencia, descripción, valor unitario final, cómo se calculó)] y, si no hay,
+    la explicación. El valor final ya incluye el factor del manual o del contrato."""
+    def base(liq, factor, origen):
+        if liq == "soat":
+            c, porque = _soat(cod, ln, T, uvb)
+            calc = lambda v: f"SOAT {v / uvb:g} UVB x {cz.pesos(uvb)}"  # noqa: E731
+        else:
+            c, porque = _iss(cod, ln, d)
+            calc = lambda v: f"ISS 2001 {cz.pesos(v)}"  # noqa: E731
+        f = 1 + (factor or 0) / 100
+        return [(k, dsc, v * f if v else None,
+                 calc(v) + (f" {factor:+g}% ({origen})" if factor else "") if v else "")
+                for k, dsc, v in c], porque
+
+    if tarifario == "soat":
+        return base("soat", contrato_pct, "contrato")
+    if tarifario != "propia" or propia is None:
+        return [], "Tarifario no válido o sin manual de tarifas propias elegido"
+    v = propia["version"]
+    manual = f"{v['manual']} v{v['version']}"
+    for tipo in _tipos_item(ln):
+        clave = (tipo, cod.zfill(6) if tipo == "cups" and cod.isdigit() and len(cod) < 6 else cod)
+        it = propia["items"].get(clave)
+        if it is None:
+            continue
+        liq = it["tipo_liquidacion"] or v["tipo_base"]
+        if liq == "valor_fijo":
+            return [(clave[1], it["descripcion"], it["tarifa"], f"Valor fijo del manual {manual}")], ""
+        factor = it["factor_pct"] if it["factor_pct"] is not None else v["factor_pct"]
+        c, porque = base(liq, factor, f"manual {manual}")
+        return [(k, it["descripcion"] or dsc, val, txt) for k, dsc, val, txt in c], porque
+    if v["tipo_base"] in ("soat", "iss"):
+        c, porque = base(v["tipo_base"], v["factor_pct"], f"base del manual {manual}")
+        return [(k, dsc, val, txt + " — el código no está en el manual: se usa su base")
+                for k, dsc, val, txt in c], porque
+    return [], f"El código {cod} no está en el manual {manual} ({'/'.join(_tipos_item(ln))})"
+
+
+def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=None, d=None):
+    """Auditoría contra SOAT ('soat') o un manual de tarifas propias ('propia').
+
+    SOAT: el CUPS se lleva a código SOAT con la relación CUPS-SOAT; valor = factor UVB x uvb
+    (por defecto la UVB 2026; para facturas de otro año use la UVB de ese año); contrato_pct es el
+    porcentaje pactado (ej. -5 = SOAT - 5 %). Si el CUPS tiene varias opciones SOAT: si lo
+    facturado coincide con una, Conforme; si supera a todas, Glosa sobre la de mayor valor; si no,
+    Revisar.
+    Propia: propia = tarifas_propias.cargar_version(id). Cada código usa su tipo de liquidación
+    (o el del manual): valor fijo, o factor % sobre SOAT o ISS (d = datos de cotizar.cargar()).
+    Los códigos que no están en el manual usan la base del manual si es SOAT o ISS."""
+    if tarifario == "propia":
+        v = propia["version"]
+        nombre = f"manual {v['manual']} v{v['version']}"
+    else:
+        nombre = T["catalogo"].get(tarifario, tarifario)
+    tol = TOLERANCIA_SOAT if tarifario == "soat" or (
+        propia and propia["version"]["tipo_base"] == "soat") else TOLERANCIA
+    res = []
+    for i, ln in enumerate(lineas):
+        cod = str(ln.get("codigo") or "").strip().upper()
+        cant = int(round(_num(ln.get("cantidad"), 1) or 1))
+        unit = _num(ln.get("valor_unitario"))
+        r = dict(linea=i, codigo=cod, cantidad=cant, valor_unitario=unit,
+                 descripcion_factura=ln.get("descripcion") or "", origen=ln.get("origen") or "",
+                 fecha=ln.get("fecha") or "", seccion=ln.get("seccion") or "",
+                 datos=ln.get("datos") or {}, alertas=[], ajustes=[], aplicables=[],
+                 facturado=None if unit is None else unit * cant, manual=None,
+                 valor_manual=None, esperado=None)
+        cands, porque = candidatos(ln, cod, tarifario, T, uvb, contrato_pct, propia, d) \
+            if cod else ([], "línea sin código")
+        con_valor = [c for c in cands if c[2]]
+        elegido = None
+        if not con_valor:
+            r["alertas"].append(dict(tipo="Código", cita=nombre, texto=porque))
+        elif len(con_valor) == 1:
+            elegido = con_valor[0]
+        else:
+            ops = "; ".join(f"{k} {dsc[:50]} {cz.pesos(v)}" for k, dsc, v, _ in con_valor)
+            iguales = [c for c in con_valor if unit is not None and abs(unit - c[2]) <= tol]
+            if iguales:
+                elegido = iguales[0]
+                r["alertas"].append(dict(tipo="Varias opciones", cita=nombre, texto=(
+                    f"El CUPS tiene {len(con_valor)} opciones; lo facturado coincide con {elegido[0]}. "
+                    f"Opciones: {ops}")))
+            elif unit is not None and unit > max(c[2] for c in con_valor) + tol:
+                elegido = max(con_valor, key=lambda c: c[2])
+                r["alertas"].append(dict(tipo="Varias opciones", cita=nombre, texto=(
+                    f"Lo facturado supera todas las opciones; se compara con la de mayor valor "
+                    f"({elegido[0]}). Opciones: {ops}")))
+            else:
+                elegido = min(con_valor, key=lambda c: abs((unit or 0) - c[2]))
+                r["alertas"].append(dict(tipo="Varias opciones", cita=nombre, texto=(
+                    f"El CUPS tiene {len(con_valor)} opciones y lo facturado no coincide con ninguna: "
+                    f"elija la que corresponde. Se muestra la más cercana ({elegido[0]}). "
+                    f"Opciones: {ops}")))
+                r["revisar_opciones"] = True
+        if elegido:
+            k, dsc, v, calc = elegido
+            r["manual"] = dict(codigo=k, descripcion=dsc, articulo=None, unidad="pesos", agrupador=nombre)
+            r["valor_manual"] = v
+            r["esperado"] = v * cant
+            r["ajustes"].append(dict(regla="TARIFA", codigo=cod, articulo="", monto=0.0, cita=nombre,
+                                     texto=f"{calc}: {cz.pesos(v)} por unidad"))
+        res.append(r)
+
+    momentos = {}
+    for r in res:
+        if r["manual"] and r["fecha"]:
+            momentos.setdefault((r["codigo"], r["fecha"].strip()), []).append(r)
+    for (cod, momento), rs in momentos.items():
+        if len(rs) > 1:
+            for r in rs:
+                r["alertas"].append(dict(tipo="Repetido", cita="", texto=(
+                    f"El código se cobra {len(rs)} veces con la misma fecha y hora ({momento}): "
+                    "verifique que no sea un doble registro")))
+
+    avisos = []
+    if propia and propia["version"]["estado_vigente"] != "activo":
+        v = propia["version"]
+        avisos.append(f"El manual {v['manual']} versión {v['version']} está «{v['estado_vigente']}» "
+                      f"(vigencia {v['vigencia_inicio'] or '—'} a {v['vigencia_fin'] or '—'})")
+    for r in res:
+        dif = None if r["esperado"] is None or r["facturado"] is None else r["facturado"] - r["esperado"]
+        r["diferencia"] = dif
+        revisar = r.pop("revisar_opciones", False) or any(
+            a["tipo"] in ("Código", "Repetido") for a in r["alertas"])
+        if dif is not None and dif > tol * r["cantidad"] and not revisar:
+            r["estado"], r["glosa"] = "Glosa", dif
+            r["motivo"] = f"Valor facturado superior a la tarifa ({nombre})"
+        elif revisar or dif is None:
+            r["estado"], r["glosa"] = "Revisar", 0.0
+            r["motivo"] = "Sin valor facturado" if r["facturado"] is None else \
+                "Ver alertas: no se pudo comparar o requiere verificación"
+        else:
+            r["estado"], r["glosa"] = "Conforme", 0.0
+            r["motivo"] = f"Cobro inferior a la tarifa ({nombre})" if dif < -tol * r["cantidad"] \
+                else f"Igual a la tarifa ({nombre})"
+
+    suma = lambda k: sum(r[k] for r in res if r[k] is not None)  # noqa: E731
+    return dict(
+        lineas=res, errores=[], avisos=avisos, por_paciente=[], parrafos=[],
+        globales=dict(tecnecio=False, conjuntos=0), tarifario=tarifario,
+        resumen=dict(lineas=len(res), facturado=suma("facturado"), esperado=suma("esperado"),
+                     comparables=sum(1 for r in res if r["diferencia"] is not None),
+                     glosa_sugerida=sum(r["glosa"] for r in res if r["estado"] == "Glosa"),
+                     en_revision=sum(1 for r in res if r["estado"] == "Revisar")))
+
+
+def cargar_tarifas():
+    con = conectar()
+    try:
+        return tarifarios.cargar(con)
+    finally:
+        con.close()
+
+
 # ---------------------------------------------------------------- consola
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0],
@@ -463,13 +673,25 @@ def main():
     ap.add_argument("--region-134", metavar="DEPTO:MUNICIPIO")
     ap.add_argument("--mismo-acto", choices=["igual", "diferente"])
     ap.add_argument("--contrato", type=float, default=0, metavar="PCT",
-                    help="porcentaje pactado sobre el Manual (contrato ISS 2001 + PCT%%)")
+                    help="porcentaje pactado sobre la tarifa (ej. 30 = tarifa + 30%%, -5 = tarifa - 5%%)")
+    ap.add_argument("--tarifario", choices=["iss", "soat", "propia"], default="iss",
+                    help="contra qué se audita: Manual ISS 2001, SOAT 2026 o tarifas propias")
+    ap.add_argument("--uvb", type=float, default=UVB_2026,
+                    help="valor de la UVB para el SOAT (por defecto 2026: 12110)")
+    ap.add_argument("--version-propia", type=int, metavar="ID",
+                    help="id de la versión del manual de tarifas propias (tarifas_propias.py listar)")
     ap.add_argument("--csv", help="guarda el detalle en este CSV")
     a = ap.parse_args()
 
     with open(a.archivo, "rb") as fh:
         fac = leer_factura(a.archivo, fh.read())
     d = cz.cargar()
+    T = cargar_tarifas()
+    propia = None
+    if a.tarifario == "propia":
+        if not a.version_propia:
+            sys.exit("Con --tarifario propia indique --version-propia ID (vea: uv run tarifas_propias.py listar)")
+        propia = tp.cargar_version(a.version_propia)
     op = {"solo-muestra": None, "biopsia-multiple": [], "portatil-rx": {}, "portatil-eco": [],
           "tecnecio": False, "bilateral": [], "mismo-acto": a.mismo_acto,
           "region-134": a.region_134}
@@ -479,10 +701,14 @@ def main():
     for g in fac["grupos"]:
         if a.usuario and g["id"] != a.usuario:
             continue
-        r = auditar(g["lineas"], op, d, a.contrato)
+        if a.tarifario == "iss":
+            r = auditar(g["lineas"], op, d, a.contrato)
+        else:
+            extra = g["no_tarifadas"] if a.tarifario == "propia" else []
+            r = auditar_tarifa(g["lineas"] + extra, a.tarifario, T, a.contrato, a.uvb, propia, d)
         s = r["resumen"]
         print(f"\n== {g['etiqueta']}: {s['lineas']} líneas | facturado {cz.pesos(s['facturado'])} | "
-              f"Manual {cz.pesos(s['esperado'])} | glosa sugerida {cz.pesos(s['glosa_sugerida'])} | "
+              f"tarifa {cz.pesos(s['esperado'])} | glosa sugerida {cz.pesos(s['glosa_sugerida'])} | "
               f"a revisar {s['en_revision']}")
         for e in r["errores"]:
             print("  ERROR:", e)
