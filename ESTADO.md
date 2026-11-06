@@ -99,6 +99,11 @@
     (completa, adicional igual/otra vía/otra región, bilateral, componente suelto). En FE4158410
     (UVB 2025 = 11.552) 21 de 24 cirugías quedan Conforme. Pruebas: BD 58/58, auditoría 29/29.
 
+26. Sala del grupo 03 (39205) calculada con el decreto (22,50 UVB; proporción UVB/SMLDV 3,7696,
+    estable en toda la tabla) y versiones de la tarifa SOAT (soat_versiones.py): SOAT 2026 por
+    defecto, subir otros años con vista previa, elegir la versión al auditar. Pruebas: BD 59/59,
+    auditoría 30/30.
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -131,14 +136,13 @@
   ISS 012205 y 783001 no están en el Manual: registrados como novedad (v_novedades_relacion_cups;
   783001 viene de la fila 3466 del Excel, eliminada porque no está en el PDF pág. 65; 012205 no
   está ni en el Excel ni en el PDF). El doble cobro se sugiere como Revisar (confirmado por el usuario).
-- SOAT: falta en la tabla 2026 la tarifa de sala del grupo 03 (39205; el decreto la tiene en 5,97
-  SMLDV). No modelado: procedimientos incruentos en sala especial (num. 51, 45 %), perfusionista
+- SOAT: no modelado: procedimientos incruentos en sala especial (num. 51, 45 %), perfusionista
   en grupos 20-23 (num. 47.2), anestesia en procedimientos de diagnóstico (50 %, num. 47.1.3), regla
   72.2 del ayudante con distinta especialidad. Confirmar tolerancias ($100 por código, $500 por
   cirugía) y la regla de varias opciones SOAT por CUPS.
-- Tarifas propias: por decisión del usuario se guardan en SQLite (datos/tarifas_propias.db). En
-  Render gratuito ese archivo se borra en cada despliegue o reinicio: los manuales subidos allí se
-  pierden. Para conservarlos: base PostgreSQL (Neon o Supabase) en la variable TARIFAS_DB_URL.
+- Tarifas propias y versiones SOAT subidas: por decisión del usuario se guardan en SQLite
+  (datos/tarifas_propias.db). En Render gratuito ese archivo se borra en cada despliegue o reinicio:
+  lo subido allí se pierde (la SOAT 2026 por defecto no, porque viene en el repositorio). Para conservarlos: base PostgreSQL (Neon o Supabase) en la variable TARIFAS_DB_URL.
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

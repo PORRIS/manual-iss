@@ -298,18 +298,22 @@ SELECT (SELECT COUNT(*) FROM v_homologacion_cups) || '|' ||
        (SELECT codigo_iss FROM v_homologacion_cups WHERE cups = '903883');
 
 -- @prueba Tarifarios: catálogo | SOAT tarifas | relación CUPS-SOAT | UVB | 19490 valor 2026
--- @esperado 3|1426|10300|12110.0|22887.9
+-- @esperado 3|1427|10300|12110.0|22887.9
 SELECT (SELECT COUNT(*) FROM v_tarifarios) || '|' || (SELECT COUNT(*) FROM v_soat_tarifas) || '|' ||
        (SELECT COUNT(*) FROM v_soat_relacion_cups) || '|' ||
        (SELECT valor FROM soat_parametros WHERE concepto = 'UVB') || '|' ||
        (SELECT valor_2026 FROM soat_tarifas WHERE codigo = '19490');
 
 -- @prueba SOAT cirugía: procedimientos con grupo | tarifas de componentes | reglas | grupo de 7144 | cirujano grupo 07
--- @esperado 1770|71|10|7|410650.1
+-- @esperado 1770|72|10|7|410650.1
 SELECT (SELECT COUNT(*) FROM v_soat_grupos) || '|' || (SELECT COUNT(*) FROM soat_grupo_componentes) || '|' ||
        (SELECT COUNT(*) FROM v_soat_reglas_cirugia) || '|' ||
        (SELECT grupo FROM soat_grupos WHERE codigo = '7144') || '|' ||
        (SELECT cirujano FROM v_soat_grupos WHERE codigo = '7144');
+
+-- @prueba Sala del grupo 03 (39205): no viene en la tabla SOAT 2026, se calcula con el decreto
+-- @esperado 22.5|272475.0|calculado: 5.97 SMLDV (Decreto 780) x 3.7696 UVB/SMLDV
+SELECT factor_uvb || '|' || valor_2026 || '|' || origen FROM soat_tarifas WHERE codigo = '39205';
 
 -- @prueba Los 5 paquetes con más componentes
 SELECT codigo, descripcion, valor, n_componentes FROM v_paquetes

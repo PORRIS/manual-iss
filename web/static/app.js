@@ -34,6 +34,7 @@ const ICONOS = {
   mapa: '<path d="M12 22s7-6.1 7-12a7 7 0 0 0-14 0c0 5.9 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
   calculadora: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4"/>',
   mas: '<path d="M12 5v14M5 12h14"/>',
+  calendario: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   lupa: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5"/><path d="M14 2v6h6v3"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="m22 22-3-3"/>',
   subir: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>',
   vacio: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/>',
@@ -144,7 +145,8 @@ function pintarMenu() {
     h += `<div class="menu__grupo">${esc(g)}</div>`;
     if (g === "Cotizar y auditar") h += `<a class="menu__item" href="#/cotizar" data-vista="cotizar">${icono("calculadora")}<span>Cotizar</span></a>
       <a class="menu__item" href="#/auditar" data-vista="auditar">${icono("lupa")}<span>Auditar factura</span></a>`;
-    if (g === "SOAT y tarifas propias") h += `<a class="menu__item" href="#/tarifas-propias" data-vista="tarifas-propias">${icono("subir")}<span>Manuales de tarifas propias</span></a>`;
+    if (g === "SOAT y tarifas propias") h += `<a class="menu__item" href="#/soat-versiones" data-vista="soat-versiones">${icono("calendario")}<span>Versiones de tarifa SOAT</span></a>
+      <a class="menu__item" href="#/tarifas-propias" data-vista="tarifas-propias">${icono("subir")}<span>Manuales de tarifas propias</span></a>`;
     h += vs.map((v) => `<a class="menu__item" href="#/${v.id}" data-vista="${v.id}">${icono(v.icono)}
       <span>${esc(v.titulo)}</span><small>${fmt.format(v.total)}</small></a>`).join("");
   }
@@ -808,7 +810,7 @@ async function exportarCot(boton) {
 // La factura se procesa en el servidor sin guardarse; aquí vive solo en memoria (no en el navegador).
 const ESTADOS = ["Conforme", "Glosa", "Revisar"];
 const audVacia = () => ({ archivo: null, grupo: "", lineas: [], dec: [], abiertas: new Set(), filtro: "",
-  tarifario: "", uvb: null, propiaVersion: null, contrato: 0, opc: {}, rx: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
+  tarifario: "", uvb: null, propiaVersion: null, soatVersion: "base", contrato: 0, opc: {}, rx: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
 let TAR_CFG = null;
 const nombreTarifario = (id = aud.tarifario) => TAR_CFG?.tarifarios.find((t) => t.id === id)?.nombre || "la tarifa";
 const ETQ_TARIFARIO = { iss: "ISS 2001", soat: "SOAT", propia: "Tarifa propia" };
@@ -822,7 +824,8 @@ const num = (v) => (v === "" || v == null ? null : Number(String(v).replace(/\./
 function pedidoAud() {
   return { ...pedidoCot(aud), items: [], lineas: aud.lineas, decisiones: aud.lineas.map((_, i) => aud.dec[i] || {}),
     contrato_pct: aud.tarifario === "propia" ? 0 : aud.contrato || 0, tarifario: aud.tarifario || "iss",
-    uvb: aud.uvb || TAR_CFG?.uvb || 12110, propia_version_id: aud.propiaVersion,
+    uvb: aud.uvb || versionSoat()?.uvb || TAR_CFG?.uvb || 12110, propia_version_id: aud.propiaVersion,
+    soat_version: String(aud.soatVersion || "base"),
     no_tarifadas: aud.tarifario === "propia" ? [] : grupoActual()?.no_tarifadas || [],
     factura: aud.archivo?.factura || "", grupo: grupoActual()?.etiqueta || "Líneas digitadas" };
 }
@@ -887,6 +890,7 @@ function lineasDelGrupo(g) {
 async function elegirTarifario(id) {
   if (id === aud.tarifario) return;
   if (id === "propia") await cargarPropias(true);
+  if (id === "soat") await cargarSoat();
   if (aud.dec.some((d) => d) && !confirm("Al cambiar de tarifario se pierden las decisiones tomadas. ¿Continuar?")) return;
   aud.tarifario = id;
   if (aud.archivo) {
@@ -917,6 +921,7 @@ async function pintarAuditar() {
     try {
       COT_CFG ||= await api("/api/cotizador"); TAR_CFG ||= await api("/api/tarifarios");
       if (aud.tarifario === "propia") await cargarPropias();
+      if (aud.tarifario === "soat") await cargarSoat();
     } catch (e) {
       c.innerHTML = `<div class="panel estado">${icono("alerta")}<div>${esc(e.message)}</div></div>`;
       return;
@@ -1071,6 +1076,10 @@ function enlazarAuditar() {
   $("#audCondiciones").addEventListener("change", (ev) => {
     if (ev.target.id === "audContrato") aud.contrato = Number(String(ev.target.value).replace(",", ".")) || 0;
     else if (ev.target.id === "audUvb") aud.uvb = num(ev.target.value) || null;
+    else if (ev.target.id === "audSoatVersion") {
+      if (aud.dec.some((x) => x) && !confirm("Al cambiar la versión SOAT se pierden las decisiones tomadas. ¿Continuar?")) { ev.target.value = aud.soatVersion; return; }
+      aud.soatVersion = ev.target.value; aud.uvb = versionSoat()?.uvb || null; aud.dec = [];
+    }
     else if (ev.target.id === "audPropia") {
       if (aud.dec.some((x) => x) && !confirm("Al cambiar de manual se pierden las decisiones tomadas. ¿Continuar?")) { ev.target.value = aud.propiaVersion || ""; return; }
       aud.propiaVersion = Number(ev.target.value) || null; aud.dec = [];
@@ -1079,7 +1088,7 @@ function enlazarAuditar() {
     recalcularAud();
   });
   $("#audCondiciones").addEventListener("click", (ev) => {
-    if (ev.target.closest("[data-subir-propia]")) volverAuditoria = true;
+    if (ev.target.closest("[data-subir-propia], [data-subir-soat]")) volverAuditoria = true;
   });
   $("#audCarga").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-tarifario]");
@@ -1176,8 +1185,12 @@ function pintarAudResultado() {
   if (aud.tarifario === "propia") { $("#audCondiciones").innerHTML = htmlElegirPropia(); }
   else if (aud.tarifario === "iss") pintarCondiciones(aud, $("#audCondiciones"), d.globales);
   else $("#audCondiciones").innerHTML = aud.tarifario === "soat" ? `<h2 class="subtitulo">${icono("etiqueta")}SOAT</h2>
-    <label class="campo-form"><span>Valor de la UVB (2026: ${pesos(TAR_CFG?.uvb || 12110)}). Para facturas de otro año use la UVB de ese año.</span>
-      <input class="aud-input" id="audUvb" inputmode="decimal" value="${aud.uvb || TAR_CFG?.uvb || 12110}"></label>
+    <label class="campo-form"><span>Versión de la tarifa SOAT</span><select id="audSoatVersion">
+      ${(SOAT_CFG?.versiones || [{ id: "base", nombre: "SOAT 2026 (por defecto)", anio: 2026, estado: "activo" }]).map((v) =>
+        `<option value="${esc(v.id)}"${String(v.id) === String(aud.soatVersion) ? " selected" : ""}>${esc(v.nombre)}${v.estado !== "activo" ? " · inactiva" : ""}</option>`).join("")}</select></label>
+    <a class="boton boton--borde" href="#/soat-versiones" data-subir-soat>${icono("subir")}Subir tarifa SOAT nueva</a>
+    <label class="campo-form" style="margin-top:12px"><span>Valor de la UVB (de la versión: ${pesos(versionSoat()?.uvb || 12110)}). Cámbielo si la factura es de otro año.</span>
+      <input class="aud-input" id="audUvb" inputmode="decimal" value="${aud.uvb || versionSoat()?.uvb || 12110}"></label>
     <p class="nota-campo">Valor SOAT = factor UVB del código × UVB. La cirugía por grupo quirúrgico aún no se liquida: esas líneas quedan en Revisar.</p>`
     : "";
   if (aud.tarifario !== "propia") $("#audCondiciones").insertAdjacentHTML("afterbegin", `<h2 class="subtitulo">${icono("porcentaje")}Contrato</h2>
@@ -1409,6 +1422,140 @@ function enlazarListaPropias() {
   });
 }
 
+// ---------- Versiones de la tarifa SOAT ----------
+// La SOAT 2026 viene en el repositorio (por defecto); las de otros años se suben como Excel (hojas TABLA y TD).
+let SOAT_CFG = null;
+const versionSoat = () => SOAT_CFG?.versiones.find((v) => String(v.id) === String(aud.soatVersion || "base"));
+
+async function cargarSoat(forzar = false) {
+  if (SOAT_CFG && !forzar) return SOAT_CFG;
+  try { SOAT_CFG = await api("/api/soat/versiones"); } catch (e) { avisar(e.message, true); }
+  return SOAT_CFG;
+}
+
+async function pintarSoatVersiones() {
+  $("#migaVista").textContent = "Versiones de tarifa SOAT";
+  const c = $("#contenido");
+  c.dataset.vista = "soat-versiones";
+  await cargarSoat(true);
+  const anio = new Date().getFullYear();
+  c.innerHTML = `
+    <section class="panel">
+      <div class="cabecera">
+        <div class="cabecera__icono">${icono("calendario")}</div>
+        <div><h1>Versiones de tarifa SOAT</h1><p>La tarifa SOAT cambia cada año (valor de la UVB y, a veces, los factores).
+          La SOAT 2026 viene con el sistema y es la versión por defecto. Suba la de otro año con el mismo formato del maestro SOAT:
+          hoja <b>TABLA</b> (código, descripción, % SMLV, factor UVT, factor UVB) y hoja <b>TD</b> (valor de la UVB). Al auditar se elige
+          la versión. La relación CUPS-SOAT y los grupos quirúrgicos (Decreto 780) se comparten entre versiones; si a una tabla le falta
+          un componente de cirugía se calcula con el decreto.</p></div>
+      </div>
+      ${volverAuditoria ? `<p><a class="boton boton--morado" href="#/auditar">${icono("izq")}Volver a la auditoría</a></p>` : ""}
+      <form class="propia-form" id="soatForm" autocomplete="off">
+        <label class="campo-form"><span>Año *</span><input class="aud-input" name="anio" type="number" min="2000" max="2100" value="${anio + 1}" required></label>
+        <label class="campo-form"><span>Nombre</span><input class="aud-input" name="nombre_version" placeholder="SOAT ${anio + 1}"></label>
+        <label class="campo-form"><span>Valor de la UVB (si no viene en la hoja TD)</span><input class="aud-input" name="uvb" inputmode="decimal"></label>
+        <label class="campo-form"><span>Estado</span><select name="estado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></label>
+        <label class="campo-form propia-ancho"><span>Observación (norma, resolución)</span><input class="aud-input" name="observacion"></label>
+        <label class="zona-carga propia-ancho">
+          <input type="file" name="archivo" accept=".xlsx" hidden required>
+          ${icono("subir")}<span><b id="soatArchivo">Elegir el Excel de la tarifa SOAT (.xlsx)</b><small>Mismo formato que «SOAT A SALARIO MINIMO_UVT_UVB.xlsx»</small></span>
+        </label>
+        <div class="cot-acciones propia-ancho">
+          <button class="boton boton--borde" type="button" id="soatPrevia">${icono("ojo")}Vista previa</button>
+          <button class="boton boton--verde" type="submit" id="soatGuardar" disabled>${icono("descarga")}Guardar versión</button>
+        </div>
+      </form>
+      <div id="soatPreviaRes"></div>
+      <p class="ayuda">Las versiones subidas se guardan en: ${esc(SOAT_CFG?.destino || "—")}</p>
+    </section>
+    <section class="panel" id="soatLista"></section>`;
+  pintarListaSoat();
+  const f = $("#soatForm");
+  let ok = false;
+  const invalidar = () => { ok = false; $("#soatGuardar").disabled = true; };
+  f.addEventListener("input", invalidar);
+  f.archivo.addEventListener("change", () => { $("#soatArchivo").textContent = f.archivo.files[0]?.name || "Elegir el Excel de la tarifa SOAT (.xlsx)"; invalidar(); });
+  $("#soatPrevia").addEventListener("click", async () => {
+    const a = f.archivo.files[0];
+    if (!a) { avisar("Elija el archivo Excel", true); return; }
+    try {
+      const r = await postJSON("/api/soat/previa", { nombre: a.name, contenido_b64: await leerBase64(a) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+      const d = await r.json();
+      if (d.uvb && !f.uvb.value) f.uvb.value = d.uvb;
+      ok = Boolean(d.uvb || num(f.uvb.value));
+      $("#soatGuardar").disabled = !ok;
+      $("#soatPreviaRes").innerHTML = `<div class="propia-previa">
+        <p><b>${d.filas} códigos</b> · UVB en la hoja TD: <b>${d.uvb ? pesos(d.uvb) : "no viene (escríbala arriba)"}</b> · componentes de cirugía: ${d.componentes_cirugia}
+          ${d.calculados.length ? ` · <span class="monto neg">calculados con el Decreto 780: ${esc(d.calculados.join(", "))}</span>` : ""}</p>
+        <div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Descripción</th><th class="num">Factor UVB</th><th>Origen</th></tr></thead>
+        <tbody>${d.muestra.map((x) => `<tr><td class="cod">${esc(x.codigo)}</td><td>${esc(x.descripcion)}</td><td class="num">${x.factor_uvb}</td><td>${esc(x.origen)}</td></tr>`).join("")}</tbody></table></div>
+        <p class="sutil">Primeras 20 filas.</p></div>`;
+    } catch (e) { avisar(e.message, true); }
+  });
+  f.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!ok) return;
+    const a = f.archivo.files[0];
+    const datos = Object.fromEntries(new FormData(f).entries());
+    delete datos.archivo;
+    datos.anio = Number(datos.anio);
+    datos.uvb = num(datos.uvb) || null;
+    try {
+      const r = await postJSON("/api/soat/versiones", { ...datos, nombre: a.name, contenido_b64: await leerBase64(a) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+      const v = await r.json();
+      avisar(`Guardada SOAT ${v.anio} (UVB ${pesos(v.uvb)}, ${v.filas} códigos)`);
+      await cargarSoat(true);
+      if (volverAuditoria) { aud.tarifario = "soat"; aud.soatVersion = String(v.id); aud.uvb = v.uvb; aud.dec = []; }
+      pintarSoatVersiones();
+    } catch (e) { avisar(e.message, true); }
+  });
+  $("#soatLista").addEventListener("change", async (ev) => {
+    const id = ev.target.dataset.estadoSoat;
+    if (!id) return;
+    try {
+      const r = await postJSON(`/api/soat/versiones/${id}/estado`, { estado: ev.target.value });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+      avisar("Estado actualizado"); await cargarSoat(true); pintarListaSoat();
+    } catch (e) { avisar(e.message, true); }
+  });
+  $("#soatLista").addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    if (b.dataset.usarSoat) {
+      const v = SOAT_CFG.versiones.find((x) => String(x.id) === b.dataset.usarSoat);
+      aud.tarifario = "soat"; aud.soatVersion = String(v.id); aud.uvb = v.uvb; aud.dec = [];
+      navegar({ vista: "auditar" });
+    } else if (b.dataset.tarifasSoat) {
+      try {
+        const ts = await api(`/api/soat/versiones/${b.dataset.tarifasSoat}/tarifas`);
+        $("#cajonTitulo").textContent = `Tarifas de la versión (${ts.length})`;
+        $("#cajonCuerpo").innerHTML = `<div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Descripción</th><th class="num">Factor UVB</th><th>Origen</th></tr></thead>
+          <tbody>${ts.map((x) => `<tr><td class="cod">${esc(x.codigo)}</td><td>${esc(x.descripcion || "")}</td><td class="num">${x.factor_uvb}</td><td>${esc(x.origen || "")}</td></tr>`).join("")}</tbody></table></div>`;
+        $("#cajon").classList.add("abierto"); $("#velo").classList.add("visible");
+      } catch (e) { avisar(e.message, true); }
+    }
+  });
+}
+
+function pintarListaSoat() {
+  const vs = SOAT_CFG?.versiones || [];
+  $("#soatLista").innerHTML = `<h2 class="subtitulo">${icono("calendario")}Versiones disponibles (${vs.length})</h2>
+    <div class="tabla-marco cot-tabla"><table><thead><tr><th>Año</th><th>Nombre</th><th class="num">UVB</th><th>Estado</th><th class="num">Códigos</th><th>Archivo</th><th>Cargada</th><th></th></tr></thead>
+    <tbody>${vs.map((v) => `<tr>
+      <td><b>${v.anio}</b></td><td>${esc(v.nombre)}${v.predeterminada ? ` <span class="chip">por defecto</span>` : ""}</td>
+      <td class="num">${pesos(v.uvb)}</td>
+      <td>${v.predeterminada ? `<span class="chip">Activo</span>` : `<select class="aud-estado e-${v.estado === "activo" ? "conforme" : "glosa"}" data-estado-soat="${v.id}">
+        ${["activo", "inactivo"].map((e) => `<option value="${e}"${e === v.estado ? " selected" : ""}>${e === "activo" ? "Activo" : "Inactivo"}</option>`).join("")}</select>`}</td>
+      <td class="num">${v.filas}</td>
+      <td>${v.predeterminada ? esc(v.archivo) : `<a class="pagina" href="/api/soat/versiones/${v.id}/archivo">${esc(v.archivo || "Excel")}</a>`}</td>
+      <td class="sutil sin-salto">${esc(String(v.cargado_en || "con el sistema").slice(0, 16).replace("T", " "))}</td>
+      <td class="sin-salto">${v.predeterminada ? "" : `<button class="boton-icono" type="button" data-tarifas-soat="${v.id}" title="Ver tarifas">${icono("lista")}</button>`}
+        <button class="boton-icono" type="button" data-usar-soat="${v.id}" title="Usar en una auditoría">${icono("lupa")}</button></td></tr>`).join("")}</tbody></table></div>
+    <p class="ayuda">Las tarifas de la versión por defecto se consultan en «SOAT 2026» y «Cirugía SOAT por grupo».</p>`;
+}
+
 // ---------- Arranque ----------
 function render() {
   marcarMenu();
@@ -1416,6 +1563,7 @@ function render() {
   else if (estado.vista === "cotizar") pintarCotizar();
   else if (estado.vista === "auditar") pintarAuditar();
   else if (estado.vista === "tarifas-propias") pintarPropias();
+  else if (estado.vista === "soat-versiones") pintarSoatVersiones();
   else if (estado.vista) pintarVista();
   else { $("#contenido").dataset.vista = ""; pintarInicio(); }
 }

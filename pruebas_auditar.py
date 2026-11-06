@@ -4,6 +4,7 @@ import io
 
 import openpyxl
 
+import soat_versiones as sv
 import tarifas_propias as tp
 from auditar import auditar, auditar_tarifa, cargar_tarifas, leer_factura
 from cotizar import cargar
@@ -91,6 +92,12 @@ va = tp.guardar(excel({
 vb = tp.guardar(excel({"CUPS": [CAB, ["890202", "CONSULTA", 79000]]}), "b.xlsx", "TAR-PRUEBA-01",
                 "Tarifario de prueba", "soat", -5, estado="borrador", eng=ENG)
 PA, PB = tp.cargar_version(va["id"], ENG), tp.cargar_version(vb["id"], ENG)
+# Versión SOAT subida (misma tabla, UVB 12.600): se elige al auditar
+vs = sv.guardar((BASE / "soat" / "SOAT A SALARIO MINIMO_UVT_UVB.xlsx").read_bytes(), "soat.xlsx", 2027,
+                "SOAT 2027 prueba", 12600, eng=ENG)
+T27, uvb27, _ = sv.aplicar(T, vs["id"], eng=ENG)
+glu = [auditar_tarifa([dict(codigo="903841", valor_unitario=23814, seccion=P)], "soat", t, uvb=u)["lineas"][0]["estado"]
+       for t, u in ((T, 12110), (T27, uvb27))]
 lp = [dict(codigo="890202", valor_unitario=80000, seccion="consultas"),
       dict(codigo="50010194", valor_unitario=11292000, seccion="otrosServicios", datos={"tipoOS": "01"}),
       dict(codigo="MED-001", valor_unitario=58000, seccion="medicamentos"),
@@ -144,8 +151,12 @@ CASOS = [
     ("SOAT cirugía: el escenario elegido queda explicado por componente",
      ("Cirugía completa (grupo 07)" in cir[0]["manual"]["descripcion"], "cirujano" in cir[0]["ajustes"][0]["texto"]),
      (True, True)),
-    ("SOAT cirugía grupo 03: falta la sala 39205 en la tabla 2026 -> alerta Tarifa incompleta",
-     [a["tipo"] for a in cir_g3["alertas"]][:1], ["Tarifa incompleta"]),
+    ("SOAT cirugía grupo 03: la sala 39205 se calcula con el decreto (22,5 UVB) y la cirugía completa sale",
+     ([a["tipo"] for a in cir_g3["alertas"] if a["tipo"] == "Tarifa incompleta"],
+      round(T["soat_comp"][(3, "sala")])), ([], 272475)),
+    ("versión SOAT 2027 (UVB 12.600): la misma glucosa es Glosa con la 2026 y Conforme con la 2027; "
+     "la versión también calcula la 39205",
+     (glu, vs["calculados"], uvb27), (["Glosa", "Conforme"], ["39205"], 12600.0)),
     ("SOAT con otra UVB (11.552): 1,89 x 11.552 = 21.833,28", (round(soat_uvb[0]["esperado"], 2), soat_uvb[0]["estado"]), (21833.28, "Conforme")),
     ("SOAT + 4 %: 22.887,9 x 1,04 = 23.803,42", round(soat_contrato[0]["esperado"], 2), 23803.42),
     ("manual propio: versiones 1 y 2 del mismo código; 5 códigos (repetido y hoja ajena avisados)",

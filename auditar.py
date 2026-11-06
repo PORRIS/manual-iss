@@ -460,7 +460,7 @@ def auditar(lineas, op, d, contrato_pct=0.0):
 
 # ---------------------------------------------------------------- SOAT y tarifa propia
 TOLERANCIA_SOAT = 100.0  # pesos: el valor SOAT en UVB da decimales; se acepta el redondeo a la centena
-UVB_2026 = 12110.0
+UVB_2026 = tarifarios.UVB_REFERENCIA
 ETQ_BASE = {"soat": "SOAT", "iss": "ISS 2001", "valor_fijo": "valor fijo"}
 
 
@@ -745,8 +745,10 @@ def main():
                     help="porcentaje pactado sobre la tarifa (ej. 30 = tarifa + 30%%, -5 = tarifa - 5%%)")
     ap.add_argument("--tarifario", choices=["iss", "soat", "propia"], default="iss",
                     help="contra qué se audita: Manual ISS 2001, SOAT 2026 o tarifas propias")
-    ap.add_argument("--uvb", type=float, default=UVB_2026,
-                    help="valor de la UVB para el SOAT (por defecto 2026: 12110)")
+    ap.add_argument("--uvb", type=float, default=None,
+                    help="valor de la UVB para el SOAT (por defecto, la de la versión: 2026 = 12110)")
+    ap.add_argument("--soat-version", default="base", metavar="ID",
+                    help="versión de la tarifa SOAT (soat_versiones.py listar); por defecto la 2026")
     ap.add_argument("--version-propia", type=int, metavar="ID",
                     help="id de la versión del manual de tarifas propias (tarifas_propias.py listar)")
     ap.add_argument("--csv", help="guarda el detalle en este CSV")
@@ -756,6 +758,13 @@ def main():
         fac = leer_factura(a.archivo, fh.read())
     d = cz.cargar()
     T = cargar_tarifas()
+    if a.tarifario == "soat":
+        import soat_versiones as sv
+        T, uvb_version, nombre_version = sv.aplicar(T, a.soat_version)
+        if a.uvb is None:
+            a.uvb = uvb_version or UVB_2026
+        print(f"SOAT: {nombre_version or 'SOAT 2026 (por defecto)'}, UVB {a.uvb:g}")
+    a.uvb = a.uvb or UVB_2026
     propia = None
     if a.tarifario == "propia":
         if not a.version_propia:

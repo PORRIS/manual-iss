@@ -38,6 +38,47 @@ SOAT_GRUPOS = BASE / "soat" / "soat_grupos.csv"
 SERIES_CIRUGIA = {"cirujano": (39000, 39015), "anestesiologo": (39100, 39115),
                   "ayudante": (39117, 39128), "sala": (39204, 39219), "materiales": (39301, 39304)}
 GRUPOS_SOAT = list(range(2, 14)) + list(range(20, 24))
+UVB_REFERENCIA = 12110.0  # UVB 2026: los índices de auditoría guardan los valores a esta UVB
+# Tarifas de los componentes de cirugía en el Decreto 780 de 2016 (SMLDV), leídas del PDF
+# (tablas 47.1.1, 47.1.2, 47.1.4, 48.1.1 y 54.1.1, págs. 116-121). Sirven para completar un
+# componente que falte en una tabla SOAT: factor UVB = SMLDV x (UVB/SMLDV de esa misma tabla).
+_G = ["02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13",
+      "especial 20", "especial 21", "especial 22", "especial 23"]
+DECRETO_SMLDV = {
+    **{str(39000 + i): (f"Grupo {g}", v) for i, (g, v) in enumerate(zip(_G, (
+        2.93, 3.57, 4.31, 5.86, 7.68, 9.00, 10.44, 12.76, 15.71, 17.62, 19.63, 21.48, 25.43, 33.10,
+        38.67, 60.73)))},
+    **{str(39100 + i): (f"Grupo {g}", v) for i, (g, v) in enumerate(zip(_G, (
+        2.09, 2.53, 3.10, 3.83, 4.56, 5.30, 6.17, 7.30, 9.02, 10.08, 11.44, 12.72, 14.85, 20.12,
+        26.82, 37.95)))},
+    **{str(39117 + i): (f"Grupo {g}", v) for i, (g, v) in enumerate(zip(_G[4:], (
+        2.01, 2.37, 2.74, 3.49, 4.28, 4.83, 5.36, 6.17, 6.94, 9.03, 10.55, 16.57)))},
+    **{str(39204 + i): (f"Grupo {g}", v) for i, (g, v) in enumerate(zip(_G, (
+        4.84, 5.97, 7.61, 10.45, 15.13, 16.88, 18.51, 21.10, 28.08, 29.95, 31.47, 33.16, 34.82,
+        36.51, 38.34, 48.07)))},
+    "39301": ("GRUPOS 02 - 03", 2.28), "39302": ("GRUPOS 04 - 05 - 06", 4.27),
+    "39303": ("GRUPOS 07 - 08 - 09", 9.92), "39304": ("GRUPOS 10 - 11 - 12 - 13", 15.72),
+}
+
+
+def completar_componentes(tar):
+    """Agrega a la tabla SOAT los componentes de cirugía que le falten (p. ej. la sala del grupo 03,
+    39205, que no trae la tabla 2026), calculados con la proporción UVB/SMLDV de la misma tabla
+    (mediana sobre los componentes que sí tiene). Columna origen: 'tabla' o 'calculado'."""
+    tar = tar.copy()
+    if "origen" not in tar.columns:
+        tar["origen"] = "tabla"
+    tiene = dict(zip(tar.codigo, tar.factor_uvb))
+    razones = sorted(tiene[k] / v for k, (_, v) in DECRETO_SMLDV.items() if k in tiene and tiene[k])
+    if not razones:
+        return tar, []
+    razon = razones[len(razones) // 2]
+    nuevas = [dict(codigo=k, descripcion=d, factor_uvb=round(v * razon, 2), factor_uvt=None,
+                   factor_smlv=None, origen=f"calculado: {v:g} SMLDV (Decreto 780) x {razon:.4f} UVB/SMLDV")
+              for k, (d, v) in DECRETO_SMLDV.items() if k not in tiene]
+    if nuevas:
+        tar = pd.concat([tar, pd.DataFrame(nuevas)], ignore_index=True)
+    return tar, [n["codigo"] for n in nuevas]
 REGLAS_CIRUGIA = [  # regla, numeral, página PDF, componente, porcentaje, texto
     ("BIL_HON", "69", 130, "honorarios", 75, "Intervención bilateral: +75% en servicios profesionales de cirujano, anestesiólogo y ayudante"),
     ("BIL_SALA", "48.2", 120, "sala", 50, "Intervención bilateral: +50% en derechos de sala"),
@@ -63,7 +104,7 @@ CREATE TABLE soat_procedimientos (
 CREATE TABLE soat_tarifas (
     codigo TEXT PRIMARY KEY REFERENCES soat_procedimientos(codigo),
     descripcion TEXT, factor_smlv REAL, factor_uvt REAL, factor_uvb REAL NOT NULL,
-    valor_2026 REAL NOT NULL);
+    valor_2026 REAL NOT NULL, origen TEXT);
 CREATE TABLE soat_grupos (
     codigo TEXT PRIMARY KEY REFERENCES soat_procedimientos(codigo), grupo INTEGER NOT NULL,
     pagina_pdf INTEGER, confianza TEXT);
@@ -99,31 +140,56 @@ def _pesos(texto):
     return float(s.replace(".", "").replace(",", ".")) if s else None
 
 
-def leer_soat():
-    td = pd.read_excel(SOAT_TABLA, sheet_name="TD", header=None, dtype=str, engine="openpyxl")
-    i = td.index[td[0].fillna("").str.strip().str.upper() == "CONCEPTO"][0]
-    params = []
-    for f in td.iloc[i + 1:].itertuples(index=False):
-        concepto = str(f[0] or "").strip()
-        if not concepto or concepto.upper().startswith(("CÓMO", "COMO")) or concepto == "nan":
-            if params:
-                break
-            continue
-        params.append(dict(concepto=concepto, valor=_pesos(f[1]), valor_texto=f[1],
-                           equivalencia=f[2], uso=f[3], norma=f[4], entidad=f[5], observacion=f[6]))
-    par = pd.DataFrame(params)
-    uvb = float(par[par.concepto.str.upper() == "UVB"].valor.iloc[0])
-
-    t = pd.read_excel(SOAT_TABLA, sheet_name="TABLA", header=None, dtype=str, skiprows=4,
-                      engine="openpyxl").iloc[:, :5]
+def leer_tabla_soat(fuente):
+    """Excel con el formato del maestro SOAT (hoja TABLA: código, descripción, factores SMLV, UVT y
+    UVB; hoja TD: valor de la UVB y demás parámetros) -> (parámetros, tarifas, uvb).
+    fuente: ruta o bytes. La UVB es None si la hoja TD no la trae."""
+    import io
+    src = io.BytesIO(fuente) if isinstance(fuente, (bytes, bytearray)) else fuente
+    xl = pd.ExcelFile(src, engine="openpyxl")
+    hojas = {h.strip().upper(): h for h in xl.sheet_names}
+    if "TABLA" not in hojas:
+        raise ValueError("El Excel no tiene la hoja TABLA (código, descripción, % SMLV, factor UVT, factor UVB)")
+    par = pd.DataFrame(columns=["concepto", "valor", "valor_texto", "equivalencia", "uso", "norma",
+                                "entidad", "observacion"])
+    uvb = None
+    if "TD" in hojas:
+        td = pd.read_excel(xl, sheet_name=hojas["TD"], header=None, dtype=str)
+        cab = td.index[td[0].fillna("").str.strip().str.upper() == "CONCEPTO"]
+        if len(cab):
+            params = []
+            for f in td.iloc[cab[0] + 1:].itertuples(index=False):
+                f = list(f) + [None] * 7
+                concepto = str(f[0] or "").strip()
+                if not concepto or concepto == "nan" or concepto.upper().startswith(("CÓMO", "COMO")):
+                    if params:
+                        break
+                    continue
+                params.append(dict(concepto=concepto, valor=_pesos(f[1]), valor_texto=f[1],
+                                   equivalencia=f[2], uso=f[3], norma=f[4], entidad=f[5], observacion=f[6]))
+            par = pd.DataFrame(params)
+            u = par[par.concepto.str.upper() == "UVB"]
+            uvb = float(u.valor.iloc[0]) if len(u) and u.valor.iloc[0] else None
+    t = pd.read_excel(xl, sheet_name=hojas["TABLA"], header=None, dtype=str)
+    fila = next((i for i, v in enumerate(t[0].fillna("")) if str(v).strip().upper().startswith("CÓDIGO")
+                 or str(v).strip().upper().startswith("CODIGO")), None)
+    t = t.iloc[(fila + 1) if fila is not None else 4:, :5]
     t.columns = ["codigo", "descripcion", "factor_smlv", "factor_uvt", "factor_uvb"]
     t["codigo"] = t.codigo.map(_codigo)
-    t = t[t.codigo != ""].copy()
+    t = t[t.codigo.str.fullmatch(r"\d{3,6}")].copy()
     for c in ("factor_smlv", "factor_uvt", "factor_uvb"):
         t[c] = pd.to_numeric(t[c], errors="coerce")
+    t = t[t.factor_uvb.notna()].drop_duplicates("codigo")
     t["descripcion"] = t.descripcion.fillna("").str.strip()
-    t["valor_2026"] = (t.factor_uvb * uvb).round(2)
+    if t.empty:
+        raise ValueError("La hoja TABLA no trae códigos con factor UVB")
+    return par, t.reset_index(drop=True), uvb
 
+
+def leer_soat():
+    par, t, uvb = leer_tabla_soat(SOAT_TABLA)
+    t, calculados = completar_componentes(t)
+    t["valor_2026"] = (t.factor_uvb * uvb).round(2)
     with warnings.catch_warnings():  # pandas avisa que el motor pyxlsb cambiará; sigue sirviendo
         warnings.simplefilter("ignore")
         r = pd.read_excel(SOAT_RELACION, sheet_name=0, dtype=str, engine="pyxlsb").iloc[:, :4]
@@ -145,7 +211,7 @@ def leer_soat():
         .assign(fuente="relación CUPS-SOAT"),
         g[["codigo"]].assign(descripcion=None, fuente="Decreto 780 (grupo quirúrgico)"),
     ]).drop_duplicates("codigo").reset_index(drop=True)
-    return par, procs, t.reset_index(drop=True), r.reset_index(drop=True), uvb, g
+    return par, procs, t.reset_index(drop=True), r.reset_index(drop=True), uvb, g, calculados
 
 
 def componentes_grupo(tar):
@@ -172,7 +238,7 @@ def crear(con):
                      descripcion="Tarifa del Manual, con los recargos y descuentos de sus artículos; "
                                  "los CUPS se llevan a código ISS con la relación CUPS 2026")]
     if SOAT_TABLA.exists() and SOAT_RELACION.exists():
-        par, procs, tar, rel, uvb, grp = leer_soat()
+        par, procs, tar, rel, uvb, grp, calculados = leer_soat()
         par.to_sql("soat_parametros", con, if_exists="append", index=False)
         procs.to_sql("soat_procedimientos", con, if_exists="append", index=False)
         tar.to_sql("soat_tarifas", con, if_exists="append", index=False)
@@ -187,7 +253,8 @@ def crear(con):
                   if not ((comp.grupo == g) & (comp.componente == c)).any()
                   and not (c == "ayudante" and g < 6) and not (c == "materiales" and g >= 20)]
         resumen.append(f"SOAT cirugía: {len(grp)} procedimientos con grupo, {len(comp)} tarifas de "
-                       f"componentes" + (f"; faltan en la tabla 2026: {', '.join(faltan)}" if faltan else ""))
+                       f"componentes" + (f"; calculados con el decreto: {', '.join(calculados)}" if calculados else "")
+                       + (f"; faltan: {', '.join(faltan)}" if faltan else ""))
         catalogo.append(dict(id="soat", nombre="Manual Tarifario SOAT 2026", vigencia="2026",
                              unidad="UVB", fuente=f"{SOAT_TABLA.name}; {SOAT_RELACION.name}",
                              descripcion=f"Valor = factor UVB x ${uvb:,.0f} (UVB 2026). Los CUPS se "
@@ -216,7 +283,7 @@ def cargar(con):
      'catalogo': {id: nombre}}"""
     def existe(t):
         return con.execute("SELECT 1 FROM sqlite_master WHERE name = ?", (t,)).fetchone()
-    d = dict(soat={}, soat_directo={}, catalogo={}, soat_grupos={}, soat_comp={})
+    d = dict(soat={}, soat_directo={}, catalogo={}, soat_grupos={}, soat_comp={}, soat_comp_codigo={})
     if existe("tarifarios"):
         d["catalogo"] = dict(con.execute("SELECT id, nombre FROM tarifarios"))
     if existe("soat_relacion_cups"):
@@ -231,10 +298,11 @@ def cargar(con):
             d["soat_directo"][cod] = (cod, desc, valor)
     if existe("soat_grupos"):
         d["soat_grupos"] = dict(con.execute("SELECT codigo, grupo FROM soat_grupos"))
-        for g, comp, valor in con.execute(
-                "SELECT c.grupo, c.componente, t.valor_2026 FROM soat_grupo_componentes c "
+        for g, comp, cod, valor in con.execute(
+                "SELECT c.grupo, c.componente, c.codigo_tarifa, t.valor_2026 FROM soat_grupo_componentes c "
                 "JOIN soat_tarifas t ON t.codigo = c.codigo_tarifa"):
             d["soat_comp"][(g, comp)] = valor
+            d["soat_comp_codigo"][(g, comp)] = cod
     return d
 
 

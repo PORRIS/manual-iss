@@ -311,8 +311,23 @@ completa (cirujano + anestesiólogo + ayudante + sala + materiales; en grupos 20
 a precio de catálogo), una adicional del mismo acto (50 % de honorarios con igual vía, 75 % con otra
 vía, o 75 % + 50 % de sala + 75 % de materiales en otra región), una bilateral o un solo componente.
 Si lo cobrado coincide con un escenario (tolerancia de $500 por el redondeo de cada componente) queda
-Conforme con el escenario explicado; si supera a todos, Glosa sobre el mayor; si no, Revisar. Falta en
-la tabla SOAT 2026 la sala del grupo 03 (39205): esas cirugías se avisan como «Tarifa incompleta».
+Conforme con el escenario explicado; si supera a todos, Glosa sobre el mayor; si no, Revisar.
+
+La tabla SOAT 2026 no trae la sala del grupo 03 (39205). Se calcula con el decreto: la proporción
+UVB/SMLDV es la misma en todos los componentes de la tabla (3,7696, variación < 0,2 %), así que
+39205 = 5,97 SMLDV × 3,7696 = 22,50 UVB ($272.475). `tarifarios.completar_componentes` hace lo mismo
+con cualquier tabla a la que le falte un componente de cirugía; la columna `origen` de
+`soat_tarifas` lo indica («tabla» o «calculado: ...»).
+
+### Versiones de la tarifa SOAT (`soat_versiones.py`)
+
+La tarifa SOAT cambia cada año. La SOAT 2026 del repositorio es la versión por defecto; las de otros
+años se suben (web: «Versiones de tarifa SOAT»; consola: `uv run soat_versiones.py cargar archivo.xlsx
+--anio 2027 [--uvb 12600]`) con el mismo formato del maestro SOAT (hoja TABLA con los factores y hoja
+TD con la UVB). Se guardan en la base de tarifas propias (`soat_versiones`, `soat_version_archivos`,
+`soat_version_tarifas`) con su Excel original, año, UVB y estado. Al auditar con SOAT se elige la
+versión (`--soat-version ID`) y la UVB se toma de ella (se puede cambiar). La relación CUPS-SOAT y
+los grupos quirúrgicos se comparten entre versiones.
 
 ### Manuales de tarifas propias (`tarifas_propias.py`)
 

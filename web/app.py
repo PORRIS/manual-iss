@@ -38,6 +38,7 @@ from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import auditar as au  # noqa: E402
+import soat_versiones as sv  # noqa: E402
 import tarifas_propias as tp  # noqa: E402
 import cotizar as cz  # noqa: E402
 from rutas import BASE, DB  # noqa: E402
@@ -686,6 +687,7 @@ class Auditoria(Cotizacion):
     tarifario: str = Field("iss", pattern="^(iss|soat|propia)$")
     uvb: float = Field(au.UVB_2026, gt=0, le=1_000_000)
     propia_version_id: int | None = None
+    soat_version: str = Field("base", pattern=r"^(base|\d{1,9})$")
     factura: str = Field("", max_length=100)
     grupo: str = Field("", max_length=200)
 
@@ -698,12 +700,18 @@ def api_auditar_leer(a: Archivo):
         raise HTTPException(422, f"No se pudo leer {a.nombre}: {e}") from e
 
 
-def tarifas_otras():
-    """SOAT y tarifas propias (se cargan una vez por proceso)."""
+def tarifas_otras(version="base"):
+    """Índices SOAT de la versión pedida (la 2026 del repositorio por defecto), en caché."""
     if "t" not in _DATOS_COT:
         datos_cotizador()  # verifica que exista la base
         _DATOS_COT["t"] = au.cargar_tarifas()
-    return _DATOS_COT["t"]
+    cache = _DATOS_COT.setdefault("versiones_soat", {})
+    if version not in cache:
+        try:
+            cache[version] = sv.aplicar(_DATOS_COT["t"], version)[0]
+        except ValueError as e:
+            raise HTTPException(404, str(e)) from e
+    return cache[version]
 
 
 def calcular_auditoria(a: Auditoria):
@@ -718,7 +726,8 @@ def calcular_auditoria(a: Auditoria):
             propia = tp.cargar_version(a.propia_version_id)
         except ValueError as e:
             raise HTTPException(404, str(e)) from e
-    return sin_nan(au.auditar_tarifa(lineas, a.tarifario, tarifas_otras(), a.contrato_pct, a.uvb,
+    T = tarifas_otras(a.soat_version if a.tarifario == "soat" else "base")
+    return sin_nan(au.auditar_tarifa(lineas, a.tarifario, T, a.contrato_pct, a.uvb,
                                      propia, datos_cotizador()))
 
 
@@ -807,7 +816,8 @@ def api_auditar_excel(a: Auditoria):
 
     info = wb.create_sheet("Datos")
     for k, v in (("Factura", a.factura), ("Paciente / grupo", a.grupo),
-                 ("Tarifario", {"iss": "Manual ISS 2001", "soat": f"SOAT (UVB {a.uvb:g})",
+                 ("Tarifario", {"iss": "Manual ISS 2001",
+                                "soat": f"SOAT versión {a.soat_version} (UVB {a.uvb:g})",
                                 "propia": f"Tarifas propias (versión id {a.propia_version_id})"}[a.tarifario]),
                  ("Condiciones", opciones(a) if a.tarifario == "iss" else "—"),
                  ("Contrato (% sobre la tarifa)", f"{a.contrato_pct:g}"), ("Errores", "; ".join(r["errores"])),
@@ -861,7 +871,7 @@ class ManualNuevo(ArchivoExcel):
 
 
 class CambioEstado(BaseModel):
-    estado: str = Field(pattern="^(borrador|activo|inactivo)$")
+    estado: str = Field(pattern="^(borrador|activo|inactivo)$")  # (las versiones SOAT: activo|inactivo)
 
 
 def _bytes(b64):
@@ -926,6 +936,77 @@ def api_propias_archivo(version_id: int):
         raise HTTPException(404, str(e)) from e
     return Response(contenido, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f'attachment; filename="{nombre or "manual.xlsx"}"'})
+
+
+# ---------------------------------------------------------------- versiones de la tarifa SOAT
+class TablaSoat(BaseModel):
+    nombre: str = Field(max_length=300)
+    contenido_b64: str = Field(max_length=int(tp.MAX_ARCHIVO * 1.4))
+
+
+class VersionSoat(TablaSoat):
+    anio: int = Field(ge=2000, le=2100)
+    nombre_version: str = Field("", max_length=200)
+    uvb: float | None = Field(None, gt=0, le=10_000_000)
+    estado: str = Field("activo", pattern="^(activo|inactivo)$")
+    observacion: str = Field("", max_length=2000)
+
+
+@app.get("/api/soat/versiones")
+def api_soat_versiones():
+    with conexion() as con:
+        return _json(dict(destino=tp.destino(), versiones=sv.listar(con)))
+
+
+@app.post("/api/soat/previa")
+def api_soat_previa(t: TablaSoat):
+    try:
+        tar, uvb, calculados = sv.leer_excel(_bytes(t.contenido_b64))
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    cir = [c for c in tar.codigo if c in tarifarios_series()]
+    return sin_nan(dict(filas=len(tar), uvb=uvb, calculados=calculados, componentes_cirugia=len(cir),
+                        muestra=tar.head(20).to_dict("records")))
+
+
+def tarifarios_series():
+    from tarifarios import SERIES_CIRUGIA
+    return {str(k) for a, b in SERIES_CIRUGIA.values() for k in range(a, b + 1)}
+
+
+@app.post("/api/soat/versiones")
+def api_soat_guardar(v: VersionSoat):
+    try:
+        r = sv.guardar(_bytes(v.contenido_b64), v.nombre, v.anio, v.nombre_version, v.uvb, v.estado,
+                       v.observacion)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    _DATOS_COT.pop("versiones_soat", None)
+    return r
+
+
+@app.post("/api/soat/versiones/{version_id}/estado")
+def api_soat_estado(version_id: int, c: CambioEstado):
+    try:
+        sv.cambiar_estado(version_id, c.estado)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"ok": True}
+
+
+@app.get("/api/soat/versiones/{version_id}/tarifas")
+def api_soat_tarifas(version_id: int):
+    return _json(sv.tarifas_version(version_id))
+
+
+@app.get("/api/soat/versiones/{version_id}/archivo")
+def api_soat_archivo(version_id: int):
+    try:
+        nombre, contenido = sv.archivo(version_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return Response(contenido, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{nombre or "soat.xlsx"}"'})
 
 
 @app.get("/api/propias-plantilla")
