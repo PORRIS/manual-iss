@@ -141,6 +141,7 @@ ORDER BY ABS(CAST(a.despues AS REAL) - CAST(a.antes AS REAL)) DESC;
 -- Todo lo que la revisión cambió del Excel para dejarlo igual al PDF (correcciones.csv ->
 -- ajustes_pdf). texto_excel: contenido original de la fila del Excel.
 CREATE VIEW v_novedades AS
+SELECT * FROM (
 SELECT
     CASE
         WHEN a.accion = 'eliminar' THEN 'Fila eliminada'
@@ -161,7 +162,14 @@ SELECT
     CAST(a.pagina_pdf AS INTEGER)         AS pagina_pdf,
     a.motivo
 FROM ajustes_pdf a
-ORDER BY CASE WHEN a.fila_excel IS NULL THEN 1 ELSE 0 END, CAST(a.fila_excel AS INTEGER), a.campo;
+UNION ALL
+-- Códigos ISS de la relación CUPS 2026 que no están en el Manual (PDF)
+SELECT 'Relación CUPS: código ISS que no está en el PDF', 'relacion', 'codigo_iss',
+       CAST(n.fila_excel AS INTEGER), n.codigo_iss, n.texto_excel, NULL,
+       'CUPS ' || n.cups || ' ' || n.descripcion_cups, CAST(n.pagina_pdf AS INTEGER), n.motivo
+FROM novedades_relacion_cups n
+)
+ORDER BY CASE WHEN fila_excel IS NULL THEN 1 ELSE 0 END, fila_excel, campo;
 
 -- Filas del Excel que no pasaron a la BD (no existen en el PDF, duplicadas o cabeceras).
 CREATE VIEW v_novedades_eliminadas AS
@@ -215,3 +223,25 @@ SELECT nombre, CASE clase WHEN 'departamento' THEN 'Departamento (+ incremento)'
        departamento, pagina_pdf, observacion
 FROM regiones_134
 ORDER BY CASE regiones_134.clase WHEN 'departamento' THEN 1 WHEN 'region' THEN 2 ELSE 3 END, nombre;
+
+-- Relación CUPS 2026 -> código ISS 2001 ("Relación Manual ISS - CUPS 2026.xlsx"), con la tarifa ISS.
+CREATE VIEW v_homologacion_cups AS
+SELECT h.cups, h.descripcion_cups, h.codigo_iss,
+       (SELECT p.descripcion FROM procedimientos p WHERE p.codigo = h.codigo_iss ORDER BY p.id LIMIT 1)
+           AS descripcion_iss,
+       (SELECT p.articulo FROM procedimientos p WHERE p.codigo = h.codigo_iss ORDER BY p.id LIMIT 1)
+           AS articulo,
+       (SELECT p.valor FROM procedimientos p WHERE p.codigo = h.codigo_iss AND p.tipo = 'con_valor'
+        ORDER BY p.id LIMIT 1) AS valor,
+       (SELECT p.unidad FROM procedimientos p WHERE p.codigo = h.codigo_iss AND p.tipo = 'con_valor'
+        ORDER BY p.id LIMIT 1) AS unidad,
+       CASE WHEN h.existe_en_manual = 0 THEN 'No existe en el Manual (PDF): ver Novedades'
+            WHEN h.cups = h.codigo_iss THEN 'Mismo código'
+            ELSE '' END AS observacion
+FROM homologacion_cups h ORDER BY h.cups;
+
+-- Novedad: códigos ISS de la relación CUPS 2026 que no están en el Manual (PDF).
+CREATE VIEW v_novedades_relacion_cups AS
+SELECT cups, descripcion_cups, codigo_iss, CAST(fila_excel AS INTEGER) AS fila_excel, texto_excel,
+       CAST(pagina_pdf AS INTEGER) AS pagina_pdf, motivo
+FROM novedades_relacion_cups ORDER BY codigo_iss;

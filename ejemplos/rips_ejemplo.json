@@ -1,0 +1,40 @@
+{
+  "numDocumentoIdObligado": "900000000",
+  "numFactura": "FE-EJEMPLO-1",
+  "tipoNota": null,
+  "numNota": null,
+  "usuarios": [
+    {
+      "tipoDocumentoIdentificacion": "CC",
+      "numDocumentoIdentificacion": "10000001",
+      "consecutivo": 1,
+      "servicios": {
+        "consultas": [
+          {"codPrestador": "000000000001", "fechaInicioAtencion": "2026-10-01 08:00", "codConsulta": "890201", "vrServicio": 8755, "consecutivo": 1}
+        ],
+        "procedimientos": [
+          {"codPrestador": "000000000001", "fechaInicioAtencion": "2026-10-01 09:00", "codProcedimiento": "903801", "vrServicio": 4000, "consecutivo": 1},
+          {"codPrestador": "000000000001", "fechaInicioAtencion": "2026-10-02 07:00", "codProcedimiento": "C40402", "vrServicio": 1806670, "consecutivo": 2},
+          {"codPrestador": "000000000001", "fechaInicioAtencion": "2026-10-02 07:00", "codProcedimiento": "512104", "vrServicio": 350000, "consecutivo": 3},
+          {"codPrestador": "000000000001", "fechaInicioAtencion": "2026-10-02 07:00", "codProcedimiento": "999999", "vrServicio": 50000, "consecutivo": 4}
+        ],
+        "otrosServicios": [
+          {"codTecnologiaSalud": "871112", "nomTecnologiaSalud": "RX TORAX", "cantidadOS": 2, "vrUnitOS": 18875, "vrServicio": 37750, "consecutivo": 1}
+        ],
+        "medicamentos": [
+          {"codTecnologiaSalud": "19900001-1", "nomTecnologiaSalud": "ACETAMINOFEN 500 MG", "cantidadMedicamento": 10, "vrUnitMedicamento": 120, "vrServicio": 1200, "consecutivo": 1}
+        ]
+      }
+    },
+    {
+      "tipoDocumentoIdentificacion": "TI",
+      "numDocumentoIdentificacion": "20000002",
+      "consecutivo": 2,
+      "servicios": {
+        "procedimientos": [
+          {"codPrestador": "000000000001", "fechaInicioAtencion": "2026-10-03 10:00", "codProcedimiento": "920302", "vrServicio": 184960, "consecutivo": 1}
+        ]
+      }
+    }
+  ]
+}

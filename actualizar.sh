@@ -26,6 +26,7 @@ uv run validar.py
 uv run validar_completo.py
 uv run probar_bd.py
 uv run pruebas_cotizar.py
+uv run pruebas_auditar.py
 
 paso "Copia para Navicat"
 if [[ -d "$(dirname "$COPIA_WINDOWS")" ]]; then

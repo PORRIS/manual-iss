@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>FE-EJEMPLO-2</cbc:ID>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="94">1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="COP">1806670.00</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Description>COLECISTECTOMIA LAPAROSCOPICA</cbc:Description>
+      <cac:StandardItemIdentification><cbc:ID schemeID="010">C40402</cbc:ID></cac:StandardItemIdentification></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="COP">1806670.00</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="94">1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="COP">787560.00</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Description>APENDICECTOMIA</cbc:Description>
+      <cac:StandardItemIdentification><cbc:ID schemeID="010">C40403</cbc:ID></cac:StandardItemIdentification></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="COP">787560.00</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

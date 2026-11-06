@@ -7,6 +7,8 @@ Uso:  ./web.sh            (abre http://127.0.0.1:8000)
   (todas las palabras, en cualquier orden, sin distinguir mayúsculas ni tildes).
 - Exportación a Excel de lo filtrado o de la vista completa.
 - Cotizador (/api/cotizar): el mismo cálculo de cotizar.py, con sus reglas y regiones.
+- Auditoría (/api/auditar): compara una factura (RIPS JSON o XML DIAN) con el Manual (auditar.py).
+  El archivo se procesa en memoria y no se guarda.
 - Contraseña opcional: si existe la variable de entorno WEB_CLAVE, todo el sitio (salvo /salud)
   pide usuario y clave (HTTP Basic). Usuario: WEB_USUARIO, o "revisor" si no se define.
   Sin WEB_CLAVE (uso local) no pide nada.
@@ -15,12 +17,14 @@ import base64
 import hashlib
 import binascii
 import io
+import json
 import os
 import re
 import secrets
 import sqlite3
 import sys
 import unicodedata
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 
@@ -33,6 +37,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import auditar as au  # noqa: E402
 import cotizar as cz  # noqa: E402
 from rutas import BASE, DB  # noqa: E402
 
@@ -64,6 +69,8 @@ ETIQUETAS = {
     "regla": "Regla", "paragrafo": "Parágrafo", "opcion": "Opción", "variante": "Variante",
     "base": "Base", "alcance": "Alcance", "estado": "Estado", "texto": "Texto",
     "clase": "Clase", "departamento": "Departamento",
+    "cups": "CUPS 2026", "descripcion_cups": "Descripción CUPS", "codigo_iss": "Código ISS",
+    "descripcion_iss": "Descripción ISS",
 }
 
 # vista -> configuración. codigo: columnas comparadas con el código; lista: columnas con códigos
@@ -82,13 +89,20 @@ VISTAS = {
         codigo=["codigo", "ref", "paquete_codigo"], texto=["descripcion", "agrupador_ruta"],
         ocultas=["id", "descripcion_busqueda"], orden="id"),
     "v_reglas_tarifas": dict(
-        titulo="Recargos y descuentos", grupo="Cotizador", icono="porcentaje",
+        titulo="Recargos y descuentos", grupo="Cotizar y auditar", icono="porcentaje",
         descripcion="Reglas que aplica el cotizador, con artículo, parágrafo y página del PDF: "
                     "toma de muestra, biopsia múltiple, portátiles, medicina nuclear, bilateral, "
                     "varios conjuntos en un mismo acto y regiones del art. 134.",
         codigo=["regla"], texto=["texto", "opcion", "alcance"], orden="articulo"),
+    "v_homologacion_cups": dict(
+        titulo="Relación CUPS → ISS", grupo="Cotizar y auditar", icono="piezas",
+        descripcion="Equivalencia de cada CUPS 2026 con su código del Manual ISS 2001 y la tarifa "
+                    "ISS (archivo «Relación Manual ISS - CUPS 2026»). La auditoría la usa para "
+                    "comparar los RIPS.",
+        codigo=["cups", "codigo_iss"], texto=["descripcion_cups", "descripcion_iss", "observacion"],
+        orden="cups"),
     "v_regiones_134": dict(
-        titulo="Regiones del art. 134", grupo="Cotizador", icono="mapa",
+        titulo="Regiones del art. 134", grupo="Cotizar y auditar", icono="mapa",
         descripcion="Departamentos y región con incremento en las tarifas (art. 134, pág. 204) y "
                     "ciudades donde no aplica (par. 2, pág. 205).",
         codigo=[], texto=["nombre", "clase", "observacion"]),
@@ -159,6 +173,11 @@ VISTAS = {
         descripcion="Notas que en el PDF son títulos o capítulos, cambio de código y notas del PDF "
                     "que faltaban en el Excel.",
         codigo=["codigo"], texto=["categoria", "texto_excel", "despues", "motivo"]),
+    "v_novedades_relacion_cups": dict(
+        titulo="Relación CUPS sin código en el PDF", grupo="Novedades (Excel → PDF)", icono="piezas",
+        descripcion="Códigos ISS de la relación CUPS 2026 que no existen en el Manual (PDF): de "
+                    "dónde salen (Excel o ninguno) y por qué no se pueden usar para comparar.",
+        codigo=["cups", "codigo_iss"], texto=["descripcion_cups", "texto_excel", "motivo"]),
     "v_novedades_aceptadas": dict(
         titulo="Diferencias aceptadas", grupo="Novedades (Excel → PDF)", icono="check",
         descripcion="Diferencias revisadas que se dejaron como están: falsos positivos de la "
@@ -481,12 +500,16 @@ def sin_nan(x):
     return None if isinstance(x, float) and x != x else x
 
 
-def calcular(c: Cotizacion):
-    d = datos_cotizador()
-    op = {"solo-muestra": c.solo_muestra or None, "biopsia-multiple": c.biopsia_multiple,
+def opciones(c: Cotizacion):
+    return {"solo-muestra": c.solo_muestra or None, "biopsia-multiple": c.biopsia_multiple,
           "portatil-rx": {cz.normcod(k): v for k, v in c.portatil_rx.items()},
           "portatil-eco": c.portatil_eco, "tecnecio": c.tecnecio, "bilateral": c.bilateral,
           "mismo-acto": c.mismo_acto or None, "region-134": c.region or None}
+
+
+def calcular(c: Cotizacion):
+    d = datos_cotizador()
+    op = opciones(c)
     items = [i for i in (x.strip() for x in c.items) if i]
     filas, ajustes, errores, avisos = cz.cotizar(items, op, d)
     R = d["reglas"]
@@ -579,6 +602,153 @@ def api_cotizar_excel(c: Cotizacion):
     wb.save(buf)
     buf.seek(0)
     nombre = f"cotizacion_{datetime.now():%Y%m%d_%H%M}.xlsx"
+    return StreamingResponse(
+        buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+# ---------------------------------------------------------------- auditoría de facturas
+MAX_ARCHIVO = 15_000_000
+
+
+class Archivo(BaseModel):
+    nombre: str = Field(max_length=300)
+    contenido: str = Field(max_length=MAX_ARCHIVO)
+
+
+class Linea(BaseModel):
+    codigo: str = Field("", max_length=40)
+    cantidad: float = 1
+    valor_unitario: float | None = None
+    descripcion: str = Field("", max_length=500)
+    origen: str = Field("", max_length=100)
+    fecha: str = Field("", max_length=40)
+    seccion: str = Field("", max_length=40)
+    motivo: str = Field("", max_length=400)
+    datos: dict = Field(default_factory=dict)
+
+
+class Decision(BaseModel):
+    estado: str = Field("", max_length=20)
+    glosa: float | None = None
+    observacion: str = Field("", max_length=2000)
+
+
+class Auditoria(Cotizacion):
+    lineas: list[Linea] = Field(default_factory=list, max_length=6000)
+    decisiones: list[Decision] = Field(default_factory=list, max_length=6000)
+    no_tarifadas: list[Linea] = Field(default_factory=list, max_length=6000)
+    contrato_pct: float = Field(0, ge=-100, le=1000)
+    factura: str = Field("", max_length=100)
+    grupo: str = Field("", max_length=200)
+
+
+@app.post("/api/auditar/leer")
+def api_auditar_leer(a: Archivo):
+    try:
+        return sin_nan(au.leer_factura(a.nombre, a.contenido))
+    except (ValueError, json.JSONDecodeError, ET.ParseError) as e:
+        raise HTTPException(422, f"No se pudo leer {a.nombre}: {e}") from e
+
+
+def calcular_auditoria(a: Auditoria):
+    return sin_nan(au.auditar([ln.model_dump() for ln in a.lineas], opciones(a),
+                              datos_cotizador(), a.contrato_pct))
+
+
+@app.post("/api/auditar")
+def api_auditar(a: Auditoria):
+    return calcular_auditoria(a)
+
+
+@app.post("/api/auditar/excel")
+def api_auditar_excel(a: Auditoria):
+    r = calcular_auditoria(a)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Auditoría"
+    cab = ["Origen", "Código", "Descripción (Manual)", "Art.", "Cant.", "Valor facturado",
+           "Valor Manual", "Diferencia", "Estado", "Valor a glosar", "Motivo", "Observación",
+           "Alertas", "Citas", "Fecha", "Autorización", "Diagnóstico principal"]
+    ws.append(cab)
+    total_glosa = 0.0
+    for i, x in enumerate(r["lineas"]):
+        dec = a.decisiones[i] if i < len(a.decisiones) else Decision()
+        estado = dec.estado or x["estado"]
+        glosa = (dec.glosa if dec.glosa is not None else x["glosa"]) if estado == "Glosa" else 0
+        total_glosa += glosa or 0
+        m = x["manual"] or {}
+        citas = [a_["cita"] for a_ in x["ajustes"]] + [al["cita"] for al in x["alertas"] if al["cita"]]
+        ws.append([x["origen"], x["codigo"], m.get("descripcion") or x["descripcion_factura"],
+                   m.get("articulo"), x["cantidad"], x["facturado"], x["esperado"], x["diferencia"],
+                   estado, glosa, x["motivo"], dec.observacion,
+                   "\n".join(f"{al['tipo']}: {al['texto']}" for al in x["alertas"]),
+                   "; ".join(dict.fromkeys(citas)), x["fecha"],
+                   x["datos"].get("numAutorizacion"),
+                   " / ".join(str(v) for k, v in x["datos"].items()
+                              if k.startswith("codDiagnosticoPrincipal") and v
+                              and not k.endswith("E"))])
+    ws.append([])
+    s = r["resumen"]
+    for etiqueta, valor in (("Total facturado", s["facturado"]), ("Total según el Manual", s["esperado"]),
+                            ("Total a glosar", total_glosa)):
+        ws.append([etiqueta, None, None, None, None, valor if "facturado" in etiqueta else None,
+                   valor if "Manual" in etiqueta else None, None, None,
+                   valor if "glosar" in etiqueta else None])
+        ws[ws.max_row][0].font = Font(bold=True)
+    for celda in ws[1]:
+        celda.fill = PatternFill("solid", fgColor="1DBB99")
+        celda.font = Font(bold=True, color="FFFFFF")
+    for col in "FGHJ":
+        for (c_,) in ws.iter_rows(min_row=2, min_col=ord(col) - 64, max_col=ord(col) - 64):
+            c_.number_format = "#,##0.00"
+    for col, ancho in zip("ABCDEFGHIJKLMNOPQ", (20, 10, 46, 6, 6, 15, 15, 14, 10, 15, 40, 40, 70, 30,
+                                                17, 16, 16)):
+        ws.column_dimensions[col].width = ancho
+    for fila in ws.iter_rows(min_row=2):
+        for c_ in fila:
+            c_.alignment = Alignment(vertical="top", wrap_text=c_.column_letter in "CKLMN")
+    ws.freeze_panes = "C2"
+    ws.auto_filter.ref = f"A1:Q{len(r['lineas']) + 1}"
+
+    if a.no_tarifadas:
+        st = wb.create_sheet("Sin tarifa por código")
+        st.append(["Origen", "Código", "Descripción", "Cant.", "Valor unitario", "Valor total",
+                   "Motivo"])
+        for o in a.no_tarifadas:
+            st.append([o.origen, o.codigo, o.descripcion, o.cantidad, o.valor_unitario,
+                       None if o.valor_unitario is None else o.valor_unitario * o.cantidad,
+                       o.motivo])
+        for celda in st[1]:
+            celda.fill = PatternFill("solid", fgColor="6D5EAC")
+            celda.font = Font(bold=True, color="FFFFFF")
+        for col, ancho in zip("ABCDEFG", (34, 18, 50, 7, 15, 15, 80)):
+            st.column_dimensions[col].width = ancho
+        for col in "EF":
+            for (c_,) in st.iter_rows(min_row=2, min_col=ord(col) - 64, max_col=ord(col) - 64):
+                c_.number_format = "#,##0.00"
+        st.freeze_panes = "A2"
+
+    info = wb.create_sheet("Datos")
+    for k, v in (("Factura", a.factura), ("Paciente / grupo", a.grupo),
+                 ("Condiciones", opciones(a)), ("Contrato (% sobre el Manual)", f"{a.contrato_pct:g}"), ("Errores", "; ".join(r["errores"])),
+                 ("Generado", datetime.now().strftime("%Y-%m-%d %H:%M")),
+                 ("Fuente", "Manual Tarifario ISS 2001 (Acuerdo 256 de 2001) - auditar.py"),
+                 ("Nota", "Estados y valores a glosar sugeridos por la herramienta y revisados por "
+                          "el auditor; la decisión final es del auditor.")):
+        info.append([k, v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)])
+    for p_ in r["parrafos"]:
+        info.append([f"Parágrafo art. {p_['articulo']}", p_["texto"]])
+    info.column_dimensions["A"].width = 22
+    info.column_dimensions["B"].width = 120
+    for (celda,) in info.iter_rows(min_col=1, max_col=1):
+        celda.font = Font(bold=True)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    base = re.sub(r"[^\w-]+", "_", a.factura or "factura")[:40]
+    nombre = f"auditoria_{base}_{datetime.now():%Y%m%d_%H%M}.xlsx"
     return StreamingResponse(
         buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{nombre}"'})

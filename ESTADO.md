@@ -63,6 +63,17 @@
     página web "Cotizar" (POST /api/cotizar, exportar a Excel). pruebas_cotizar.py 28/28.
     `.idea/` en .gitignore.
 
+20. Auditoría de facturas: `auditar.py` (RIPS JSON y XML DIAN, o líneas digitadas), estados
+    sugeridos Conforme/Glosa/Revisar, doble cobro conjunto-componente, notas del procedimiento,
+    adicionales por paciente asignados a su línea. Web: "Auditar factura" con decisión del auditor,
+    observación e informe Excel. Ejemplos ficticios en `ejemplos/`; pruebas_auditar.py 15/15.
+    Lector RIPS con todos los campos (Res. 2275 y 948), episodios, insumos/medicamentos aparte
+    (arts. 87-88), contrato "ISS + %", homologacion.csv, repetidos por misma fecha y hora.
+    Art. 134 literal a (+30 %, R134A). `examples/` (facturas reales) en .gitignore.
+21. Relación CUPS 2026 -> ISS 2001: tabla homologacion_cups y vista v_homologacion_cups desde
+    «Relación Manual ISS - CUPS 2026.xlsx» (sin modificarlo); auditar.py la usa para las líneas
+    de RIPS; homologacion.csv tiene prioridad. Pruebas: BD 54/54, auditoría 17/17.
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -83,6 +94,17 @@
   (ya con el 25 % / 70 %).
 - No automatizado en cotizar.py: art. 95 par. 22 (anestesia general en hemodinamia/radiología intervencionista: falta la lista de
   conjuntos a los que aplica).
+- Art. 134 literal a (+30 %): aplicado a los arts. 75-76. Pendiente de consulta: 399601
+  (perfusionista) y 890503 (junta médica por otro profesional), las consultas de P y P del art. 90
+  y los honorarios/derechos de sala del Capítulo I (en UVR, aún sin liquidar en el cotizador).
+- Auditoría con RIPS reales (examples/, fuera de git): los valores facturados son 3 a 8 veces la
+  tarifa ISS 2001 y la proporción cambia por línea: falta saber con qué tarifa/contrato se liquidan
+  (ISS + %, SOAT, propia). Relación CUPS 2026 -> ISS cargada (homologacion_cups): con ella se
+  comparan 291/291, 1.351/1.395 y 830/874 líneas de los 3 RIPS reales. Por revisar en la relación:
+  glucometría CUPS 903883 -> ISS 903840 "Glucosa en orina" (el Manual tiene M19275 GLUCOMETRÍA);
+  ISS 012205 y 783001 no están en el Manual: registrados como novedad (v_novedades_relacion_cups;
+  783001 viene de la fila 3466 del Excel, eliminada porque no está en el PDF pág. 65; 012205 no
+  está ni en el Excel ni en el PDF). El doble cobro se sugiere como Revisar (confirmado por el usuario).
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

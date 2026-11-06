@@ -215,7 +215,7 @@ el código no dice si un estudio fue portátil o un conjunto bilateral. Cifras y
 | (automático) | Art. 27 par. 16 (pág. 123) | Códigos 920302, 920304, 920305, 920306: +$103.225 por paciente (radioaerosoles) |
 | `--bilateral COD…` | Art. 95 par. 6 (pág. 188) | Conjunto bilateral: +55 % |
 | `--mismo-acto igual\|diferente` | Art. 95 par. 7 (pág. 188) | Varios conjuntos en un mismo acto: el de mayor tarifa al 100 %; `igual` (mismo especialista, igual vía) + 25 % del siguiente; `diferente` (otra vía o especialidad) + 70 % de cada uno de los demás. Con un solo conjunto no procede el conjunto (literal a): error. Quedan como error, pendientes de consulta: `igual` con 3 o más conjuntos y la combinación con `--bilateral` |
-| `--region-134 DEPTO:MUNICIPIO` | Art. 134 (págs. 204-205) y art. 95 par. 23 (pág. 192) | +15 % Capítulo II (arts. 19-41), +14 % conjuntos. Va al final, sobre lo que efectivamente se paga (incluye bilateral, 12 % de toma de muestra y adicionales por paciente del Capítulo II). No aplica en Arauca, Florencia, Riohacha, Sincelejo, Villavicencio ni Yopal. `URABA` = municipios de la región de Urabá |
+| `--region-134 DEPTO:MUNICIPIO` | Art. 134 (págs. 204-205) y art. 95 par. 23 (pág. 192) | +30 % consultas, interconsultas, urgencias y atención intrahospitalaria (arts. 75-76, literal a; sin 399601 ni 890503, pendientes de consulta), +15 % Capítulo II (arts. 19-41), +14 % conjuntos. Va al final, sobre lo que efectivamente se paga (incluye bilateral, 12 % de toma de muestra y adicionales por paciente del Capítulo II). No aplica en Arauca, Florencia, Riohacha, Sincelejo, Villavicencio ni Yopal. `URABA` = municipios de la región de Urabá |
 
 Los departamentos, la región y las ciudades exceptuadas del art. 134 están en `regiones_134.csv`
 (vista `v_regiones_134`); las reglas, en la vista `v_reglas_tarifas`.
@@ -226,6 +226,49 @@ si hubo varios conjuntos en un mismo acto, y se exporta la cotización a Excel.
 
 No se automatizan (solo se avisan): anestesia general en hemodinamia o radiología intervencionista (art. 95 par. 22: falta la
 lista de conjuntos a los que aplica) y todo lo que depende del contrato o del consumo.
+
+## Auditar facturas
+
+```bash
+uv run auditar.py ejemplos/rips_ejemplo.json               # RIPS JSON (Res. 2275 de 2023)
+uv run auditar.py ejemplos/factura_ejemplo.xml --mismo-acto igual   # factura electrónica DIAN (UBL)
+uv run auditar.py factura.json --usuario 2 --region-134 META:Granada --csv auditoria.csv
+uv run auditar.py factura.json --contrato 30               # contrato "ISS 2001 + 30 %"
+uv run pruebas_auditar.py
+```
+
+Compara cada línea de la factura con el valor del Manual (tarifa más los recargos y descuentos que
+declare el auditor, calculados como en `cotizar.py`) y sugiere un estado:
+
+- **Glosa**: valor facturado mayor que el del Manual (tolerancia $1 por redondeo); valor sugerido = la diferencia.
+- **Revisar**: posible doble cobro (componente cobrado aparte junto con el conjunto que lo cubre,
+  art. 95 par. 1, pág. 187), código que no está en el Manual (puede necesitar homologación si la
+  factura usa CUPS vigentes), código con varios valores, procedimiento en UVR, código repetido.
+- **Conforme**: igual o menor que el Manual.
+
+El lector de RIPS toma **todos los campos** de cada registro, también los nuevos de la Res. 948 de
+2026 (CIE-11, `codigoVIDA`, `vrDispensacion`, `registroSIRAS`), acepta las variantes de nombre de
+la norma (`otros_servicios`, `fechalnicioAtencion`, `...Relacionadol`) y muestra urgencias,
+hospitalización y recién nacidos. Los documentos de los pacientes se enmascaran.
+
+No se comparan por código (van a la hoja «Sin tarifa por código»): medicamentos (art. 87, precio de
+adquisición más un porcentaje), dispositivos e insumos `tipoOS` 01 (art. 88, hasta el precio de
+adquisición + 12 %) y servicios complementarios `tipoOS` 04 (MIPRES).
+
+Los RIPS usan **CUPS vigentes**. Para compararlos, el ETL carga «Relación Manual ISS - CUPS
+2026.xlsx» (9.379 CUPS con su código ISS; el Excel pierde los ceros a la izquierda y se completan
+a 6) en la tabla `homologacion_cups` (vista `v_homologacion_cups`, menú «Relación CUPS → ISS»). Las
+líneas que vienen de un RIPS siempre se comparan con su código ISS equivalente (313 CUPS existen
+también como código ISS con otro significado); las digitadas se toman como código ISS.
+`homologacion.csv` (`codigo_factura,codigo_manual,observacion`) corrige o completa la relación y
+tiene prioridad; también se puede corregir el código en la línea desde la web. La factura electrónica XML suele traer el código interno
+del prestador y no el CUPS: sirve para cuadrar el total, la comparación se hace con el RIPS.
+
+Además muestra por línea las notas del procedimiento (INCLUYE, EXCLUYE, APLICA, por sesión...) para
+que el auditor verifique. Los RIPS se auditan por usuario (paciente); los medicamentos no se
+comparan (el Manual no los tarifa, art. 87). En la web (**Cotizar y auditar > Auditar factura**) se
+carga el archivo o se digitan las líneas, el auditor confirma o cambia cada estado, ajusta el valor a
+glosar, escribe la observación y exporta el informe a Excel. El archivo no se guarda en el servidor.
 
 Si se define `DB_URL` (en `.env`), el ETL también carga las tablas en PostgreSQL, MySQL o SQL Server.
 

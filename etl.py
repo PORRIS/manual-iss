@@ -462,6 +462,45 @@ tablas["auditoria_visual"] = auditoria
 tablas["reglas_tarifas"] = pd.read_csv("reglas_tarifas.csv", dtype={"paragrafo": str})
 tablas["regiones_134"] = pd.read_csv("regiones_134.csv", keep_default_na=False)
 
+# Relación CUPS 2026 -> código ISS 2001 (archivo de la entidad; se lee tal cual, sin modificarlo).
+# El Excel guarda los códigos ISS como número y pierde los ceros a la izquierda: se completan a 6.
+RELACION_CUPS = "Relación Manual ISS - CUPS 2026.xlsx"
+if os.path.exists(RELACION_CUPS):
+    _rel = pd.read_excel(RELACION_CUPS, sheet_name=0, dtype=str, engine="openpyxl").iloc[:, :3]
+    _rel.columns = ["cups", "descripcion_cups", "codigo_iss_original"]
+    _rel = _rel.dropna(subset=["cups"])
+    _rel["cups"] = _rel.cups.str.strip().str.upper()
+    _rel["codigo_iss_original"] = _rel.codigo_iss_original.fillna("").str.strip().str.upper()
+    _rel["codigo_iss"] = [c.zfill(6) if c.isdigit() else c for c in _rel.codigo_iss_original]
+    _rel["existe_en_manual"] = _rel.codigo_iss.isin(set(pr.codigo.dropna())).astype(int)
+    tablas["homologacion_cups"] = _rel.reset_index(drop=True)
+    # Novedad: códigos ISS de la relación que no están en el Manual (PDF)
+    _sin = _rel[_rel.existe_en_manual == 0]
+    _elim = _aj[_aj.accion == "eliminar"].set_index("codigo")
+    _nov = []
+    for r in _sin.itertuples():
+        en_excel = r.codigo_iss in _elim.index
+        e = _elim.loc[r.codigo_iss] if en_excel else None
+        if isinstance(e, pd.DataFrame):
+            e = e.iloc[0]
+        _nov.append(dict(
+            cups=r.cups, descripcion_cups=r.descripcion_cups, codigo_iss=r.codigo_iss,
+            fila_excel=int(e.fila_excel) if en_excel else None,
+            texto_excel=e.texto_excel if en_excel else None,
+            pagina_pdf=e.pagina_pdf if en_excel else None,
+            motivo=(f"La relación CUPS 2026 lleva el CUPS {r.cups} al código ISS {r.codigo_iss}, que no "
+                    "existe en el Manual (PDF): "
+                    + (f"estaba en el Excel (fila {int(e.fila_excel)}) y se eliminó ({e.motivo})"
+                       if en_excel else "tampoco está en el Excel")
+                    + ". Las facturas con este CUPS no se pueden comparar con el Manual.")))
+    tablas["novedades_relacion_cups"] = pd.DataFrame(
+        _nov, columns=["cups", "descripcion_cups", "codigo_iss", "fila_excel", "texto_excel",
+                       "pagina_pdf", "motivo"])
+    tablas["novedades_relacion_cups"]["pagina_pdf"] = \
+        tablas["novedades_relacion_cups"]["pagina_pdf"].astype("Int64")
+    print(f"relación CUPS -> ISS: {len(_rel)} filas, {int(_rel.existe_en_manual.sum())} con código ISS "
+          f"en el Manual, sin pareja: {', '.join(_rel[_rel.existe_en_manual == 0].codigo_iss)}")
+
 # Art. 59: valor de la UVR en pesos por tipo de profesional
 tablas["parametros"] = (
     pr[(pr.articulo == 59) & (pr.tipo == "con_valor")][["codigo", "descripcion", "valor"]]

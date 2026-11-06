@@ -102,6 +102,8 @@ def en_alcance(f, alcance):
             return False
         elif k == "codigos" and f["codigo"] not in {normcod(x) for x in v.split(",")}:
             return False
+        elif k == "no_codigos" and f["codigo"] in {normcod(x) for x in v.split(",")}:
+            return False
     return True
 
 

@@ -34,6 +34,8 @@ const ICONOS = {
   mapa: '<path d="M12 22s7-6.1 7-12a7 7 0 0 0-14 0c0 5.9 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
   calculadora: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h4"/>',
   mas: '<path d="M12 5v14M5 12h14"/>',
+  lupa: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5"/><path d="M14 2v6h6v3"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="m22 22-3-3"/>',
+  subir: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>',
   vacio: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/>',
 };
 const icono = (n) => `<svg class="icono" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[n] || ""}</svg>`;
@@ -140,7 +142,8 @@ function pintarMenu() {
   let h = `<a class="menu__item" href="#/" data-vista="">${icono("inicio")}<span>Inicio</span></a>`;
   for (const [g, vs] of Object.entries(grupos)) {
     h += `<div class="menu__grupo">${esc(g)}</div>`;
-    if (g === "Cotizador") h += `<a class="menu__item" href="#/cotizar" data-vista="cotizar">${icono("calculadora")}<span>Cotizar</span></a>`;
+    if (g === "Cotizar y auditar") h += `<a class="menu__item" href="#/cotizar" data-vista="cotizar">${icono("calculadora")}<span>Cotizar</span></a>
+      <a class="menu__item" href="#/auditar" data-vista="auditar">${icono("lupa")}<span>Auditar factura</span></a>`;
     h += vs.map((v) => `<a class="menu__item" href="#/${v.id}" data-vista="${v.id}">${icono(v.icono)}
       <span>${esc(v.titulo)}</span><small>${fmt.format(v.total)}</small></a>`).join("");
   }
@@ -221,7 +224,11 @@ async function pintarInicio() {
   $("#rejilla").innerHTML = `<button class="tarjeta-vista tarjeta-cotizar" data-vista="cotizar">
       <div class="tarjeta-vista__icono">${icono("calculadora")}</div>
       <div><h3>Cotizar</h3><p>Sume las tarifas de varios códigos y aplique los recargos y descuentos del Manual:
-        portátil, bilateral, varios conjuntos en un mismo acto y regiones del art. 134.</p></div></button>` + VISTAS.map((v) => {
+        portátil, bilateral, varios conjuntos en un mismo acto y regiones del art. 134.</p></div></button>
+    <button class="tarjeta-vista tarjeta-cotizar" data-vista="auditar">
+      <div class="tarjeta-vista__icono">${icono("lupa")}</div>
+      <div><h3>Auditar factura</h3><p>Cargue el RIPS (JSON) o la factura electrónica (XML), o digite las líneas: compara
+        cada cobro con el Manual, señala sobrecobros y dobles cobros, y exporta el informe de glosas a Excel.</p></div></button>` + VISTAS.map((v) => {
     const r = conteos?.[v.id];
     const clase = conteos ? (r?.coincidencias ? "con-resultados" : "sin-resultados") : "";
     const insignia = conteos ? `<span class="insignia">${r ? fmt.format(r.coincidencias) : "—"}</span>` : "";
@@ -509,15 +516,15 @@ let cot = (() => {
 })();
 function guardarCot() { try { localStorage.setItem("cotizacion", JSON.stringify(cot)); } catch { /* sin almacenamiento */ } }
 
-function pedidoCot() {
-  const lista = (op) => Object.keys(cot.opc).filter((c) => cot.opc[c][op]);
+function pedidoCot(s = cot) {
+  const lista = (op) => Object.keys(s.opc).filter((c) => s.opc[c][op]);
   return {
-    items: cot.items,
+    items: s.items,
     solo_muestra: lista("solo-muestra"), biopsia_multiple: lista("biopsia-multiple"),
     portatil_eco: lista("portatil-eco"), bilateral: lista("bilateral"),
-    portatil_rx: Object.fromEntries(Object.entries(cot.rx).filter(([, v]) => v)),
-    tecnecio: cot.tecnecio, mismo_acto: cot.mismoActo || null,
-    region: cot.depto ? `${cot.depto}:${cot.muni || "OTRO"}` : null,
+    portatil_rx: Object.fromEntries(Object.entries(s.rx).filter(([, v]) => v)),
+    tecnecio: s.tecnecio, mismo_acto: s.mismoActo || null,
+    region: s.depto ? `${s.depto}:${s.muni || "OTRO"}` : null,
   };
 }
 
@@ -623,22 +630,10 @@ function enlazarCotizar() {
       const p = partesItem(cot.items[+t.dataset.cant]);
       p.cant = Math.max(1, Math.min(999, parseInt(t.value, 10) || 1));
       cot.items[+t.dataset.cant] = armarItem(p);
-    } else if (t.dataset.rx !== undefined) {
-      cot.rx[t.dataset.rx] = t.value;
-    } else if (t.dataset.op !== undefined) {
-      (cot.opc[t.dataset.cod] ||= {})[t.dataset.op] = t.checked;
-    } else return;
+    } else if (!cambiarOpcion(t, cot)) return;
     recalcular();
   });
-  $("#cotCondiciones").addEventListener("change", (ev) => {
-    const t = ev.target;
-    if (t.id === "cotDepto") { cot.depto = t.value; cot.muni = ""; }
-    else if (t.id === "cotMuni") cot.muni = t.value;
-    else if (t.name === "mismoActo") cot.mismoActo = t.value;
-    else if (t.id === "cotTecnecio") cot.tecnecio = t.checked;
-    else return;
-    recalcular();
-  });
+  enlazarCondiciones($("#cotCondiciones"), () => cot, recalcular);
   $("#cotTotal").addEventListener("click", async (ev) => {
     const b = ev.target.closest("button");
     if (!b) return;
@@ -650,18 +645,39 @@ function enlazarCotizar() {
   });
 }
 
-function htmlOpciones(f) {
+/** Marca o desmarca una opción por línea (portátil, bilateral...). */
+function cambiarOpcion(t, s) {
+  if (t.dataset.rx !== undefined) s.rx[t.dataset.rx] = t.value;
+  else if (t.dataset.op !== undefined) (s.opc[t.dataset.cod] ||= {})[t.dataset.op] = t.checked;
+  else return false;
+  return true;
+}
+
+/** Lugar de la atención, mismo acto y tecnecio: compartido por Cotizar y Auditar. */
+function enlazarCondiciones(el, estadoDe, recalc) {
+  el.addEventListener("change", (ev) => {
+    const t = ev.target, s = estadoDe();
+    if (t.id === "cotDepto") { s.depto = t.value; s.muni = ""; }
+    else if (t.id === "cotMuni") s.muni = t.value;
+    else if (t.name === "mismoActo") s.mismoActo = t.value;
+    else if (t.id === "cotTecnecio") s.tecnecio = t.checked;
+    else return;
+    recalc();
+  });
+}
+
+function htmlOpciones(f, s = cot) {
   const regla = (op, variante = "") => COT_CFG.reglas.find((r) => r.opcion === op && (!variante || r.variante === variante));
   const titulo = (r) => (r ? `${r.texto} — ${r.cita}` : "");
   return f.aplicables.map((op) => {
     if (op === "portatil-rx") {
-      const v = cot.rx[f.codigo] || "";
+      const v = s.rx[f.codigo] || "";
       return `<label class="opcion${v ? " activa" : ""}" title="${esc(titulo(regla(op, "simple")))}">${OPC_ETIQUETA[op]}
         <select data-rx="${esc(f.codigo)}"><option value="">no</option>
           <option value="simple"${v === "simple" ? " selected" : ""}>simple</option>
           <option value="fluoroscopia"${v === "fluoroscopia" ? " selected" : ""}>con fluoroscopia</option></select></label>`;
     }
-    const marcado = cot.opc[f.codigo]?.[op];
+    const marcado = s.opc[f.codigo]?.[op];
     return `<label class="opcion${marcado ? " activa" : ""}" title="${esc(titulo(regla(op)))}">
       <input type="checkbox" data-op="${op}" data-cod="${esc(f.codigo)}"${marcado ? " checked" : ""}>${OPC_ETIQUETA[op] || op}</label>`;
   }).join("");
@@ -732,19 +748,18 @@ function enlacesCita(cita) {
   return esc(cita).replace(/pág\. (\d+)/, (_, n) => `pág. <a class="pagina" href="/fuentes/pdf#page=${n}" target="_blank" rel="noopener">${n}</a>`);
 }
 
-function pintarCondiciones() {
-  const g = cotRes.globales;
+function pintarCondiciones(s = cot, el = $("#cotCondiciones"), g = cotRes.globales) {
   const deptos = COT_CFG.regiones.filter((r) => r.clase === "departamento");
   const regiones = COT_CFG.regiones.filter((r) => r.clase === "region");
-  const sel = COT_CFG.regiones.find((r) => r.clave === cot.depto);
-  const opt = (r) => `<option value="${esc(r.clave)}"${r.clave === cot.depto ? " selected" : ""}>${esc(r.nombre)}</option>`;
+  const sel = COT_CFG.regiones.find((r) => r.clave === s.depto);
+  const opt = (r) => `<option value="${esc(r.clave)}"${r.clave === s.depto ? " selected" : ""}>${esc(r.nombre)}</option>`;
   const muni = sel ? `<label class="campo-form"><span>Municipio</span><select id="cotMuni">
       <option value="">${sel.clase === "region" ? "Municipio de la región (con incremento)" : "Otro municipio (con incremento)"}</option>
-      ${sel.exceptuadas.map((e) => `<option value="${esc(e.clave)}"${e.clave === cot.muni ? " selected" : ""}>${esc(e.nombre)} (sin incremento, par. 2)</option>`).join("")}
+      ${sel.exceptuadas.map((e) => `<option value="${esc(e.clave)}"${e.clave === s.muni ? " selected" : ""}>${esc(e.nombre)} (sin incremento, par. 2)</option>`).join("")}
     </select></label>${sel.observacion ? `<p class="nota-campo">${esc(sel.observacion)}</p>` : ""}` : "";
-  const radio = (v, t, sub) => `<label class="radio"><input type="radio" name="mismoActo" value="${v}"${cot.mismoActo === v ? " checked" : ""}>
+  const radio = (v, t, sub) => `<label class="radio"><input type="radio" name="mismoActo" value="${v}"${s.mismoActo === v ? " checked" : ""}>
     <span>${t}${sub ? `<small>${sub}</small>` : ""}</span></label>`;
-  $("#cotCondiciones").innerHTML = `
+  el.innerHTML = `
     <h2 class="subtitulo">${icono("mapa")}Lugar de la atención</h2>
     <label class="campo-form"><span>Departamento o región (art. 134, <a class="pagina" href="/fuentes/pdf#page=204" target="_blank" rel="noopener">pág. 204</a>)</span>
       <select id="cotDepto"><option value="">Fuera de las regiones del art. 134</option>
@@ -760,7 +775,7 @@ function pintarCondiciones() {
       <p class="nota-campo">Art. 95 par. 7, <a class="pagina" href="/fuentes/pdf#page=188" target="_blank" rel="noopener">pág. 188</a>.</p>`
       : `<p class="nota-campo">Aplica cuando la cotización tiene conjuntos del art. 95 (códigos C…).</p>`}
     ${g.tecnecio ? `<h2 class="subtitulo">${icono("radiografia")}Medicina nuclear</h2>
-      <label class="radio"><input type="checkbox" id="cotTecnecio"${cot.tecnecio ? " checked" : ""}>
+      <label class="radio"><input type="checkbox" id="cotTecnecio"${s.tecnecio ? " checked" : ""}>
         <span>Con tecnecio 99<small>+$13.120 por paciente (art. 27 par. 16)</small></span></label>` : ""}`;
 }
 
@@ -787,11 +802,365 @@ async function exportarCot(boton) {
   }
 }
 
+// ---------- Auditar factura ----------
+// La factura se procesa en el servidor sin guardarse; aquí vive solo en memoria (no en el navegador).
+const ESTADOS = ["Conforme", "Glosa", "Revisar"];
+const audVacia = () => ({ archivo: null, grupo: "", lineas: [], dec: [], abiertas: new Set(), filtro: "",
+  contrato: 0, opc: {}, rx: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
+const grupoActual = () => aud.archivo?.grupos.find((g) => g.id === aud.grupo);
+const ETQ_EPISODIO = { urgencias: "Urgencias", hospitalizacion: "Hospitalización", recienNacidos: "Recién nacido" };
+let aud = audVacia();
+let audRes = null;
+let audSeq = 0;
+const num = (v) => (v === "" || v == null ? null : Number(String(v).replace(/\./g, "").replace(",", ".")));
+
+function pedidoAud() {
+  return { ...pedidoCot(aud), items: [], lineas: aud.lineas, decisiones: aud.lineas.map((_, i) => aud.dec[i] || {}),
+    contrato_pct: aud.contrato || 0, no_tarifadas: grupoActual()?.no_tarifadas || [],
+    factura: aud.archivo?.factura || "", grupo: grupoActual()?.etiqueta || "Líneas digitadas" };
+}
+
+const recalcularAud = debounce(async () => {
+  const n = ++audSeq;
+  $("#audLineas")?.classList.add("cargando");
+  try {
+    const r = await postJSON("/api/auditar", pedidoAud());
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const d = await r.json();
+    if (n !== audSeq) return;
+    let otraVez = false;
+    if (aud.tecnecio && !d.globales.tecnecio) { aud.tecnecio = false; otraVez = true; }
+    if (aud.mismoActo && !d.globales.conjuntos) { aud.mismoActo = ""; otraVez = true; }
+    audRes = d;
+    pintarAudResultado();
+    if (otraVez) recalcularAud();
+  } catch (e) {
+    avisar("No se pudo auditar: " + e.message, true);
+  } finally {
+    if (n === audSeq) $("#audLineas")?.classList.remove("cargando");
+  }
+}, 120);
+
+async function cargarFactura(archivo) {
+  if (!archivo) return;
+  if (archivo.size > 15e6) { avisar("El archivo pasa de 15 MB", true); return; }
+  try {
+    const r = await postJSON("/api/auditar/leer", { nombre: archivo.name, contenido: await archivo.text() });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const f = await r.json();
+    if (!f.grupos.length) throw new Error("La factura no trae líneas");
+    aud = { ...audVacia(), archivo: { ...f, nombre: archivo.name } };
+    elegirGrupo(f.grupos[0].id);
+    avisar(`Cargado ${archivo.name}`);
+  } catch (e) {
+    avisar(e.message, true);
+  }
+}
+
+function elegirGrupo(id) {
+  const g = aud.archivo.grupos.find((x) => x.id === id);
+  aud.grupo = id;
+  aud.lineas = g.lineas.map((l) => ({ ...l }));
+  aud.dec = [];
+  aud.abiertas = new Set();
+  aud.opc = {}; aud.rx = {}; aud.tecnecio = false; aud.mismoActo = ""; aud.filtro = "";
+  pintarAudCarga();
+  recalcularAud();
+}
+
+async function pintarAuditar() {
+  $("#migaVista").textContent = "Auditar factura";
+  const c = $("#contenido");
+  c.dataset.vista = "auditar";
+  if (!COT_CFG) {
+    try { COT_CFG = await api("/api/cotizador"); } catch (e) {
+      c.innerHTML = `<div class="panel estado">${icono("alerta")}<div>${esc(e.message)}</div></div>`;
+      return;
+    }
+  }
+  c.innerHTML = `
+    <section class="panel">
+      <div class="cabecera">
+        <div class="cabecera__icono">${icono("lupa")}</div>
+        <div><h1>Auditar factura</h1><p>Cargue el RIPS (JSON) o la factura electrónica (XML), digite las líneas o combine
+          las dos cosas. Cada cobro se compara con la tarifa del Manual, con los recargos y descuentos que usted declare.
+          El estado de cada línea es una sugerencia: usted decide si es conforme, glosa o queda en revisión.</p></div>
+      </div>
+      <div class="aud-entrada">
+        <label class="zona-carga" id="zonaCarga">
+          <input type="file" id="audArchivo" accept=".json,.xml,application/json,text/xml,application/xml" hidden>
+          ${icono("subir")}<span><b>Cargar factura</b><small>Arrastre aquí el RIPS .json o la factura .xml, o haga clic para elegirlo</small></span>
+        </label>
+        <form class="aud-manual" id="audManual" autocomplete="off">
+          <div class="aud-manual__titulo">${icono("mas")}<b>Digitar una línea</b></div>
+          <input name="codigo" placeholder="Código" aria-label="Código" required>
+          <input name="cantidad" type="number" min="1" value="1" aria-label="Cantidad" title="Cantidad">
+          <input name="valor" inputmode="decimal" placeholder="Valor unitario cobrado" aria-label="Valor unitario cobrado">
+          <button class="boton boton--verde" type="submit">Agregar</button>
+        </form>
+      </div>
+      <div id="audCarga"></div>
+      <p class="ayuda">El archivo se lee en el servidor solo para esta consulta: no se guarda. Los documentos de los pacientes
+        se muestran enmascarados.</p>
+    </section>
+    <div class="cot-rejilla">
+      <div class="cot-principal">
+        <section class="panel" id="audLineas"></section>
+        <section class="panel" id="audNotas"></section>
+      </div>
+      <aside class="cot-lateral">
+        <section class="panel" id="audCondiciones"></section>
+        <section class="panel cot-total" id="audTotal"></section>
+      </aside>
+    </div>`;
+  const zona = $("#zonaCarga");
+  $("#audArchivo").addEventListener("change", (ev) => { cargarFactura(ev.target.files[0]); ev.target.value = ""; });
+  ["dragenter", "dragover"].forEach((t) => zona.addEventListener(t, (ev) => { ev.preventDefault(); zona.classList.add("encima"); }));
+  ["dragleave", "drop"].forEach((t) => zona.addEventListener(t, () => zona.classList.remove("encima")));
+  zona.addEventListener("drop", (ev) => { ev.preventDefault(); cargarFactura(ev.dataTransfer.files[0]); });
+  $("#audManual").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    const codigo = f.codigo.value.trim();
+    if (!codigo) return;
+    aud.lineas.push({ codigo, cantidad: Math.max(1, +f.cantidad.value || 1), valor_unitario: num(f.valor.value),
+      descripcion: "", origen: "digitada", fecha: "" });
+    f.reset();
+    f.codigo.focus();
+    recalcularAud();
+  });
+  enlazarAuditar();
+  pintarAudCarga();
+  if (audRes) pintarAudResultado();
+  recalcularAud();
+}
+
+function pintarAudCarga() {
+  const a = aud.archivo;
+  if (!$("#audCarga")) return;
+  if (!a) { $("#audCarga").innerHTML = ""; return; }
+  const g = a.grupos.find((x) => x.id === aud.grupo);
+  $("#audCarga").innerHTML = `<div class="aud-archivo">
+    <span class="chip">${icono("documento")}${esc(a.formato)}</span>
+    <span class="chip chip--gris">${esc(a.nombre)}</span>
+    ${a.factura ? `<span class="chip chip--morado">Factura ${esc(a.factura)}</span>` : ""}
+    ${a.grupos.length > 1 ? `<label class="aud-grupo">Paciente
+      <select id="audGrupo">${a.grupos.map((x) => `<option value="${esc(x.id)}"${x.id === aud.grupo ? " selected" : ""}>${esc(x.etiqueta)} (${x.lineas.length} líneas)</option>`).join("")}</select></label>
+      <small class="sutil">Se audita un paciente a la vez (${a.grupos.length} en el RIPS).</small>` : ""}
+  </div>
+  ${a.aviso ? `<p class="nota-campo aud-aviso">${icono("alerta")}${esc(a.aviso)}${a.total != null ? ` Total de la factura: <b>${pesos(a.total)}</b>.` : ""}</p>` : ""}
+  ${g ? htmlPaciente(g) : ""}`;
+  $("#audGrupo")?.addEventListener("change", (ev) => {
+    if (aud.dec.some((d) => d) && !confirm("Se pierden las decisiones del paciente actual. ¿Cambiar de paciente?")) {
+      ev.target.value = aud.grupo; return;
+    }
+    elegirGrupo(ev.target.value);
+  });
+}
+
+/** Datos del usuario del RIPS, episodios (urgencias, hospitalización) e ítems sin tarifa por código. */
+function htmlPaciente(g) {
+  const u = g.usuario || {};
+  const campos = Object.entries(u).filter(([k, v]) => v !== null && v !== "" && k !== "consecutivo");
+  const sinTarifa = {};
+  for (const o of g.no_tarifadas) {
+    const k = o.motivo.split(":")[0];
+    const t = (sinTarifa[k] ||= { n: 0, valor: 0, motivo: o.motivo });
+    t.n++; t.valor += (o.valor_unitario || 0) * (o.cantidad || 1);
+  }
+  const tabla = (obj) => `<dl class="aud-campos">${Object.entries(obj).filter(([, v]) => v !== null && v !== "")
+    .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
+  return `<div class="aud-paciente">
+    ${campos.length ? `<details><summary>${icono("documento")}Datos del usuario en el RIPS</summary>${tabla(Object.fromEntries(campos))}</details>` : ""}
+    ${g.episodios.length ? `<details><summary>${icono("lista")}Urgencias, hospitalización y recién nacidos (${g.episodios.length})</summary>
+      ${g.episodios.map((e) => `<h4>${esc(ETQ_EPISODIO[e.tipo] || e.tipo)}</h4>${tabla(e.datos)}`).join("")}</details>` : ""}
+    ${Object.keys(sinTarifa).length ? `<details><summary>${icono("caja")}Sin tarifa por código en el Manual (${g.no_tarifadas.length}): se revisan aparte</summary>
+      <ul>${Object.entries(sinTarifa).map(([k, t]) => `<li><b>${esc(k)}</b>: ${t.n} ítem(s) por ${pesos(t.valor)}. ${esc(t.motivo.split(": ").slice(1).join(": "))}</li>`).join("")}</ul>
+      <p class="sutil">Van en la hoja «Sin tarifa por código» del informe Excel.</p></details>` : ""}
+  </div>`;
+}
+
+function enlazarAuditar() {
+  const tabla = $("#audLineas");
+  tabla.addEventListener("click", (ev) => {
+    const q = ev.target.closest("[data-quitar]");
+    const v = ev.target.closest("[data-ver]");
+    if (q) {
+      const i = +q.dataset.quitar;
+      aud.lineas.splice(i, 1);
+      aud.dec.splice(i, 1);
+      aud.abiertas = new Set([...aud.abiertas].filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)));
+      recalcularAud();
+    } else if (v) {
+      const i = +v.dataset.ver;
+      aud.abiertas.has(i) ? aud.abiertas.delete(i) : aud.abiertas.add(i);
+      pintarAudResultado();
+    }
+  });
+  tabla.addEventListener("change", (ev) => {
+    const t = ev.target;
+    const i = +(t.closest("[data-i]")?.dataset.i ?? -1);
+    if (t.dataset.campo) {
+      const l = aud.lineas[i];
+      if (t.dataset.campo === "codigo") l.codigo = t.value.trim();
+      if (t.dataset.campo === "cantidad") l.cantidad = Math.max(1, +t.value || 1);
+      if (t.dataset.campo === "valor") l.valor_unitario = num(t.value);
+      aud.dec[i] = undefined; // cambió la base: vuelve a la sugerencia
+      recalcularAud();
+    } else if (t.dataset.dec) {
+      const d = (aud.dec[i] ||= {});
+      if (t.dataset.dec === "estado") d.estado = t.value;
+      if (t.dataset.dec === "glosa") d.glosa = num(t.value);
+      if (t.dataset.dec === "observacion") d.observacion = t.value;
+      pintarAudResultado();
+    } else if (cambiarOpcion(t, aud)) recalcularAud();
+  });
+  enlazarCondiciones($("#audCondiciones"), () => aud, recalcularAud);
+  $("#audCondiciones").addEventListener("change", (ev) => {
+    if (ev.target.id !== "audContrato") return;
+    aud.contrato = Number(String(ev.target.value).replace(",", ".")) || 0;
+    recalcularAud();
+  });
+  tabla.addEventListener("click", (ev) => {
+    const f = ev.target.closest("[data-filtro]");
+    if (!f) return;
+    aud.filtro = f.dataset.filtro;
+    pintarAudResultado();
+  });
+  $("#audTotal").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    if (b.id === "audNueva") {
+      if (aud.lineas.length && !confirm("¿Empezar una auditoría nueva? Se borra la actual.")) return;
+      aud = audVacia();
+      audRes = null;
+      pintarAuditar();
+    } else if (b.id === "audExcel") exportarAud(b);
+  });
+}
+
+const estadoLinea = (i) => aud.dec[i]?.estado || audRes.lineas[i]?.estado || "Revisar";
+function glosaLinea(i) {
+  if (estadoLinea(i) !== "Glosa") return 0;
+  const g = aud.dec[i]?.glosa;
+  if (g != null) return g;
+  const x = audRes.lineas[i];
+  return x.estado === "Glosa" || x.estado === "Revisar" ? x.glosa || x.diferencia || 0 : 0;
+}
+
+function pintarAudResultado() {
+  if (!$("#audLineas") || !audRes) return;
+  const d = audRes;
+  const n = aud.lineas.length;
+  const filas = d.lineas.map((x, i) => {
+    const l = aud.lineas[i] || {};
+    const est = estadoLinea(i);
+    if (aud.filtro && est !== aud.filtro) return "";
+    const sugerido = est === x.estado && !aud.dec[i]?.estado;
+    const abierta = aud.abiertas.has(i);
+    const alertas = x.alertas.length;
+    const dif = x.diferencia;
+    const detalle = abierta ? `<tr class="aud-detalle" data-i="${i}"><td colspan="11">
+        ${x.manual ? `<p><b>${esc(x.manual.codigo)}</b> · ${esc(x.manual.descripcion)} · art. ${x.manual.articulo}${x.manual.agrupador ? ` · <span class="sutil">${esc(x.manual.agrupador)}</span>` : ""}</p>` : ""}
+        ${x.descripcion_factura ? `<p class="sutil">En la factura: ${esc(x.descripcion_factura)}</p>` : ""}
+        ${x.codigo_factura ? `<p class="sutil">Código en la factura: <b>${esc(x.codigo_factura)}</b> (homologado)</p>` : ""}
+        ${x.aplicables?.length ? `<div class="aud-bloque"><span>Recargos que aplican a este código</span><div class="opciones">${htmlOpciones({ codigo: x.manual.codigo, aplicables: x.aplicables }, aud)}</div></div>` : ""}
+        ${x.ajustes.length ? `<div class="aud-bloque"><span>Recargos y descuentos incluidos en el valor del Manual</span><ul>${x.ajustes.map((a) =>
+          `<li><b class="monto ${a.monto < 0 ? "neg" : "pos"}">${a.monto < 0 ? "" : "+"}${pesos(a.monto)}</b> ${esc(a.texto)} · ${enlacesCita(a.cita)}</li>`).join("")}</ul></div>` : ""}
+        ${alertas ? `<div class="aud-bloque"><span>Alertas</span><ul>${x.alertas.map((a) =>
+          `<li><span class="etiqueta-alerta t-${esc(a.tipo.replace(/\s+/g, "-").toLowerCase())}">${esc(a.tipo)}</span> ${esc(a.texto)}${a.cita ? ` · ${enlacesCita(a.cita)}` : ""}</li>`).join("")}</ul></div>` : ""}
+        ${Object.keys(x.datos || {}).length ? `<details class="aud-bloque"><summary>Todos los campos del RIPS (${Object.keys(x.datos).length})</summary>
+          <dl class="aud-campos">${Object.entries(x.datos).filter(([, v]) => v !== null && v !== "").map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl></details>` : ""}
+        <label class="aud-bloque"><span>Observación del auditor</span>
+          <textarea data-dec="observacion" rows="2" placeholder="Sustento de la glosa o de la revisión">${esc(aud.dec[i]?.observacion || "")}</textarea></label>
+      </td></tr>` : "";
+    return `<tr data-i="${i}" class="aud-fila e-${est.toLowerCase()}">
+      <td class="sutil">${esc(x.origen)}</td>
+      <td><input class="aud-input cod" data-campo="codigo" value="${esc(l.codigo ?? x.codigo)}" aria-label="Código">
+        ${x.codigo_factura && x.manual ? `<small class="aud-homo" title="Relación CUPS → ISS">→ ISS ${esc(x.manual.codigo)}</small>` : ""}</td>
+      <td><div class="recorte">${esc(x.manual?.descripcion || x.descripcion_factura || "—")}</div></td>
+      <td class="num"><input class="cant" type="number" min="1" data-campo="cantidad" value="${x.cantidad}" aria-label="Cantidad"></td>
+      <td class="num"><input class="aud-input num" data-campo="valor" inputmode="decimal" value="${l.valor_unitario ?? ""}" aria-label="Valor unitario cobrado"></td>
+      <td class="num">${x.facturado == null ? "—" : pesos(x.facturado)}</td>
+      <td class="num">${x.esperado == null ? "—" : pesos(x.esperado)}</td>
+      <td class="num monto ${dif > 1 ? "neg" : ""}">${dif == null ? "—" : (dif > 0 ? "+" : "") + pesos(dif)}</td>
+      <td><select class="aud-estado e-${est.toLowerCase()}" data-dec="estado" title="${esc(x.motivo)}${sugerido ? " (sugerido)" : ""}">
+        ${ESTADOS.map((e) => `<option${e === est ? " selected" : ""}>${e}</option>`).join("")}</select>
+        ${est === "Glosa" ? `<input class="aud-input num aud-glosa" data-dec="glosa" inputmode="decimal" value="${glosaLinea(i)}" title="Valor a glosar" aria-label="Valor a glosar">` : ""}</td>
+      <td><button class="aud-ver${alertas ? " con" : ""}" type="button" data-ver="${i}" title="Ver detalle">${alertas ? `${icono("alerta")}${alertas}` : icono("der")}</button></td>
+      <td><button class="boton-icono" type="button" data-quitar="${i}" title="Quitar línea">${icono("x")}</button></td>
+    </tr>${detalle}`;
+  }).join("");
+  $("#audLineas").innerHTML = `
+    <div class="aud-cabecera-lineas"><h2 class="subtitulo">${icono("lista")}Líneas de la factura (${n})</h2>
+      <div class="segmentado">${[["", "Todas"], ...ESTADOS.map((e) => [e, e])].map(([v, t]) =>
+        `<button type="button" data-filtro="${v}" class="${aud.filtro === v ? "activo" : ""}">${t}</button>`).join("")}</div></div>
+    ${n ? `<div class="tabla-marco cot-tabla aud-tabla"><table>
+      <thead><tr><th>Origen</th><th>Código</th><th>Descripción</th><th class="num">Cant.</th><th class="num">V. unit. cobrado</th>
+        <th class="num">Facturado</th><th class="num">Según Manual</th><th class="num">Diferencia</th><th>Estado</th><th></th><th></th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`
+      : `<div class="estado">${icono("lupa")}<div>Cargue una factura o digite la primera línea.</div></div>`}`;
+
+  const avisos = d.avisos.length ? `<details class="cot-detalles" open><summary>${icono("alerta")}Avisos (${d.avisos.length})</summary>
+    <ul>${d.avisos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "";
+  const parr = d.parrafos.length ? `<details class="cot-detalles"><summary>${icono("documento")}Parágrafos que pueden modificar el valor (${d.parrafos.length})</summary>
+    <ul>${d.parrafos.map((p) => `<li><span class="chip ${p.opcion ? "" : "chip--gris"}">art. ${p.articulo}</span> ${esc(p.texto)}</li>`).join("")}</ul></details>` : "";
+  $("#audNotas").innerHTML = avisos + parr;
+  $("#audNotas").hidden = !(avisos || parr);
+
+  pintarCondiciones(aud, $("#audCondiciones"), d.globales);
+  $("#audCondiciones").insertAdjacentHTML("afterbegin", `<h2 class="subtitulo">${icono("porcentaje")}Contrato</h2>
+    <label class="campo-form"><span>Porcentaje pactado sobre el Manual ISS 2001 (ej. 30 para «ISS + 30 %», −10 para «ISS − 10 %»)</span>
+      <input class="aud-input" id="audContrato" type="number" step="0.01" value="${aud.contrato || 0}"></label>`);
+  const cuenta = Object.fromEntries(ESTADOS.map((e) => [e, 0]));
+  d.lineas.forEach((_, i) => cuenta[estadoLinea(i)]++);
+  const glosa = d.lineas.reduce((s, _, i) => s + (glosaLinea(i) || 0), 0);
+  const s = d.resumen;
+  $("#audTotal").innerHTML = `
+    <div class="cot-linea"><span>Facturado</span><b>${pesos(s.facturado)}</b></div>
+    <div class="cot-linea"><span>Según el Manual</span><b>${pesos(s.esperado)}</b></div>
+    <div class="cot-linea"><span>Líneas comparadas</span><b>${s.comparables} de ${s.lineas}</b></div>
+    <div class="aud-cuentas">${ESTADOS.map((e) => `<span class="aud-cuenta e-${e.toLowerCase()}"><b>${cuenta[e]}</b>${e}</span>`).join("")}</div>
+    <div class="cot-gran-total"><span>Total a glosar</span><strong class="aud-total-glosa">${pesos(glosa)}</strong></div>
+    ${d.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>Revise las condiciones:</b>
+      <ul>${d.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}
+    <div class="cot-acciones">
+      <button class="boton boton--verde" id="audExcel" type="button"${n ? "" : " disabled"}>${icono("excel")}Informe Excel</button>
+      <button class="boton boton--borde" id="audNueva" type="button">${icono("papelera")}Nueva</button>
+    </div>`;
+}
+
+async function exportarAud(boton) {
+  const original = boton.innerHTML;
+  boton.disabled = true;
+  boton.innerHTML = `<span class="giro"></span><span>Generando…</span>`;
+  try {
+    const pedido = pedidoAud();
+    pedido.decisiones = aud.lineas.map((_, i) => ({ estado: estadoLinea(i), glosa: glosaLinea(i), observacion: aud.dec[i]?.observacion || "" }));
+    const r = await postJSON("/api/auditar/excel", pedido);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const nombre = (r.headers.get("Content-Disposition") || "").match(/filename="(.+)"/)?.[1] || "auditoria.xlsx";
+    const url = URL.createObjectURL(await r.blob());
+    const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    avisar(`Descargado ${nombre}`);
+  } catch (e) {
+    avisar("No se pudo exportar: " + e.message, true);
+  } finally {
+    boton.disabled = false;
+    boton.innerHTML = original;
+  }
+}
+
 // ---------- Arranque ----------
 function render() {
   marcarMenu();
   if (estado.vista === "fuentes") pintarFuentes();
   else if (estado.vista === "cotizar") pintarCotizar();
+  else if (estado.vista === "auditar") pintarAuditar();
   else if (estado.vista) pintarVista();
   else { $("#contenido").dataset.vista = ""; pintarInicio(); }
 }

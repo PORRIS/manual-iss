@@ -201,11 +201,16 @@ SELECT (SELECT COUNT(*) FROM v_tarifas) || '|' || (SELECT COUNT(*) FROM v_labora
 SELECT (SELECT COUNT(*) FROM v_manual_completo) || '|' || (SELECT COUNT(*) FROM v_ajustes_valor) || '|' ||
        (SELECT COUNT(*) FROM v_ajustes_valor WHERE valor_en_bd <> valor_pdf);
 
--- @prueba Novedades: total | eliminadas | texto | valor | estructura | aceptadas
--- @esperado 371|11|280|37|20|23
+-- @prueba Novedades: total | eliminadas | texto | valor | estructura | aceptadas | relación CUPS
+-- @esperado 373|11|280|37|20|23|2
 SELECT (SELECT COUNT(*) FROM v_novedades) || '|' || (SELECT COUNT(*) FROM v_novedades_eliminadas) || '|' ||
        (SELECT COUNT(*) FROM v_novedades_texto) || '|' || (SELECT COUNT(*) FROM v_ajustes_valor) || '|' ||
-       (SELECT COUNT(*) FROM v_novedades_estructura) || '|' || (SELECT COUNT(*) FROM v_novedades_aceptadas);
+       (SELECT COUNT(*) FROM v_novedades_estructura) || '|' || (SELECT COUNT(*) FROM v_novedades_aceptadas) || '|' ||
+       (SELECT COUNT(*) FROM v_novedades_relacion_cups);
+
+-- @prueba Relación CUPS sin código en el PDF: 783001 viene de la fila 3466 del Excel; 012205 de ninguna
+-- @esperado 012205:-|783001:3466
+SELECT GROUP_CONCAT(codigo_iss || ':' || COALESCE(fila_excel, '-'), '|') FROM v_novedades_relacion_cups;
 
 -- @prueba Fila eliminada 3466: contenido original del Excel y página del PDF
 -- @esperado 13900 | 783001 | TRANSPOSICIÓN ÓSEA EN HUESOS LARGOS CON COLOCACIÓN DE TUTOR EXTERNO | 200|65
@@ -274,11 +279,17 @@ SELECT modalidad, COUNT(*) AS n, MIN(valor) AS minimo, MAX(valor) AS maximo
 FROM v_imagenes GROUP BY modalidad;
 
 -- @prueba Cotizador: reglas | aprobadas | regiones con incremento | ciudades exceptuadas
--- @esperado 13|13|15|6
+-- @esperado 14|14|15|6
 SELECT (SELECT COUNT(*) FROM v_reglas_tarifas) || '|' ||
        (SELECT COUNT(*) FROM v_reglas_tarifas WHERE estado = 'aprobada') || '|' ||
        (SELECT COUNT(*) FROM regiones_134 WHERE clase <> 'ciudad_exceptuada') || '|' ||
        (SELECT COUNT(*) FROM regiones_134 WHERE clase = 'ciudad_exceptuada');
+
+-- @prueba Relación CUPS 2026 -> ISS: filas | con código ISS en el Manual | glucometría 903883 -> ISS
+-- @esperado 9379|9377|903840
+SELECT (SELECT COUNT(*) FROM v_homologacion_cups) || '|' ||
+       (SELECT COUNT(*) FROM homologacion_cups WHERE existe_en_manual = 1) || '|' ||
+       (SELECT codigo_iss FROM v_homologacion_cups WHERE cups = '903883');
 
 -- @prueba Los 5 paquetes con más componentes
 SELECT codigo, descripcion, valor, n_componentes FROM v_paquetes

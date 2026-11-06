@@ -29,3 +29,6 @@ correcciones_propuestas.csv
 
 # Configuración local del IDE (JetBrains)
 .idea/
+
+# Facturas y RIPS reales (datos de pacientes): nunca al repositorio
+examples/
