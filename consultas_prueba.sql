@@ -201,6 +201,16 @@ SELECT (SELECT COUNT(*) FROM v_tarifas) || '|' || (SELECT COUNT(*) FROM v_labora
 SELECT (SELECT COUNT(*) FROM v_manual_completo) || '|' || (SELECT COUNT(*) FROM v_ajustes_valor) || '|' ||
        (SELECT COUNT(*) FROM v_ajustes_valor WHERE valor_en_bd <> valor_pdf);
 
+-- @prueba Novedades: total | eliminadas | texto | valor | estructura | aceptadas
+-- @esperado 371|11|280|37|20|23
+SELECT (SELECT COUNT(*) FROM v_novedades) || '|' || (SELECT COUNT(*) FROM v_novedades_eliminadas) || '|' ||
+       (SELECT COUNT(*) FROM v_novedades_texto) || '|' || (SELECT COUNT(*) FROM v_ajustes_valor) || '|' ||
+       (SELECT COUNT(*) FROM v_novedades_estructura) || '|' || (SELECT COUNT(*) FROM v_novedades_aceptadas);
+
+-- @prueba Fila eliminada 3466: contenido original del Excel y página del PDF
+-- @esperado 13900 | 783001 | TRANSPOSICIÓN ÓSEA EN HUESOS LARGOS CON COLOCACIÓN DE TUTOR EXTERNO | 200|65
+SELECT texto_excel || '|' || pagina_pdf FROM v_novedades_eliminadas WHERE fila_excel = 3466;
+
 -- @prueba Componente 791703: paquete, valor del paquete
 -- @esperado C40467|1121360
 SELECT paquete || '|' || CAST(valor_paquete AS INTEGER) FROM v_manual_completo

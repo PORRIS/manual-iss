@@ -50,6 +50,9 @@ ETIQUETAS = {
     "paquete_valor": "Valor paquete", "nombre": "Nombre", "subtitulo": "Subtítulo", "ruta": "Ruta",
     "valor_excel": "Valor Excel", "valor_pdf": "Valor PDF", "diferencia": "Diferencia",
     "valor_en_bd": "Valor en BD", "motivo": "Motivo", "id": "Id",
+    "categoria": "Categoría", "accion": "Acción", "campo": "Campo", "texto_excel": "Texto en el Excel",
+    "antes": "Antes", "despues": "Después", "pagina_pdf": "Pág. PDF", "que_cambio": "Qué cambió",
+    "texto_excel_original": "Texto en el Excel", "texto_pdf": "Texto en el PDF",
 }
 
 # vista -> configuración. codigo: columnas comparadas con el código; lista: columnas con códigos
@@ -91,14 +94,39 @@ VISTAS = {
         codigo=["componente_codigo", "paquete_codigo"],
         texto=["componente_descripcion", "paquete_descripcion", "agrupador_ruta"]),
     "v_agrupadores_ruta": dict(
-        titulo="Agrupadores", grupo="Estructura y control", icono="arbol",
+        titulo="Agrupadores", grupo="Estructura", icono="arbol",
         descripcion="Ruta completa de cada agrupador (título > subtítulo > …).",
         codigo=[], texto=["nombre", "ruta"], ocultas=["padre_id", "raiz_id"], orden="id"),
+    "v_novedades": dict(
+        titulo="Todas las novedades", grupo="Novedades (Excel → PDF)", icono="lista",
+        descripcion="Todo lo que la revisión cambió del Excel para dejarlo igual al PDF oficial: "
+                    "categoría, fila del Excel, texto original, valor nuevo, página del PDF y motivo.",
+        codigo=["codigo"], texto=["categoria", "texto_excel", "antes", "despues", "motivo"]),
+    "v_novedades_eliminadas": dict(
+        titulo="Filas eliminadas", grupo="Novedades (Excel → PDF)", icono="papelera",
+        descripcion="Filas del Excel que no pasaron a la base: procedimientos que no existen en el "
+                    "PDF, duplicados y cabeceras. Se muestra el contenido original de la fila.",
+        codigo=["codigo"], texto=["texto_excel", "motivo"]),
     "v_ajustes_valor": dict(
-        titulo="Novedades de valor", grupo="Estructura y control", icono="alerta",
+        titulo="Cambios de valor", grupo="Novedades (Excel → PDF)", icono="alerta",
         descripcion="Valores del Excel corregidos con el PDF: valor Excel, valor PDF, diferencia "
                     "y motivo.",
         codigo=["codigo", "ref"], texto=["descripcion", "motivo"]),
+    "v_novedades_texto": dict(
+        titulo="Cambios de texto", grupo="Novedades (Excel → PDF)", icono="texto",
+        descripcion="Descripciones, notas, agrupadores y notas de referencia corregidos con el "
+                    "texto del PDF: texto original del Excel y texto del PDF.",
+        codigo=["codigo"], texto=["que_cambio", "texto_excel_original", "texto_pdf", "motivo"]),
+    "v_novedades_estructura": dict(
+        titulo="Cambios de estructura", grupo="Novedades (Excel → PDF)", icono="capas",
+        descripcion="Notas que en el PDF son títulos o capítulos, cambio de código y notas del PDF "
+                    "que faltaban en el Excel.",
+        codigo=["codigo"], texto=["categoria", "texto_excel", "despues", "motivo"]),
+    "v_novedades_aceptadas": dict(
+        titulo="Diferencias aceptadas", grupo="Novedades (Excel → PDF)", icono="check",
+        descripcion="Diferencias revisadas que se dejaron como están: falsos positivos de la "
+                    "extracción y textos del PDF que no van en la base (leyendas, cierre).",
+        codigo=["codigo"], texto=["texto_excel", "texto_pdf", "motivo"]),
 }
 
 RE_CODIGO = re.compile(r"^[A-Za-z]?\d[\w.]*\*?$")

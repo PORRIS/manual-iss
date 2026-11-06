@@ -151,7 +151,7 @@ Clasificación de las diferencias:
 | `notas` | `id`, `fila_excel`, `articulo`, `agrupador_id`, `procedimiento_id`, `tipo`, `texto`, `despues_de_fila` |
 | `parametros` | Valor de la UVR en pesos por tipo de profesional (art. 59) |
 | `abreviaturas` | Leyendas del PDF: `SOD` (Sin Otra Denominación), `NCOC` (No Clasificable bajo Otro Concepto), con sus páginas |
-| `ajustes_pdf` | Registro de auditoría de las correcciones aplicadas |
+| `ajustes_pdf` | Registro de auditoría de las correcciones aplicadas; `texto_excel` guarda el contenido original de la fila del Excel y `pagina_pdf` la página del PDF |
 
 - `tipo` de procedimiento: `con_valor`, `componente` (de un paquete; `padre_id` apunta al paquete) o `sin_valor`.
 - `unidad`: `UVR` (arts. 1-18), `pesos_por_uvr` (art. 59), `factor` (art. 91), `pesos` (resto).
@@ -171,6 +171,11 @@ Clasificación de las diferencias:
 | `v_honorarios_cirugia` | Honorarios de cirugía (arts. 1-18) en pesos por profesional. |
 | `v_manual_completo` | Todo el Manual en el orden del Excel (artículos, agrupadores, procedimientos, componentes y notas); los componentes traen código, descripción y valor de su paquete. |
 | `v_ajustes_valor` | Valores con novedad: valor del Excel, valor del PDF, diferencia y motivo, de mayor a menor diferencia. |
+| `v_novedades` | Todas las novedades de la revisión Excel → PDF (371): categoría, fila del Excel, texto original del Excel, antes/después, página del PDF y motivo. |
+| `v_novedades_eliminadas` | Las 11 filas del Excel que no pasaron a la BD, con su contenido original. |
+| `v_novedades_texto` | Los 280 textos corregidos con el del PDF (descripciones, notas, agrupadores, notas de referencia). |
+| `v_novedades_estructura` | Cambios de clasificación (nota → agrupador o capítulo), de código y notas agregadas desde el PDF (20). |
+| `v_novedades_aceptadas` | Las 23 diferencias revisadas que se dejaron como están. |
 
 Ejemplo: `SELECT * FROM v_paquete_componentes WHERE componente_codigo = '512104';`
 

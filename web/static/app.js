@@ -12,6 +12,11 @@ const ICONOS = {
   piezas: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/>',
   arbol: '<rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-2.5h14V17M12 12v2.5"/>',
   alerta: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  lista: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  papelera: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
+  texto: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+  capas: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  check: '<circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/>',
   buscar: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   excel: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 12 6 6M15 12l-6 6"/>',
   descarga: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
@@ -29,7 +34,7 @@ const icono = (n) => `<svg class="icono" viewBox="0 0 24 24" aria-hidden="true">
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 4 });
-const SIN_SEPARADOR = new Set(["articulo", "nivel", "fila_excel", "orden", "id", "n_componentes", "padre_id", "raiz_id"]);
+const SIN_SEPARADOR = new Set(["pagina_pdf", "articulo", "nivel", "fila_excel", "orden", "id", "n_componentes", "padre_id", "raiz_id"]);
 const COL_CODIGO = new Set(["codigo", "ref", "paquete", "paquete_codigo", "componente_codigo", "pb", "marca"]);
 const sinTildes = (c) => c.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
 

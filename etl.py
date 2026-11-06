@@ -379,6 +379,21 @@ tablas = {
                                                   "antes", "despues", "motivo", "accion"]),
 }
 
+
+def texto_excel(fila, accion):
+    """Contenido original de la fila del Excel (celdas no vacías unidas con ' | ').
+    En 'agregar' la fila es la de referencia (la nota va después), no la del ajuste."""
+    if accion == "agregar" or fila is None or pd.isna(fila) or not str(fila).isdigit():
+        return None
+    celdas = [limpio(x) for x in raw.iloc[int(fila) - 1]]
+    return " | ".join(c for c in celdas if c) or None
+
+
+# columnas agregadas para consultar las novedades sin abrir el Excel ni correcciones.csv
+_aj = tablas["ajustes_pdf"]
+_aj["texto_excel"] = [texto_excel(f, a) for f, a in zip(_aj.fila_excel, _aj.accion)]
+_aj["pagina_pdf"] = pd.to_numeric(_aj.motivo.str.extract(r"PDF pág\. (\d+)")[0]).astype("Int64")
+
 # Art. 59: valor de la UVR en pesos por tipo de profesional
 tablas["parametros"] = (
     pr[(pr.articulo == 59) & (pr.tipo == "con_valor")][["codigo", "descripcion", "valor"]]

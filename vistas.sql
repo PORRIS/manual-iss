@@ -136,3 +136,54 @@ FROM ajustes_pdf a
 JOIN procedimientos p ON p.fila_excel = CAST(a.fila_excel AS INTEGER)
 WHERE a.campo = 'valor'
 ORDER BY ABS(CAST(a.despues AS REAL) - CAST(a.antes AS REAL)) DESC;
+
+-- ===================================================================== NOVEDADES
+-- Todo lo que la revisión cambió del Excel para dejarlo igual al PDF (correcciones.csv ->
+-- ajustes_pdf). texto_excel: contenido original de la fila del Excel.
+CREATE VIEW v_novedades AS
+SELECT
+    CASE
+        WHEN a.accion = 'eliminar' THEN 'Fila eliminada'
+        WHEN a.accion = 'agregar'  THEN 'Nota agregada desde el PDF'
+        WHEN a.accion = 'aceptar'  THEN 'Diferencia aceptada (sin cambio)'
+        WHEN a.campo  = 'valor'    THEN 'Cambio de valor'
+        WHEN a.campo  = 'codigo'   THEN 'Cambio de código'
+        WHEN a.campo  = 'tipo'     THEN 'Cambio de clasificación'
+        ELSE 'Cambio de texto'
+    END                                   AS categoria,
+    a.accion,
+    a.campo,
+    CAST(a.fila_excel AS INTEGER)         AS fila_excel,
+    a.codigo,
+    a.texto_excel,
+    CASE WHEN a.antes IN ('existe', 'fila del Excel') THEN NULL ELSE a.antes END AS antes,
+    a.despues,
+    CAST(a.pagina_pdf AS INTEGER)         AS pagina_pdf,
+    a.motivo
+FROM ajustes_pdf a
+ORDER BY CASE WHEN a.fila_excel IS NULL THEN 1 ELSE 0 END, CAST(a.fila_excel AS INTEGER), a.campo;
+
+-- Filas del Excel que no pasaron a la BD (no existen en el PDF, duplicadas o cabeceras).
+CREATE VIEW v_novedades_eliminadas AS
+SELECT fila_excel, codigo, texto_excel, pagina_pdf, motivo
+FROM v_novedades WHERE accion = 'eliminar';
+
+-- Textos corregidos con el del PDF: descripciones, notas, agrupadores y notas de referencia.
+CREATE VIEW v_novedades_texto AS
+SELECT CASE campo WHEN 'descripcion' THEN 'Descripción' WHEN 'texto' THEN 'Nota / texto'
+                  WHEN 'nombre' THEN 'Agrupador' WHEN 'ref_nota' THEN 'Nota de referencia'
+                  ELSE campo END AS que_cambio,
+       fila_excel, codigo, antes AS texto_excel_original, despues AS texto_pdf, pagina_pdf, motivo
+FROM v_novedades WHERE categoria = 'Cambio de texto';
+
+-- Cambios de clasificación (nota -> agrupador o capítulo), de código y notas agregadas.
+CREATE VIEW v_novedades_estructura AS
+SELECT categoria, fila_excel, codigo, texto_excel, antes, despues, pagina_pdf, motivo
+FROM v_novedades
+WHERE categoria IN ('Cambio de clasificación', 'Cambio de código', 'Nota agregada desde el PDF');
+
+-- Diferencias Excel/PDF revisadas que se dejaron como están (falsos positivos y textos del
+-- PDF que no van en la BD).
+CREATE VIEW v_novedades_aceptadas AS
+SELECT campo, fila_excel, codigo, texto_excel, despues AS texto_pdf, pagina_pdf, motivo
+FROM v_novedades WHERE accion = 'aceptar';

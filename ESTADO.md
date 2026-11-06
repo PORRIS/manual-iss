@@ -48,7 +48,10 @@
     logo SIAIS (#1dbb99, #6d5eac).
 16. Despliegue en Render (`render.yaml`, plan gratuito) con clave HTTP Basic (`WEB_CLAVE`,
     usuario `revisor`); probado en un clon limpio: el build genera una BD idéntica a la local.
-    Falta: crear el repositorio en GitHub, hacer push y crear el Blueprint en Render.
+    Publicado: https://manual-iss-2001.onrender.com (repo PORRIS/manual-iss, se publica con cada push).
+17. Novedades completas: `ajustes_pdf` gana `texto_excel` (fila original del Excel) y `pagina_pdf`;
+    vistas v_novedades (371) y por categoría (eliminadas 11, texto 280, valor 37, estructura 20,
+    aceptadas 23); grupo "Novedades (Excel → PDF)" en la web.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
