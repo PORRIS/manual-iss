@@ -104,6 +104,11 @@
     defecto, subir otros años con vista previa, elegir la versión al auditar. Pruebas: BD 59/59,
     auditoría 30/30.
 
+27. Cirugías ISS en UVR (uvr.py): honorarios (arts. 59-63), derechos de sala (arts. 77-81),
+    materiales (art. 85), bilateral (art. 64), múltiples (arts. 65-67), excepciones del art. 65 y
+    +30 % del art. 134 literal a; auditoría por escenarios como la cirugía SOAT. En los RIPS reales
+    las 60 líneas en UVR ya se comparan (antes ninguna). Pruebas: auditoría 37/37.
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -143,6 +148,12 @@
 - Tarifas propias y versiones SOAT subidas: por decisión del usuario se guardan en SQLite
   (datos/tarifas_propias.db). En Render gratuito ese archivo se borra en cada despliegue o reinicio:
   lo subido allí se pierde (la SOAT 2026 por defecto no, porque viene en el repositorio). Para conservarlos: base PostgreSQL (Neon o Supabase) en la variable TARIFAS_DB_URL.
+- ISS UVR, no modelado: sala de recuperación (art. 84, depende de complejidad y de pasar 6 horas),
+  materiales de cirugías de más de 170 UVR (según consumo), derechos de sala en cirugías múltiples
+  por diferente vía (la norma no los fija), descuentos del art. 77 par. 4 (instrumentación o
+  enfermería a cargo de la EPS) y accesorios del par. 7. El cotizador aún no suma cirugías en UVR.
+- liquidar.py (no se modifica por instrucción del usuario) no reconoce «UNI Ó BILATERAL» con tilde y
+  aplicaría el +75 % bilateral a esos códigos (ej. 797501); uvr.py sí lo reconoce.
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

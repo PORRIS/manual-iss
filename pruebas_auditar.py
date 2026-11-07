@@ -116,6 +116,21 @@ buf = io.BytesIO()
 pl_prop.save(buf)
 filas_pl, avisos_pl = tp.leer_excel(buf.getvalue())
 
+# Cirugías ISS en UVR (líneas digitadas: el código es ISS)
+def uvr_linea(cod, valor, **op):
+    return auditar([dict(codigo=cod, cantidad=1, valor_unitario=valor)], {**OP0, **op}, D,
+                   op.pop("contrato", 0) if "contrato" in op else 0)["lineas"][0]
+
+
+u_completa = uvr_linea("487702", 1178015)   # 300 UVR: 381.000 + 288.000 + 108.000 + sala S23311 401.015
+u_adicional = uvr_linea("386100", 126057.5)  # 55 UVR: 60% x 142.450 + 50% x sala S23203 81.175
+u_bilateral = uvr_linea("386100", 1.75 * (142450 + 81175 + 57410))  # +75% honorarios, sala y materiales S55105
+u_unibi = uvr_linea("797501", 1)            # «UNI Ó BILATERAL»: sin escenario bilateral
+u_region = uvr_linea("386100", 1.3 * 142450 + 1.3 * 81175 + 57410, **{"region-134": "META:Granada"})
+u_contrato = auditar([dict(codigo="386100", cantidad=1, valor_unitario=1.2 * (142450 + 81175 + 57410))],
+                     OP0, D, 20)["lineas"][0]
+u_caro = uvr_linea("386100", 2_000_000)
+
 lp = [dict(codigo="890202", valor_unitario=80000, seccion="consultas"),
       dict(codigo="50010194", valor_unitario=11292000, seccion="otrosServicios", datos={"tipoOS": "01"}),
       dict(codigo="MED-001", valor_unitario=58000, seccion="medicamentos"),
@@ -182,6 +197,18 @@ CASOS = [
     ("plantilla de tarifas propias: hojas vacías + INSTRUCCIONES (no se carga ni avisa); filas llenadas",
      ([(f["tipo"], f["codigo"], f["tarifa"]) for f in filas_pl], avisos_pl),
      ([("cups", "010101", 150000.0), ("cum", "19933174-1", 1200.0)], [])),
+    ("ISS UVR: 487702 (300 UVR) completa en quirófano = 1.178.015 (materiales según consumo, >170 UVR)",
+     (u_completa["estado"], round(u_completa["esperado"]), any("170 UVR" in a["texto"] for a in u_completa["alertas"])),
+     ("Conforme", 1178015, True)),
+    ("ISS UVR: adicional igual vía (60% honorarios + 50% sala) y bilateral (+75%) Conforme",
+     (u_adicional["estado"], u_bilateral["estado"], "Bilateral" in u_bilateral["manual"]["descripcion"]),
+     ("Conforme", "Conforme", True)),
+    ("ISS UVR: «UNI Ó BILATERAL» no tiene escenario bilateral",
+     any("Bilateral" in a["texto"] for a in u_unibi["alertas"] if a["tipo"] == "Varias opciones"), False),
+    ("ISS UVR: región art. 134 a (+30% honorarios y sala) y contrato ISS + 20%",
+     (u_region["estado"], u_contrato["estado"]), ("Conforme", "Conforme")),
+    ("ISS UVR: por encima de todos los escenarios -> Glosa sobre el mayor (bilateral)",
+     (u_caro["estado"], round(u_caro["glosa"])), ("Glosa", round(2_000_000 - 1.75 * (142450 + 81175 + 57410)))),
     ("manual propio: versiones 1 y 2 del mismo código; 5 códigos (repetido y hoja ajena avisados)",
      (va["version"], vb["version"], va["filas"], len(va["avisos"])), (1, 2, 5, 2)),
     ("manual propio v1: valor fijo (glosa 1.000), insumo, CUM, fila SOAT -10 %, fila ISS (vía relación), "

@@ -7,7 +7,9 @@ calculada como en cotizar.py (con los recargos y descuentos que declare el audit
 - diferencias de valor (sobrecobro o cobro inferior al Manual);
 - posible doble cobro: un componente cobrado aparte junto con el conjunto que lo cubre (art. 95);
 - notas del procedimiento que el auditor debe verificar (INCLUYE, EXCLUYE, APLICA, por sesión...);
-- códigos que no están en el Manual, con varios valores o en UVR (no se comparan solos).
+- códigos que no están en el Manual o con varios valores (no se comparan solos);
+- cirugías en UVR (Capítulo I): se comparan contra los escenarios de la norma (uvr.py): completa en
+  quirófano u otra sala, adicional del mismo acto, bilateral o un solo componente.
 
 Cada línea sale con un estado sugerido: "Conforme", "Glosa" (solo diferencias de valor a favor
 del prestador) o "Revisar". La decisión final es del auditor. Los RIPS se auditan por usuario
@@ -33,12 +35,14 @@ import pandas as pd
 import cotizar as cz
 import tarifarios
 import tarifas_propias as tp
+import uvr as uvr_iss
 from revision_relacion_cups import leer_homologacion
 from rutas import BASE, DB, conectar
 
 OPC_ITEM = ("solo-muestra", "biopsia-multiple", "portatil-rx", "portatil-eco", "bilateral")
 HOMOLOGACION = BASE / "homologacion.csv"  # código de la factura (CUPS vigente) -> código del Manual
 TOLERANCIA = 1.0  # pesos: diferencias menores se consideran redondeo
+TOLERANCIA_UVR = 100.0  # pesos: suma de varios componentes de una cirugía en UVR
 # Secciones del RIPS (Res. 2275 de 2023 y Res. 948 de 2026): (campo código, cantidad, valor unitario)
 SECCIONES_RIPS = {
     "consultas": ("codConsulta", None, "vrServicio"),
@@ -324,9 +328,7 @@ def auditar(lineas, op, d, contrato_pct=0.0):
             r["fila"] = f
             filas.append(f)
             if f["unidad"] == "UVR":
-                r["alertas"].append(dict(tipo="UVR", cita="arts. 59-68", texto=(
-                    f"Se liquida por UVR ({f['valor']:g} UVR): honorarios, sala y materiales "
-                    "según cirugía múltiple; aún no se compara solo")))
+                r["uvr"] = f["valor"]  # se compara contra los escenarios de uvr.py
             elif f["unidad"] != "pesos":
                 r["alertas"].append(dict(tipo="Unidad", cita="",
                                          texto=f"Unidad '{f['unidad']}': no se compara sola"))
@@ -377,6 +379,53 @@ def auditar(lineas, op, d, contrato_pct=0.0):
                                          texto=f"Porcentaje pactado en el contrato: {contrato_pct:+g}%"))
                 r["esperado"] *= factor
 
+    # cirugías en UVR: escenarios de la norma (con el contrato y el +30 % regional del art. 134 a)
+    if any(r.get("uvr") for r in res):
+        if "uvr_tablas" not in d:
+            con = conectar()
+            d["uvr_tablas"] = uvr_iss.tablas(con)
+            con.close()
+        region = False
+        if op.get("region-134"):
+            depto, _, muni = op["region-134"].partition(":")
+            depto = cz.ALIAS_134.get(cz.norm(depto), cz.norm(depto))
+            region = depto in cz.DEPTOS_134 and bool(muni) and cz.norm(muni) not in cz.EXCEPTUADAS_134
+        ftxt = f" {contrato_pct:+g}% (contrato)" if factor != 1 else ""
+        for r in res:
+            if not r.get("uvr"):
+                continue
+            f = r["fila"]
+            esc, avisos_uvr = uvr_iss.escenarios(f["codigo"], f["valor"], f["descripcion"], d["uvr_tablas"],
+                                                 factor, region, ftxt)
+            for a in avisos_uvr:
+                r["alertas"].append(dict(tipo="Cirugía UVR", cita="arts. 59-85", texto=a))
+            if not esc:
+                r["alertas"].append(dict(tipo="UVR", cita="arts. 59-85",
+                                         texto=f"{f['valor']:g} UVR: no se pudo calcular ningún escenario"))
+                continue
+            unit, tol = r["valor_unitario"], TOLERANCIA_UVR
+            ops = "; ".join(f"{n} {cz.pesos(v)}" for n, v, _ in esc)
+            iguales = [e for e in esc if unit is not None and abs(unit - e[1]) <= tol]
+            if iguales:
+                elegido = iguales[0]
+                nota = f"Lo facturado coincide con: {elegido[0]}"
+            elif unit is not None and unit > max(e[1] for e in esc) + tol:
+                elegido = max(esc, key=lambda e: e[1])
+                nota = f"Lo facturado supera todos los escenarios; se compara con el mayor ({elegido[0]})"
+            else:
+                elegido = min(esc, key=lambda e: abs((unit or 0) - e[1]))
+                nota = (f"Lo facturado no coincide con ningún escenario: elija el que corresponde. "
+                        f"Se muestra el más cercano ({elegido[0]})")
+                r["revisar_opciones"] = True
+            r["alertas"].append(dict(tipo="Varias opciones", cita="arts. 59-85", texto=f"{nota}. Escenarios: {ops}"))
+            nombre, v, detalle = elegido
+            r["manual"] = None  # se rellena abajo con la fila; aquí se guarda el escenario
+            r["escenario_uvr"] = nombre
+            r["valor_manual"] = v
+            r["esperado"] = v * r["cantidad"]
+            r["ajustes"] = [dict(regla="UVR", codigo=r["codigo"], articulo=f["articulo"], monto=0.0,
+                                 cita="arts. 59-85", texto=f"{detalle}: {cz.pesos(v)} por unidad")]
+
     # mismo código el mismo día (posible doble registro) y doble cobro conjunto/componente
     por_cod, por_dia = {}, {}
     for r in res:
@@ -422,13 +471,14 @@ def auditar(lineas, op, d, contrato_pct=0.0):
         if r["esperado"] is not None and r["facturado"] is not None:
             dif = r["facturado"] - r["esperado"]
         r["diferencia"] = dif
-        revisar = any(a["tipo"] in ("Código", "UVR", "Unidad", "Doble cobro", "Repetido",
-                                    "Relación dudosa")
-                      for a in r["alertas"])
+        revisar = r.pop("revisar_opciones", False) or any(
+            a["tipo"] in ("Código", "UVR", "Unidad", "Doble cobro", "Repetido", "Relación dudosa")
+            for a in r["alertas"])
+        tol = TOLERANCIA_UVR if r.get("uvr") else TOLERANCIA
         if r.get("doble_cobro") and r["facturado"] is not None:
             r["estado"], r["glosa"] = "Revisar", r["facturado"]
             r["motivo"] = "Posible doble cobro: componente de un conjunto facturado"
-        elif dif is not None and dif > TOLERANCIA:
+        elif dif is not None and dif > tol * r["cantidad"] and not revisar:
             r["estado"], r["glosa"] = "Glosa", dif
             r["motivo"] = "Valor facturado superior a la tarifa del Manual"
         elif revisar or r["facturado"] is None:
@@ -437,12 +487,14 @@ def auditar(lineas, op, d, contrato_pct=0.0):
                 "Ver alertas: no se pudo comparar o requiere verificación"
         else:
             r["estado"], r["glosa"] = "Conforme", 0.0
-            r["motivo"] = "Cobro inferior al Manual" if dif is not None and dif < -TOLERANCIA \
+            r["motivo"] = "Cobro inferior al Manual" if dif is not None and dif < -tol * r["cantidad"] \
                 else "Igual a la tarifa del Manual"
         f = r.pop("fila")
+        esc_uvr = r.pop("escenario_uvr", None)
+        r.pop("uvr", None)
         r["manual"] = None if f is None else dict(
-            codigo=f["codigo"], descripcion=f["descripcion"], articulo=f["articulo"],
-            unidad=f["unidad"], agrupador=f["agrupador"])
+            codigo=f["codigo"], descripcion=f["descripcion"] + (f" — {esc_uvr}" if esc_uvr else ""),
+            articulo=f["articulo"], unidad=f["unidad"], agrupador=f["agrupador"])
 
     por_paciente = [a for a in ajustes if not a["codigo"] and not a.get("asignado")]
     por_paciente = [dict(a, monto=a["monto"] * factor) for a in por_paciente]

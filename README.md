@@ -243,7 +243,19 @@ declare el auditor, calculados como en `cotizar.py`) y sugiere un estado:
 - **Glosa**: valor facturado mayor que el del Manual (tolerancia $1 por redondeo); valor sugerido = la diferencia.
 - **Revisar**: posible doble cobro (componente cobrado aparte junto con el conjunto que lo cubre,
   art. 95 par. 1, pág. 187), código que no está en el Manual (puede necesitar homologación si la
-  factura usa CUPS vigentes), código con varios valores, procedimiento en UVR, código repetido.
+  factura usa CUPS vigentes), código con varios valores, código repetido, o cirugía en UVR cuyo
+  valor no coincide con ningún escenario de la norma.
+
+**Cirugías en UVR** (`uvr.py`, Capítulo I): una línea puede traer la cirugía completa (honorarios
+de cirujano $1.270/UVR, anestesiólogo $960/UVR, ayudante $360/UVR desde 50 UVR; derechos de sala
+de quirófano por rango, o UVR × $1.410 con más de 450 UVR; materiales por rango hasta 170 UVR),
+sin ayudante, con ayudante especialista (art. 63 par.), en sala especial, de endoscopia o básica
+(arts. 79-81 y 85 par. 2-3), bilateral (+75 %, salvo las «uni o bilateral»), adicional del mismo
+acto (art. 65: 60 % de honorarios y 50 % de sala; art. 66: 75 %; art. 67: 60/75/50 %) o un solo
+componente. Se aplican el contrato y el +30 % del art. 134 literal a (honorarios y sala). Si lo
+cobrado coincide con un escenario (tolerancia $100) queda Conforme con el escenario explicado; si
+supera a todos, Glosa sobre el mayor; si no, Revisar. `liquidar.py` (solo honorarios) se conserva
+sin cambios.
 - **Conforme**: igual o menor que el Manual.
 
 El lector de RIPS toma **todos los campos** de cada registro, también los nuevos de la Res. 948 de
