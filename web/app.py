@@ -534,6 +534,9 @@ class Cotizacion(BaseModel):
     tecnecio: bool = False
     mismo_acto: str | None = None
     region: str | None = None  # DEPARTAMENTO:MUNICIPIO, como en cotizar.py --region-134
+    uvr_sala: dict[str, str] = Field(default_factory=dict)   # cirugías en UVR: código -> sala
+    sin_anestesia: list[str] = Field(default_factory=list)
+    ayudante: list[str] = Field(default_factory=list)
 
 
 def sin_nan(x):
@@ -549,7 +552,9 @@ def opciones(c: Cotizacion):
     return {"solo-muestra": c.solo_muestra or None, "biopsia-multiple": c.biopsia_multiple,
           "portatil-rx": {cz.normcod(k): v for k, v in c.portatil_rx.items()},
           "portatil-eco": c.portatil_eco, "tecnecio": c.tecnecio, "bilateral": c.bilateral,
-          "mismo-acto": c.mismo_acto or None, "region-134": c.region or None}
+          "mismo-acto": c.mismo_acto or None, "region-134": c.region or None,
+          "uvr-sala": {cz.normcod(k): v for k, v in c.uvr_sala.items() if v and v != "quirofano"},
+          "sin-anestesia": c.sin_anestesia, "ayudante": c.ayudante}
 
 
 def calcular(c: Cotizacion):
@@ -560,9 +565,12 @@ def calcular(c: Cotizacion):
     R = d["reglas"]
     R = R[R.estado == "aprobada"]
     for f in filas:
+        if f["unidad"] == "UVR":  # opciones de la cirugía en UVR (uvr.py)
+            f["aplicables"] = ["uvr-sala", "sin-anestesia"] + (["ayudante"] if f["valor"] >= 50 else []) + ["bilateral"]
+            continue
         f["aplicables"] = sorted({r.opcion for r in R[R.opcion.isin(OPC_ITEM)].itertuples()
                                   if f["base"] is not None and cz.en_alcance(f, r.alcance)})
-    conj = [f for f in filas if f["base"] is not None and cz.en_alcance(f, "art:95")]
+    conj = [f for f in filas if f["base"] is not None and f["unidad"] != "UVR" and cz.en_alcance(f, "art:95")]
     tec = R[R.opcion == "tecnecio"]
     base = sum(f["base"] for f in filas if f["base"] is not None)
     return sin_nan(dict(
@@ -572,7 +580,8 @@ def calcular(c: Cotizacion):
         globales=dict(
             tecnecio=any(cz.en_alcance(f, tec.alcance.iloc[0]) for f in filas
                          if f["base"] is not None) if len(tec) else False,
-            conjuntos=sum(f["cantidad"] for f in conj))))
+            conjuntos=sum(f["cantidad"] for f in conj),
+            uvr=sum(f["cantidad"] for f in filas if f["unidad"] == "UVR"))))
 
 
 @app.get("/api/cotizador")
@@ -610,6 +619,10 @@ def api_cotizar_excel(c: Cotizacion):
     for f in r["filas"]:
         ws.append(["Tarifa", f["codigo"], f["descripcion"], f["articulo"], f["unidad"],
                    f["valor"], f["cantidad"], f["base"], ""])
+        for comp in f.get("uvr_detalle", []):
+            ws.append(["  Componente", f["codigo"], comp["concepto"], f["articulo"], "pesos", None, None,
+                       None, comp["cita"]])
+            ws.cell(ws.max_row, 8).value = comp["monto"]
     for a in r["ajustes"]:
         ws.append(["Recargo" if a["monto"] >= 0 else "Descuento", a["codigo"] or "por paciente",
                    a["texto"], a["articulo"], "pesos", None, None, a["monto"], a["cita"]])

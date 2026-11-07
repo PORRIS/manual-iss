@@ -138,3 +138,98 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
         avisos.append("Art. 134 literal a: +30% en honorarios y derechos de sala (Capítulo I)")
     texto = f"ISS 2001, {uvr:g} UVR"
     return [(nombre, v * factor, f"{texto}: {d}{factor_texto}") for nombre, v, d in esc if v], avisos
+
+
+# ---------------------------------------------------------------- cotizador: liquidar un acto
+SALA_ART = {"quirofano": 77, "especial": 79, "endoscopia": 80, "basica": 81}
+
+
+def liquidar_acto(items, tb, via=None, region=False):
+    """Liquida las cirugías en UVR de un acto con lo que declara quien cotiza.
+
+    items: [dict(codigo, uvr, descripcion, cantidad, sala, anestesia, ayudante, bilateral)]
+      sala: quirofano (por defecto) | especial | endoscopia | basica; anestesia: general o regional
+      (False = local, sin honorario de anestesiólogo, art. 61 par. 1); ayudante: si hubo (solo desde
+      50 UVR, art. 63); bilateral: art. 64 (no en las «uni o bilateral»).
+    via: None (cirugías en actos distintos: cada una completa) | "igual" (art. 65) | "diferente" (art. 66).
+    Devuelve ({codigo: dict(total, componentes=[(concepto, monto, cita)])}, avisos)."""
+    reg = 1.3 if region else 1.0
+    avisos = []
+    unidades = sorted(((it, k) for it in items for k in range(int(it.get("cantidad") or 1))),
+                      key=lambda x: -x[0]["uvr"])
+    multiple = via in ("igual", "diferente") and len(unidades) > 1
+    res = {}
+    sala_otra_pagada = set()
+    for n, (it, _) in enumerate(unidades):
+        cod, u = it["codigo"], float(it["uvr"])
+        sala = it.get("sala") or "quirofano"
+        comp = res.setdefault(cod, dict(total=0.0, componentes=[]))["componentes"]
+        sin_tildes = unicodedata.normalize("NFKD", it.get("descripcion") or "").encode("ascii", "ignore").decode().upper()
+        bil = bool(it.get("bilateral")) and not re.search(r"UNI\s*(?:O|/|Y/O)?\s*BILATERAL", sin_tildes)
+        if it.get("bilateral") and not bil:
+            avisos.append(f"{cod}: descrita como «uni o bilateral»: sin recargo bilateral (art. 64)")
+        f_bil = 1.75 if bil else 1.0
+        # porcentaje de honorarios y de sala de quirófano según el orden en el acto
+        f_hon, f_sala, nota = 1.0, 1.0, ""
+        if multiple and n > 0:
+            if it["codigo"] in EXCEPCION_65 and via == "igual":
+                f_hon, f_sala, nota = 0.0, 0.0, " (excepción del art. 65: sin porcentaje adicional)"
+            elif via == "igual" and n >= 2:
+                f_hon, f_sala, nota = 0.0, 0.0, " (art. 65 par.: sin pagos adicionales desde la tercera, salvo politrauma)"
+            elif via == "igual":
+                f_hon, f_sala, nota = 0.6, 0.5, " (adicional, igual vía: 60% honorarios, art. 65; 50% sala, art. 77 par. 6)"
+            else:
+                f_hon, f_sala, nota = 0.75, 0.0, (" (adicional, diferente vía: 75% honorarios, art. 66; la norma no fija "
+                                                  "derechos de sala para las adicionales por otra vía: no se suman)")
+        cita_h = "art. 59" + (", art. 64" if bil else "") + (", art. 134 a" if region else "")
+        cir = u * tb["cirujano"] * reg * f_bil * f_hon
+        comp.append((f"Cirujano {u:g} UVR x {tb['cirujano']:g}{nota}", cir, cita_h))
+        if it.get("anestesia", True):
+            comp.append((f"Anestesiólogo {u:g} UVR x {tb['anestesiologo']:g}", u * tb["anestesiologo"] * reg * f_bil * f_hon, cita_h + ", art. 61"))
+        if it.get("ayudante"):
+            if u >= 50:
+                comp.append((f"Ayudante {u:g} UVR x {tb['ayudante']:g}", u * tb["ayudante"] * reg * f_bil * f_hon, cita_h + ", art. 63"))
+            else:
+                avisos.append(f"{cod}: ayudante declarado, pero la cirugía tiene menos de 50 UVR: no se paga (art. 63)")
+        art = SALA_ART.get(sala, 77)
+        if art == 77:
+            if u > 450:
+                v_sala, txt = u * tb["sala_mayor_450"], f"Derechos de sala {u:g} UVR x $1.410"
+            else:
+                s = por_rango(u, tb["rangos"].get(77, []))
+                v_sala, txt = (s[0], f"Derechos de sala {s[1]}") if s else (None, "")
+            if v_sala is None:
+                avisos.append(f"{cod}: sin tarifa de derechos de sala para {u:g} UVR")
+            else:
+                comp.append((txt + (" +75% bilateral" if bil else ""), v_sala * reg * f_bil * f_sala,
+                             "art. 77" + (" par. 5" if bil else "") + (" par. 6" if f_sala == 0.5 else "")))
+            if multiple:
+                if n == 0:
+                    avisos.append("Cirugías múltiples: los materiales de sutura y curación se pagan según consumo "
+                                  "(art. 85 par. 1); no se suman")
+            elif u > 170:
+                avisos.append(f"{cod}: más de 170 UVR: materiales según consumo (art. 85 par. 1); no se suman")
+            else:
+                m = por_rango(u, tb["rangos"].get("materiales", []))
+                if m:
+                    comp.append((f"Materiales {m[1]}" + (" +75% bilateral" if bil else ""), m[0] * f_bil,
+                                 "art. 85" + (" par. 5" if bil else "")))
+        else:
+            # salas 79-81: una sola tarifa por acto (la del procedimiento de más UVR), sin recargo bilateral
+            if art in sala_otra_pagada:
+                comp.append((f"Derechos de {SALAS[art][1]}: incluidos en el de más UVR", 0.0, f"art. {art} par. 1"))
+            else:
+                s = por_rango(u, tb["rangos"].get(art, []))
+                if s:
+                    comp.append((f"Derechos de {SALAS[art][1]} {s[1]}", s[0] * reg, f"art. {art}"))
+                    mat = tb["mat_basica"] if art == 81 else tb["mat_especial"]
+                    comp.append((f"Materiales {'S55115' if art == 81 else 'S55114'}", mat,
+                                 f"art. 85 par. {3 if art == 81 else 2}"))
+                else:
+                    avisos.append(f"{cod}: {u:g} UVR supera la tabla de {SALAS[art][1]} (art. {art})")
+                sala_otra_pagada.add(art)
+    for v in res.values():
+        v["total"] = sum(m for _, m, _ in v["componentes"])
+    if region:
+        avisos.append("Art. 134 literal a: +30% en honorarios y derechos de sala de las cirugías (Capítulo I)")
+    return res, avisos

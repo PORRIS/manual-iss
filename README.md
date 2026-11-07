@@ -197,8 +197,13 @@ uv run cotizar.py C40402 C40403 --mismo-acto igual        # varios conjuntos en 
 uv run pruebas_cotizar.py                                  # pruebas con resultados calculados a mano
 ```
 
-Una cotización corresponde a un paciente. Los procedimientos en UVR (arts. 1-18) no se suman:
-se liquidan con `liquidar.py`. Si hay un error (código inexistente, opción fuera de alcance,
+Una cotización corresponde a un paciente. Las cirugías en UVR (arts. 1-18) se liquidan con
+`uvr.py` (honorarios, derechos de sala y materiales): por código se declaran la sala
+(`--uvr-sala COD:quirofano|especial|endoscopia|basica`), la anestesia local (`--sin-anestesia`),
+el ayudante (`--ayudante`, desde 50 UVR) y la bilateralidad (`--bilateral`); `--mismo-acto igual`
+aplica el art. 65 (60 % de honorarios y 50 % de sala de la adicional, sin pagos desde la tercera
+salvo politrauma) y `diferente` el art. 66 (75 % de honorarios). En la web, cada cirugía en UVR
+muestra esas opciones y el desglose por componente. Si hay un error (código inexistente, opción fuera de alcance,
 regla pendiente), no se calcula el total.
 
 Los recargos y descuentos **nunca se deducen**: se aplican solo con una opción explícita, porque

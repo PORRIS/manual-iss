@@ -7,8 +7,10 @@ de cada regla están en reglas_tarifas.csv, con artículo, parágrafo y página 
 que tienen estado distinto de "aprobada" no se aplican.
 
 Lo demás que puede cambiar el valor (contrato, insumos según consumo, ...) solo se
-avisa. Los procedimientos en UVR (arts. 1-18) no se
-suman: se liquidan con liquidar.py. Una cotización corresponde a un paciente.
+avisa. Las cirugías en UVR (arts. 1-18) se liquidan con uvr.py: honorarios de cirujano y
+anestesiólogo (y ayudante si se declara), derechos de sala y materiales; la sala, la anestesia
+local, el ayudante y la bilateralidad se declaran por código, y --mismo-acto aplica los arts. 65
+(igual vía) y 66 (diferente vía). Una cotización corresponde a un paciente.
 
 Uso:
     uv run cotizar.py 903801 871112x2 C40402
@@ -22,6 +24,9 @@ Uso:
     uv run cotizar.py C40402 C40403 --mismo-acto diferente  # 100% + 70% de los demás
     uv run cotizar.py 903801 C40402 --region-134 META:Granada   # +15% / +14% (art. 134)
     uv run cotizar.py 697100@41501                          # CODIGO@REF si hay varios valores
+    uv run cotizar.py 487702 --ayudante 487702              # cirugía en UVR con ayudante
+    uv run cotizar.py 487702 386100 --mismo-acto igual      # UVR: 100% + 60% (art. 65)
+    uv run cotizar.py 386100 --uvr-sala 386100:especial --sin-anestesia 386100
     uv run cotizar.py 903801 --csv cotizacion.csv
 """
 import argparse
@@ -31,6 +36,7 @@ import unicodedata
 
 import pandas as pd
 
+import uvr
 from rutas import BASE, conectar
 
 DB = BASE / "salida" / "manual_iss.db"
@@ -77,6 +83,7 @@ def cargar(db=DB, reglas=REGLAS):
                           "WHERE procedimiento_id IS NOT NULL", con),
         parr=pd.read_sql("SELECT articulo, texto FROM notas WHERE tipo = 'paragrafo'", con),
         paq=pd.read_sql("SELECT * FROM v_paquete_componentes", con),
+        uvr=uvr.tablas(con),
     )
     con.close()
     d["reglas"] = pd.read_csv(reglas, dtype=str, keep_default_na=False)
@@ -144,7 +151,7 @@ def resolver(items, d):
                           unidad=r.unidad, valor=float(r.valor), cantidad=cant,
                           base=float(r.valor) * cant if en_pesos else None))
         if r.unidad == "UVR":
-            avisos.append(f"{cod}: está en UVR ({r.valor:g}); liquídelo con liquidar.py")
+            pass  # se liquida en cotizar() con uvr.py
         elif not en_pesos:
             avisos.append(f"{cod}: unidad '{r.unidad}', no se suma")
         if len(c) > 1:
@@ -200,7 +207,7 @@ def aplicar(filas, op, d):
         return sel
 
     # reglas pendientes de aprobación: no se aplican
-    for opcion in {k for k, v in op.items() if v not in (None, False, [], {})}:
+    for opcion in {k for k, v in op.items() if v not in (None, False, [], {}) and not k.startswith("_")}:
         pend = R[(R.opcion == opcion) & (R.estado != "aprobada")]
         if len(pend):
             errores.append(f"--{opcion}: la regla {', '.join(pend.regla)} está "
@@ -287,10 +294,11 @@ def mismo_acto(op, pesos_, R, regla, ajuste, errores):
                       key=lambda x: -x[0])
     cita = f"art. 95 par. 7 (pág. {r.pagina_pdf})"
     if not unidades:
-        errores.append(f"--mismo-acto: la cotización no tiene conjuntos del art. 95 ({cita})")
+        if not op.get("_hay_uvr"):  # con cirugías en UVR el mismo acto se aplica a ellas
+            errores.append(f"--mismo-acto: la cotización no tiene conjuntos del art. 95 ({cita})")
     elif len(unidades) == 1:
         errores.append(f"--mismo-acto: con un solo conjunto en el acto no procede su valor; "
-                       f"cobre cada actividad por su tarifa, las de UVR con liquidar.py "
+                       f"cobre cada actividad por su tarifa (las de UVR, sin el conjunto) "
                        f"({cita}, literal a: {regla('R95P7A').texto})")
     elif via == "igual" and len(unidades) > 2:
         errores.append(f"--mismo-acto igual con {len(unidades)} conjuntos: el Manual dice que el "
@@ -323,10 +331,65 @@ def parrafos(filas, d):
     return salida
 
 
+def region_valida(op):
+    """True si se declaró una región del art. 134 donde aplica el incremento."""
+    if not op.get("region-134"):
+        return False
+    depto, _, muni = op["region-134"].partition(":")
+    depto = ALIAS_134.get(norm(depto), norm(depto))
+    return depto in DEPTOS_134 and bool(muni) and norm(muni) not in EXCEPTUADAS_134
+
+
+def liquidar_uvr(filas, op, d):
+    """Cirugías en UVR: valor con uvr.liquidar_acto según lo declarado. Devuelve (errores, avisos)."""
+    cir = [f for f in filas if f["unidad"] == "UVR"]
+    errores, avisos = [], []
+    if not cir:
+        for opcion in ("uvr-sala", "sin-anestesia", "ayudante"):
+            if op.get(opcion):
+                errores.append(f"--{opcion}: la cotización no tiene cirugías en UVR")
+        return errores, avisos
+    codigos = {f["codigo"] for f in cir}
+    for opcion in ("uvr-sala", "sin-anestesia", "ayudante"):
+        for c in (op.get(opcion) or []):
+            if normcod(c) not in codigos:
+                errores.append(f"--{opcion} {c}: no es una cirugía en UVR de la cotización")
+    sala = {normcod(k): v for k, v in (op.get("uvr-sala") or {}).items()}
+    for c, v in sala.items():
+        if v not in uvr.SALA_ART:
+            errores.append(f"--uvr-sala {c}:{v}: sala no válida ({' | '.join(uvr.SALA_ART)})")
+    sin_anest = {normcod(c) for c in op.get("sin-anestesia") or []}
+    ayud = {normcod(c) for c in op.get("ayudante") or []}
+    bil = {normcod(c) for c in op.get("bilateral") or []}
+    via = op.get("mismo-acto") if op.get("mismo-acto") in ("igual", "diferente") else None
+    items = [dict(codigo=f["codigo"], uvr=f["valor"], descripcion=f["descripcion"], cantidad=f["cantidad"],
+                  sala=sala.get(f["codigo"], "quirofano"), anestesia=f["codigo"] not in sin_anest,
+                  ayudante=f["codigo"] in ayud, bilateral=f["codigo"] in bil) for f in cir]
+    if via is None and sum(f["cantidad"] for f in cir) > 1:
+        avisos.append("Varias cirugías en UVR sin --mismo-acto: se liquidan como actos distintos (cada una "
+                      "al 100%). Si fueron en el mismo acto, declare igual o diferente vía (arts. 65-66)")
+    res, av = uvr.liquidar_acto(items, d["uvr"], via, region_valida(op))
+    avisos += av
+    for f in cir:
+        r = res[f["codigo"]]
+        f["base"] = r["total"]
+        f["uvr_detalle"] = [dict(concepto=c, monto=m, cita=ci) for c, m, ci in r["componentes"]]
+    return errores, avisos
+
+
 def cotizar(items, op, d):
     filas, errores, avisos = resolver(items, d)
-    ajustes, err2, av2 = aplicar(filas, dict(op), d) if filas else ([], [], [])
-    return filas, ajustes, errores + err2, avisos + av2
+    op = dict(op)
+    err_u, av_u = liquidar_uvr(filas, op, d) if filas else ([], [])
+    # el bilateral y el mismo acto de las cirugías en UVR ya se aplicaron: no van a las reglas en pesos
+    cod_uvr = {f["codigo"] for f in filas if f["unidad"] == "UVR"}
+    op["bilateral"] = [c for c in op.get("bilateral") or [] if normcod(c) not in cod_uvr]
+    op["_hay_uvr"] = bool(cod_uvr)
+    pesos_ = [f for f in filas if f["base"] is not None and f["unidad"] != "UVR"]
+    ajustes, err2, av2 = aplicar(pesos_, op, d) if pesos_ else ([], [], [])
+    if not pesos_ and op.get("mismo-acto") and not cod_uvr:
+        err2.append("--mismo-acto: la cotización no tiene conjuntos del art. 95 ni cirugías en UVR")
+    return filas, ajustes, errores + err_u + err2, avisos + av_u + av2
 
 
 # ---------------------------------------------------------------- consola
@@ -350,6 +413,12 @@ def main():
     ap.add_argument("--region-134", metavar="DEPTO:MUNICIPIO",
                     help="atención en los departamentos/región del art. 134, con recursos del "
                          "prestador en el área: +15%% Capítulo II, +14%% conjuntos")
+    ap.add_argument("--uvr-sala", nargs="+", metavar="COD:SALA",
+                    help="cirugía en UVR: quirofano (por defecto) | especial | endoscopia | basica (arts. 77-81)")
+    ap.add_argument("--sin-anestesia", nargs="+", metavar="COD",
+                    help="cirugía en UVR con anestesia local: sin honorario de anestesiólogo (art. 61)")
+    ap.add_argument("--ayudante", nargs="+", metavar="COD",
+                    help="cirugía en UVR con ayudante quirúrgico (desde 50 UVR, art. 63)")
     ap.add_argument("--csv", help="guarda el detalle en este CSV")
     a = ap.parse_args()
 
@@ -360,7 +429,9 @@ def main():
     op = {"solo-muestra": a.solo_muestra, "biopsia-multiple": a.biopsia_multiple or [],
           "portatil-rx": rx, "portatil-eco": a.portatil_eco or [], "tecnecio": a.tecnecio,
           "bilateral": a.bilateral or [], "mismo-acto": a.mismo_acto,
-          "region-134": a.region_134}
+          "region-134": a.region_134,
+          "uvr-sala": dict(x.split(":", 1) for x in a.uvr_sala or [] if ":" in x),
+          "sin-anestesia": a.sin_anestesia or [], "ayudante": a.ayudante or []}
 
     d = cargar()
     filas, ajustes, errores, avisos = cotizar(a.items, op, d)
@@ -376,6 +447,8 @@ def main():
         sub = pesos(f["base"]) if f["base"] is not None else "-"
         print(f"{f['codigo']:8} {f['descripcion'][:52]:52} {f['articulo']:>3} {val:>13} "
               f"{f['cantidad']:>4} {sub:>13}")
+        for c in f.get("uvr_detalle", []):
+            print(f"{'':10}· {c['concepto'][:66]:66} {pesos(c['monto']):>13}  {c['cita']}")
     base = sum(f["base"] for f in filas if f["base"] is not None)
     print(f"{'Tarifas (pesos)':>83} {pesos(base):>13}")
     if ajustes:

@@ -112,6 +112,10 @@
 28. liquidar.py (corregido con autorización del usuario): reconoce «UNI Ó BILATERAL» con tilde y ya
     no aplica el +75 % bilateral a esos códigos (ej. 797501: factor 1,0).
 
+29. Cotizador con cirugías en UVR (uvr.liquidar_acto): sala, anestesia local, ayudante, bilateral y
+    mismo acto (arts. 65-66) declarados por código; desglose por componente en consola, web y Excel.
+    Pruebas cotizador 39/39.
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -154,7 +158,7 @@
 - ISS UVR, no modelado: sala de recuperación (art. 84, depende de complejidad y de pasar 6 horas),
   materiales de cirugías de más de 170 UVR (según consumo), derechos de sala en cirugías múltiples
   por diferente vía (la norma no los fija), descuentos del art. 77 par. 4 (instrumentación o
-  enfermería a cargo de la EPS) y accesorios del par. 7. El cotizador aún no suma cirugías en UVR.
+  enfermería a cargo de la EPS) y accesorios del par. 7.
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

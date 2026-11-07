@@ -421,3 +421,7 @@ tr.aud-detalle td { background: #fafcfc; padding: 14px 18px 18px; }
 .propia-manual h3 { font-size: 14px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .propia-manual h3 .cod { font-family: ui-monospace, Consolas, monospace; color: var(--morado); }
 a.boton { text-decoration: none; }
+.uvr-detalle { list-style: none; margin: 6px 0 0; padding: 6px 8px; background: #f6fbfa; border-radius: 6px; font-size: 11.5px; }
+.uvr-detalle li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 2px 0; }
+.uvr-detalle li b { font-variant-numeric: tabular-nums; text-align: right; }
+.uvr-detalle li small { grid-column: 1 / -1; color: var(--texto-suave); font-size: 10.5px; }

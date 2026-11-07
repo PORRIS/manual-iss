@@ -503,6 +503,7 @@ async function pintarFuentes() {
 // ---------- Cotizador ----------
 // Mismo cálculo que cotizar.py (POST /api/cotizar). La cotización se guarda en este navegador.
 const OPC_ETIQUETA = {
+  "sin-anestesia": "Anestesia local (sin anestesiólogo)", ayudante: "Con ayudante",
   "solo-muestra": "Solo toma de muestra", "biopsia-multiple": "Biopsia múltiple",
   "portatil-eco": "Ecografía portátil", bilateral: "Bilateral", "portatil-rx": "Radiología portátil",
 };
@@ -511,7 +512,8 @@ const pesos = (v) => (v < 0 ? "−" : "") + "$" + new Intl.NumberFormat("es-CO",
 const normCod = (c) => { c = c.toUpperCase(); return /^\d+$/.test(c) ? c.padStart(6, "0") : c; };
 const partesItem = (s) => { const m = s.match(RE_ITEM); return m ? { cod: normCod(m[1]), cant: +(m[2] || 1), ref: m[3] || "" } : null; };
 const armarItem = (p) => p.cod + (p.cant > 1 ? "x" + p.cant : "") + (p.ref ? "@" + p.ref : "");
-const cotVacia = () => ({ items: [], opc: {}, rx: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
+const cotVacia = () => ({ items: [], opc: {}, rx: {}, sala: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
+const SALAS_UVR = { quirofano: "quirófano", especial: "sala especial", endoscopia: "endoscopia", basica: "sala básica" };
 let COT_CFG = null;
 let cotRes = null;
 let cotSeq = 0;
@@ -527,6 +529,8 @@ function pedidoCot(s = cot) {
     solo_muestra: lista("solo-muestra"), biopsia_multiple: lista("biopsia-multiple"),
     portatil_eco: lista("portatil-eco"), bilateral: lista("bilateral"),
     portatil_rx: Object.fromEntries(Object.entries(s.rx).filter(([, v]) => v)),
+    uvr_sala: Object.fromEntries(Object.entries(s.sala || {}).filter(([, v]) => v)),
+    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"),
     tecnecio: s.tecnecio, mismo_acto: s.mismoActo || null,
     region: s.depto ? `${s.depto}:${s.muni || "OTRO"}` : null,
   };
@@ -537,6 +541,7 @@ function podarCot() {
   const vivos = new Set(cot.items.map((i) => partesItem(i)?.cod || i.toUpperCase()));
   for (const k of Object.keys(cot.opc)) if (!vivos.has(k)) delete cot.opc[k];
   for (const k of Object.keys(cot.rx)) if (!vivos.has(k)) delete cot.rx[k];
+  for (const k of Object.keys(cot.sala || {})) if (!vivos.has(k)) delete cot.sala[k];
 }
 
 async function postJSON(url, cuerpo) {
@@ -555,7 +560,7 @@ const recalcular = debounce(async () => {
     // opciones globales que dejaron de aplicar (se quitó el código que las permitía)
     let otraVez = false;
     if (cot.tecnecio && !d.globales.tecnecio) { cot.tecnecio = false; otraVez = true; }
-    if (cot.mismoActo && !d.globales.conjuntos) { cot.mismoActo = ""; otraVez = true; }
+    if (cot.mismoActo && !d.globales.conjuntos && (d.globales.uvr || 0) < 2) { cot.mismoActo = ""; otraVez = true; }
     cotRes = d;
     pintarCotResultado();
     if (otraVez) recalcular();
@@ -589,7 +594,7 @@ async function pintarCotizar() {
         <div class="cabecera__icono">${icono("calculadora")}</div>
         <div><h1>Cotizar</h1><p>Agregue los códigos de la atención de un paciente. Se suman las tarifas en pesos y se
           aplican solo los recargos y descuentos que usted marque, con el artículo y la página del PDF de cada uno.
-          Los procedimientos en UVR (arts. 1-18) no se suman.</p></div>
+          Las cirugías en UVR (arts. 1-18) se liquidan con honorarios, derechos de sala y materiales: declare la sala, la anestesia local, el ayudante y si fue bilateral.</p></div>
       </div>
       <form class="cot-agregar" id="cotForm" autocomplete="off">
         <label class="buscador">${icono("mas")}
@@ -651,7 +656,8 @@ function enlazarCotizar() {
 
 /** Marca o desmarca una opción por línea (portátil, bilateral...). */
 function cambiarOpcion(t, s) {
-  if (t.dataset.rx !== undefined) s.rx[t.dataset.rx] = t.value;
+  if (t.dataset.sala !== undefined) (s.sala ||= {})[t.dataset.sala] = t.value;
+  else if (t.dataset.rx !== undefined) s.rx[t.dataset.rx] = t.value;
   else if (t.dataset.op !== undefined) (s.opc[t.dataset.cod] ||= {})[t.dataset.op] = t.checked;
   else return false;
   return true;
@@ -674,6 +680,11 @@ function htmlOpciones(f, s = cot) {
   const regla = (op, variante = "") => COT_CFG.reglas.find((r) => r.opcion === op && (!variante || r.variante === variante));
   const titulo = (r) => (r ? `${r.texto} — ${r.cita}` : "");
   return f.aplicables.map((op) => {
+    if (op === "uvr-sala") {
+      const v = s.sala?.[f.codigo] || "quirofano";
+      return `<label class="opcion${v !== "quirofano" ? " activa" : ""}" title="Derechos de sala y materiales según la sala (arts. 77-81 y 85)">Sala
+        <select data-sala="${esc(f.codigo)}">${Object.entries(SALAS_UVR).map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
+    }
     if (op === "portatil-rx") {
       const v = s.rx[f.codigo] || "";
       return `<label class="opcion${v ? " activa" : ""}" title="${esc(titulo(regla(op, "simple")))}">${OPC_ETIQUETA[op]}
@@ -704,7 +715,8 @@ function pintarCotResultado() {
     const enPesos = f.unidad === "pesos";
     return `<tr>
       <td class="cod">${esc(f.codigo)}${p.ref ? `<small>@${esc(p.ref)}</small>` : ""}</td>
-      <td><div class="recorte">${esc(f.descripcion)}</div><small class="sutil">${esc(f.agrupador || "")}</small></td>
+      <td><div class="recorte">${esc(f.descripcion)}</div><small class="sutil">${esc(f.agrupador || "")}</small>
+        ${f.uvr_detalle ? `<ul class="uvr-detalle">${f.uvr_detalle.map((c) => `<li><span>${esc(c.concepto)}</span><b>${pesos(c.monto)}</b><small>${esc(c.cita)}</small></li>`).join("")}</ul>` : ""}</td>
       <td class="num">${f.articulo}</td>
       <td class="num">${enPesos ? pesos(f.valor) : `${fmt.format(f.valor)} ${esc(f.unidad)}`}</td>
       <td class="num"><input class="cant" type="number" min="1" max="999" value="${f.cantidad}" data-cant="${i}" aria-label="Cantidad"></td>
@@ -772,12 +784,11 @@ function pintarCondiciones(s = cot, el = $("#cotCondiciones"), g = cotRes.global
     ${muni}
     <p class="nota-campo">Con incremento: +15 % en exámenes y procedimientos del Capítulo II (arts. 19-41) y +14 % en los conjuntos (art. 95).
       Solo si el prestador aporta los recursos dentro del área.</p>
-    <h2 class="subtitulo">${icono("bisturi")}Varios conjuntos en un mismo acto</h2>
-    ${g.conjuntos ? `${radio("", "No")}
-      ${radio("igual", "Mismo especialista, igual vía de acceso", "100 % del mayor + 25 % del siguiente")}
-      ${radio("diferente", "Otra vía de acceso o distinta especialidad", "100 % del mayor + 70 % de cada uno de los demás")}
-      <p class="nota-campo">Art. 95 par. 7, <a class="pagina" href="/fuentes/pdf#page=188" target="_blank" rel="noopener">pág. 188</a>.</p>`
-      : `<p class="nota-campo">Aplica cuando la cotización tiene conjuntos del art. 95 (códigos C…).</p>`}
+    <h2 class="subtitulo">${icono("bisturi")}Varias cirugías en un mismo acto</h2>
+    ${g.conjuntos || (g.uvr || 0) >= 2 ? `${radio("", "No (actos distintos)")}
+      ${radio("igual", "Mismo especialista, igual vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 25 % del siguiente (art. 95 par. 7). UVR: 100 % + 60 % honorarios y 50 % sala (arts. 65, 77)" : "100 % de la mayor + 60 % honorarios y 50 % sala de la siguiente (arts. 65 y 77 par. 6)")}
+      ${radio("diferente", "Diferente vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 70 % (art. 95 par. 7). UVR: 100 % + 75 % honorarios (art. 66)" : "100 % de la mayor + 75 % de honorarios de las demás (art. 66)")}`
+      : `<p class="nota-campo">Aplica con conjuntos del art. 95 (códigos C…) o con dos o más cirugías en UVR.</p>`}
     ${g.tecnecio ? `<h2 class="subtitulo">${icono("radiografia")}Medicina nuclear</h2>
       <label class="radio"><input type="checkbox" id="cotTecnecio"${s.tecnecio ? " checked" : ""}>
         <span>Con tecnecio 99<small>+$13.120 por paciente (art. 27 par. 16)</small></span></label>` : ""}`;
@@ -842,7 +853,7 @@ const recalcularAud = debounce(async () => {
     if (n !== audSeq) return;
     let otraVez = false;
     if (aud.tecnecio && !d.globales.tecnecio) { aud.tecnecio = false; otraVez = true; }
-    if (aud.mismoActo && !d.globales.conjuntos) { aud.mismoActo = ""; otraVez = true; }
+    if (aud.mismoActo && !d.globales.conjuntos && !(d.globales.uvr >= 2)) { aud.mismoActo = ""; otraVez = true; }
     audRes = d;
     pintarAudResultado();
     if (otraVez) recalcularAud();
