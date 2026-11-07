@@ -1,5 +1,6 @@
 import re
 import sqlite3
+import unicodedata
 
 DB = "salida/manual_iss.db"
 FACTOR = {"art65": 0.60,   # mismo especialista, misma vía de acceso
@@ -35,7 +36,9 @@ def liquidar_acto(items, regla="art65", anestesia=True, ayudante=False,
     detalle, total = [], 0.0
     for n, f in enumerate(filas):
         f_orden = 1.0 if n == 0 else FACTOR[regla]
-        uni_bi = re.search(r"UNI\s*(?:O|/|Y/O)?\s*BILATERAL", f["descripcion"].upper())
+        # sin tildes: el Manual escribe «UNI Ó BILATERAL» (art. 64: esas no llevan el +75 %)
+        desc = unicodedata.normalize("NFKD", f["descripcion"]).encode("ascii", "ignore").decode().upper()
+        uni_bi = re.search(r"UNI\s*(?:O|/|Y/O)?\s*BILATERAL", desc)
         f_bil = 1.75 if f["bilateral"] and not uni_bi else 1.0   # art. 64
         base = f["uvr"] * f_orden * f_bil * ajuste
         cir = base * tarifa["S41101"]
