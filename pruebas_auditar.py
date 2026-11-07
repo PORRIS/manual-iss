@@ -131,6 +131,21 @@ u_contrato = auditar([dict(codigo="386100", cantidad=1, valor_unitario=1.2 * (14
                      OP0, D, 20)["lineas"][0]
 u_caro = uvr_linea("386100", 2_000_000)
 
+# SOAT: perfusionista (47.2), incruenta (51, 54.3), otra especialidad (72, 48.2), anestesia de
+# diagnóstico (47.1.3); ISS UVR: descuento de sala (77 par. 4), recuperación (84), art. 67
+def soat_linea(cod, valor, **k):
+    return auditar_tarifa([dict(codigo=cod, valor_unitario=valor, seccion=P)], "soat", T, **k)["lineas"][0]
+
+
+s_perf = soat_linea("525301", 3744654 + 379406.3)   # grupo 20: completa + perfusionista 39129
+s_incr = soat_linea("541701", 1104947)              # grupo 07: cir + anest + 45% sala + 39305
+s_esp = soat_linea("541701", 1031651)               # grupo 07: cir + 75% anest + 50% ayud + 50% sala
+s_anest = [soat_linea("881201", 288823.5, anestesia_diag=m)["estado"] for m in ({"881201"}, set())]
+i_dto = auditar([dict(codigo="386100", cantidad=1, valor_unitario=245000)],
+                {**OP0, "descuento-sala": "instrumentacion"}, D)["lineas"][0]
+i_rec = uvr_linea("386100", 329480)  # completa con ayudante 281.035 + recuperación alta S24103 48.445
+i_esp = uvr_linea("386100", 200525)   # 69.850 + 75% x 52.800 + 50% x 19.800 + sala 81.175
+
 lp = [dict(codigo="890202", valor_unitario=80000, seccion="consultas"),
       dict(codigo="50010194", valor_unitario=11292000, seccion="otrosServicios", datos={"tipoOS": "01"}),
       dict(codigo="MED-001", valor_unitario=58000, seccion="medicamentos"),
@@ -189,11 +204,11 @@ CASOS = [
       round(T["soat_comp"][(3, "sala")])), ([], 272475)),
     ("versión SOAT 2027 (UVB 12.600): la misma glucosa es Glosa con la 2026 y Conforme con la 2027; "
      "la versión también calcula la 39205",
-     (glu, vs["calculados"], uvb27), (["Glosa", "Conforme"], ["39205"], 12600.0)),
+     (glu, vs["calculados"], uvb27), (["Glosa", "Conforme"], ["39205", "39305"], 12600.0)),
     ("SOAT con otra UVB (11.552): 1,89 x 11.552 = 21.833,28", (round(soat_uvb[0]["esperado"], 2), soat_uvb[0]["estado"]), (21833.28, "Conforme")),
     ("SOAT + 4 %: 22.887,9 x 1,04 = 23.803,42", round(soat_contrato[0]["esperado"], 2), 23803.42),
     ("plantilla SOAT prellenada: 1.426 códigos de la tabla, UVB escrita como número, 39205 se calcula",
-     (len(tar_pl) - len(calc_pl), uvb_pl, calc_pl), (1426, 12600.0, ["39205"])),
+     (len(tar_pl) - len(calc_pl), uvb_pl, calc_pl), (1426, 12600.0, ["39205", "39305"])),
     ("plantilla de tarifas propias: hojas vacías + INSTRUCCIONES (no se carga ni avisa); filas llenadas",
      ([(f["tipo"], f["codigo"], f["tarifa"]) for f in filas_pl], avisos_pl),
      ([("cups", "010101", 150000.0), ("cum", "19933174-1", 1200.0)], [])),
@@ -209,6 +224,13 @@ CASOS = [
      (u_region["estado"], u_contrato["estado"]), ("Conforme", "Conforme")),
     ("ISS UVR: por encima de todos los escenarios -> Glosa sobre el mayor (bilateral)",
      (u_caro["estado"], round(u_caro["glosa"])), ("Glosa", round(2_000_000 - 1.75 * (142450 + 81175 + 57410)))),
+    ("SOAT: completa con perfusionista (g20), incruenta (g07) y cirugía de otra especialidad (g07) Conforme",
+     [(x["estado"], w in x["manual"]["descripcion"]) for x, w in
+      ((s_perf, "perfusionista"), (s_incr, "Incruenta"), (s_esp, "otra especialidad"))],
+     [("Conforme", True)] * 3),
+    ("SOAT: anestesia de diagnóstico +50% solo si se declara (num. 47.1.3)", s_anest, ["Conforme", "Glosa"]),
+    ("ISS UVR: descuento de sala por instrumentación de la EPS, recuperación > 6 h y mayor de otro especialista",
+     [x["estado"] for x in (i_dto, i_rec, i_esp)], ["Conforme"] * 3),
     ("manual propio: versiones 1 y 2 del mismo código; 5 códigos (repetido y hoja ajena avisados)",
      (va["version"], vb["version"], va["filas"], len(va["avisos"])), (1, 2, 5, 2)),
     ("manual propio v1: valor fijo (glosa 1.000), insumo, CUM, fila SOAT -10 %, fila ISS (vía relación), "

@@ -58,6 +58,9 @@ DECRETO_SMLDV = {
         36.51, 38.34, 48.07)))},
     "39301": ("GRUPOS 02 - 03", 2.28), "39302": ("GRUPOS 04 - 05 - 06", 4.27),
     "39303": ("GRUPOS 07 - 08 - 09", 9.92), "39304": ("GRUPOS 10 - 11 - 12 - 13", 15.72),
+    # num. 54.3 (pág. 121): materiales en procedimientos incruentos en sala (num. 51)
+    "39305": ("Materiales de sutura y curación, medicamentos y soluciones, oxígeno, agentes y gases "
+              "anestésicos (procedimientos incruentos, num. 54.3)", 2.31),
 }
 
 
@@ -90,6 +93,9 @@ REGLAS_CIRUGIA = [  # regla, numeral, página PDF, componente, porcentaje, texto
     ("MUL_MAT", "54.5", 122, "materiales", 75, "Múltiples en diferente región operatoria: materiales 100% de la mayor + 75% de cada adicional"),
     ("MAT_ESPECIALES", "54.2", 121, "materiales", None, "Grupos especiales 20 a 23: materiales a precio comercial de catálogo (no tienen tarifa fija)"),
     ("AYUDANTE", "47.1.4", 117, "ayudante", None, "Ayudantía solo cuando la cirugía lo requiera (tabla desde el grupo 06)"),
+    ("PERFUSION", "47.2", 117, "perfusionista", None, "Perfusionista (39129) solo en cirugías de los grupos especiales 20 a 23, cuando se utilice"),
+    ("INCRUENTA", "51, 54.3", 120, "sala", 45, "Intervenciones incruentas en sala quirúrgica o especial (cateterismo, reducción cerrada, fotocoagulación, endoscópicos): derecho de uso = 45% de los derechos de sala del grupo; materiales 39305"),
+    ("ANEST_DIAG", "47.1.3", 117, "anestesiologo", 50, "Exámenes y procedimientos de diagnóstico y tratamiento que necesiten anestesia general: 50% de la tarifa del procedimiento (salvo 39150-39155, con valor propio)"),
 ]
 
 DDL = """

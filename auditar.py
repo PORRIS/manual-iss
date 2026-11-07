@@ -396,7 +396,7 @@ def auditar(lineas, op, d, contrato_pct=0.0):
                 continue
             f = r["fila"]
             esc, avisos_uvr = uvr_iss.escenarios(f["codigo"], f["valor"], f["descripcion"], d["uvr_tablas"],
-                                                 factor, region, ftxt)
+                                                 factor, region, ftxt, op.get("descuento-sala"))
             for a in avisos_uvr:
                 r["alertas"].append(dict(tipo="Cirugía UVR", cita="arts. 59-85", texto=a))
             if not esc:
@@ -454,7 +454,8 @@ def auditar(lineas, op, d, contrato_pct=0.0):
     # opciones que el auditor puede declarar por línea y para toda la factura
     Ra = R[R.estado == "aprobada"]
     tec = Ra[Ra.opcion == "tecnecio"]
-    globales = dict(tecnecio=False, conjuntos=0)
+    globales = dict(tecnecio=False, conjuntos=0,
+                    uvr=sum(r["cantidad"] for r in res if r.get("uvr")))
     for r in res:
         f = r["fila"]
         ok = f is not None and f["base"] is not None
@@ -564,6 +565,25 @@ def escenarios_cirugia(k, dsc, grupo, T, uvb):
         esc.append(("Bilateral (num. 69, 48.2, 54.5)",
                     1.75 * hon + 1.5 * c["sala"] + 1.75 * c["materiales"],
                     "honorarios +75%, sala +50%, materiales +75%"))
+    # num. 47.2: perfusionista en los grupos especiales 20 a 23
+    perf = (T["soat_directo"].get("39129") or (None, None, None))[2]
+    if grupo >= 20 and perf and esc:
+        esc.append(("Cirugía completa con perfusionista (num. 47.2)", esc[0][1] + perf * f,
+                    esc[0][2] + f" + perfusionista 39129 {cz.pesos(perf * f)}"))
+    # num. 72, 72.1, 72.2 y 48.2: la cirugía la hace un especialista de otra especialidad en el mismo acto
+    if not falta_sala:
+        esc.append(("Cirugía de otra especialidad en el mismo acto (num. 72, 48.2)",
+                    c["cirujano"] + 0.75 * c["anestesiologo"] + 0.5 * c["ayudante"] + 0.5 * c["sala"],
+                    "cirujano 100% (su mayor), anestesiólogo 75%, ayudante 50%, sala 50%"))
+        # num. 51 y 54.3: intervención incruenta en sala (45% de la sala del grupo + materiales 39305)
+        mat_inc = (T["soat_directo"].get("39305") or (None, None, None))[2]
+        if mat_inc:
+            esc.append(("Incruenta en sala quirúrgica o especial (num. 51, 54.3)",
+                        hon_sin + 0.45 * c["sala"] + mat_inc * f,
+                        f"cirujano + anestesiólogo + 45% de la sala del grupo + materiales 39305 {cz.pesos(mat_inc * f)}"))
+            esc.append(("Incruenta en sala, sin anestesiólogo (num. 51, 54.3)",
+                        c["cirujano"] + 0.45 * c["sala"] + mat_inc * f,
+                        "cirujano + 45% de la sala del grupo + materiales 39305"))
     esc.append(("Adicional, mismo cirujano e igual vía (num. 70)", 0.5 * hon, "50% de los honorarios"))
     if c["ayudante"]:
         esc.append(("Adicional, igual vía, sin ayudante (num. 70)", 0.5 * hon_sin,
@@ -662,7 +682,16 @@ def candidatos(ln, cod, tarifario, T, uvb, contrato_pct=0.0, propia=None, d=None
     return [], f"El código {cod} no está en el manual {manual} ({'/'.join(_tipos_item(ln))})"
 
 
-def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=None, d=None):
+def anestesia_diag_aplica(cands):
+    """La opción del num. 47.1.3 (anestesia general en exámenes y procedimientos de diagnóstico y
+    tratamiento: +50 %) se ofrece en códigos SOAT con tarifa propia que no son laboratorio ni
+    patología (19xxx, 20xxx), ni cirugía por grupo, ni los de valor propio 39150-39155."""
+    return any(c[2] and not c[3].startswith("SOAT cirugía") and not c[0].startswith(("19", "20"))
+               and c[0] not in {"39150", "39151", "39152", "39153", "39154", "39155"} for c in cands)
+
+
+def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=None, d=None,
+                   anestesia_diag=()):
     """Auditoría contra SOAT ('soat') o un manual de tarifas propias ('propia').
 
     SOAT: el CUPS se lleva a código SOAT con la relación CUPS-SOAT; valor = factor UVB x uvb
@@ -693,6 +722,12 @@ def auditar_tarifa(lineas, tarifario, T, contrato_pct=0.0, uvb=UVB_2026, propia=
                  valor_manual=None, esperado=None)
         cands, porque = candidatos(ln, cod, tarifario, T, uvb, contrato_pct, propia, d) \
             if cod else ([], "línea sin código")
+        if tarifario == "soat" and anestesia_diag_aplica(cands):
+            r["aplicables"] = ["anestesia-diag"]
+            if cod in anestesia_diag:  # el auditor declara anestesia general (num. 47.1.3)
+                cands = [(k, dsc, v * 1.5, calc + " + anestesiólogo 50% (num. 47.1.3)", tol)
+                         if v and not calc.startswith("SOAT cirugía") else (k, dsc, v, calc, tol)
+                         for k, dsc, v, calc, tol in cands]
         con_valor = [c for c in cands if c[2]]
         elegido = None
         tol_de = lambda c: c[4] if c[4] is not None else tol  # noqa: E731
@@ -793,6 +828,8 @@ def main():
     ap.add_argument("--usuario", help="solo este usuario del RIPS (1, 2, ...)")
     ap.add_argument("--region-134", metavar="DEPTO:MUNICIPIO")
     ap.add_argument("--mismo-acto", choices=["igual", "diferente"])
+    ap.add_argument("--descuento-sala", choices=["instrumentacion", "enfermeria", "ambos"],
+                    help="ISS: la EPS aporta instrumentación, enfermería o ambas (art. 77 par. 4)")
     ap.add_argument("--contrato", type=float, default=0, metavar="PCT",
                     help="porcentaje pactado sobre la tarifa (ej. 30 = tarifa + 30%%, -5 = tarifa - 5%%)")
     ap.add_argument("--tarifario", choices=["iss", "soat", "propia"], default="iss",
@@ -824,6 +861,7 @@ def main():
         propia = tp.cargar_version(a.version_propia)
     op = {"solo-muestra": None, "biopsia-multiple": [], "portatil-rx": {}, "portatil-eco": [],
           "tecnecio": False, "bilateral": [], "mismo-acto": a.mismo_acto,
+          "descuento-sala": a.descuento_sala,
           "region-134": a.region_134}
     print(f"{fac['formato']} · factura {fac['factura'] or '(sin número)'} · "
           f"{len(fac['grupos'])} grupo(s)")

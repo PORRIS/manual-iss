@@ -116,6 +116,12 @@
     mismo acto (arts. 65-66) declarados por código; desglose por componente en consola, web y Excel.
     Pruebas cotizador 39/39.
 
+30. Casos que faltaban. SOAT: perfusionista en grupos 20-23 (47.2), incruentas en sala (51 y 54.3,
+    39305 calculado con el decreto), otra especialidad en el mismo acto (72, 48.2), anestesia de
+    diagnóstico declarada por línea (47.1.3). ISS UVR: descuento de sala por instrumentación o
+    enfermería de la EPS (77 par. 4: 20/25/45 %, PDF pág. 156), recuperación > 6 h (84), mayor y
+    adicional de otro especialista (67 y nota del 77). Pruebas: BD 59, cotizador 44, auditoría 40.
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no
@@ -148,17 +154,15 @@
   ISS 012205 y 783001 no están en el Manual: registrados como novedad (v_novedades_relacion_cups;
   783001 viene de la fila 3466 del Excel, eliminada porque no está en el PDF pág. 65; 012205 no
   está ni en el Excel ni en el PDF). El doble cobro se sugiere como Revisar (confirmado por el usuario).
-- SOAT: no modelado: procedimientos incruentos en sala especial (num. 51, 45 %), perfusionista
-  en grupos 20-23 (num. 47.2), anestesia en procedimientos de diagnóstico (50 %, num. 47.1.3), regla
-  72.2 del ayudante con distinta especialidad. Confirmar tolerancias ($100 por código, $500 por
-  cirugía) y la regla de varias opciones SOAT por CUPS.
+- SOAT, por confirmar: interpretación del num. 51 (incruentas: «45 % adicional de acuerdo con el
+  grupo» se toma como 45 % de los derechos de sala del grupo); tolerancias ($100 por código, $500 por
+  cirugía); regla de varias opciones SOAT por CUPS.
 - Tarifas propias y versiones SOAT subidas: por decisión del usuario se guardan en SQLite
   (datos/tarifas_propias.db). En Render gratuito ese archivo se borra en cada despliegue o reinicio:
   lo subido allí se pierde (la SOAT 2026 por defecto no, porque viene en el repositorio). Para conservarlos: base PostgreSQL (Neon o Supabase) en la variable TARIFAS_DB_URL.
-- ISS UVR, no modelado: sala de recuperación (art. 84, depende de complejidad y de pasar 6 horas),
-  materiales de cirugías de más de 170 UVR (según consumo), derechos de sala en cirugías múltiples
-  por diferente vía (la norma no los fija), descuentos del art. 77 par. 4 (instrumentación o
-  enfermería a cargo de la EPS) y accesorios del par. 7.
+- ISS UVR, no modelado: materiales de cirugías de más de 170 UVR y de cirugías múltiples (según
+  consumo, art. 85 par. 1), politrauma (sala 50 % de las adicionales por otra vía hasta 3; art. 65
+  par.), accesorios del art. 77 par. 7, anestesia en procedimientos del Capítulo II (art. 62).
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

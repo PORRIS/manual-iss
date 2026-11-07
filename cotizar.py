@@ -345,12 +345,12 @@ def liquidar_uvr(filas, op, d):
     cir = [f for f in filas if f["unidad"] == "UVR"]
     errores, avisos = [], []
     if not cir:
-        for opcion in ("uvr-sala", "sin-anestesia", "ayudante"):
+        for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "recuperacion", "descuento-sala"):
             if op.get(opcion):
                 errores.append(f"--{opcion}: la cotización no tiene cirugías en UVR")
         return errores, avisos
     codigos = {f["codigo"] for f in cir}
-    for opcion in ("uvr-sala", "sin-anestesia", "ayudante"):
+    for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "recuperacion"):
         for c in (op.get(opcion) or []):
             if normcod(c) not in codigos:
                 errores.append(f"--{opcion} {c}: no es una cirugía en UVR de la cotización")
@@ -358,17 +358,26 @@ def liquidar_uvr(filas, op, d):
     for c, v in sala.items():
         if v not in uvr.SALA_ART:
             errores.append(f"--uvr-sala {c}:{v}: sala no válida ({' | '.join(uvr.SALA_ART)})")
+    recup = {normcod(k): v for k, v in (op.get("recuperacion") or {}).items() if v}
+    for c, v in recup.items():
+        if v not in uvr.RECUPERACION:
+            errores.append(f"--recuperacion {c}:{v}: complejidad no válida ({' | '.join(uvr.RECUPERACION)})")
+    dto = op.get("descuento-sala") or None
+    if dto and dto not in uvr.DESCUENTO_SALA:
+        errores.append(f"--descuento-sala {dto}: no válido ({' | '.join(uvr.DESCUENTO_SALA)})")
+        dto = None
     sin_anest = {normcod(c) for c in op.get("sin-anestesia") or []}
     ayud = {normcod(c) for c in op.get("ayudante") or []}
     bil = {normcod(c) for c in op.get("bilateral") or []}
     via = op.get("mismo-acto") if op.get("mismo-acto") in ("igual", "diferente") else None
     items = [dict(codigo=f["codigo"], uvr=f["valor"], descripcion=f["descripcion"], cantidad=f["cantidad"],
                   sala=sala.get(f["codigo"], "quirofano"), anestesia=f["codigo"] not in sin_anest,
-                  ayudante=f["codigo"] in ayud, bilateral=f["codigo"] in bil) for f in cir]
+                  ayudante=f["codigo"] in ayud, bilateral=f["codigo"] in bil,
+                  recuperacion=recup.get(f["codigo"])) for f in cir]
     if via is None and sum(f["cantidad"] for f in cir) > 1:
         avisos.append("Varias cirugías en UVR sin --mismo-acto: se liquidan como actos distintos (cada una "
                       "al 100%). Si fueron en el mismo acto, declare igual o diferente vía (arts. 65-66)")
-    res, av = uvr.liquidar_acto(items, d["uvr"], via, region_valida(op))
+    res, av = uvr.liquidar_acto(items, d["uvr"], via, region_valida(op), dto)
     avisos += av
     for f in cir:
         r = res[f["codigo"]]
@@ -419,6 +428,10 @@ def main():
                     help="cirugía en UVR con anestesia local: sin honorario de anestesiólogo (art. 61)")
     ap.add_argument("--ayudante", nargs="+", metavar="COD",
                     help="cirugía en UVR con ayudante quirúrgico (desde 50 UVR, art. 63)")
+    ap.add_argument("--recuperacion", nargs="+", metavar="COD:NIVEL",
+                    help="cirugía en UVR con más de 6 horas en recuperación: baja | mediana | alta (art. 84)")
+    ap.add_argument("--descuento-sala", choices=["instrumentacion", "enfermeria", "ambos"],
+                    help="la EPS aporta instrumentación (-20%%), enfermería (-25%%) o ambas (-45%%) (art. 77 par. 4)")
     ap.add_argument("--csv", help="guarda el detalle en este CSV")
     a = ap.parse_args()
 
@@ -431,7 +444,9 @@ def main():
           "bilateral": a.bilateral or [], "mismo-acto": a.mismo_acto,
           "region-134": a.region_134,
           "uvr-sala": dict(x.split(":", 1) for x in a.uvr_sala or [] if ":" in x),
-          "sin-anestesia": a.sin_anestesia or [], "ayudante": a.ayudante or []}
+          "sin-anestesia": a.sin_anestesia or [], "ayudante": a.ayudante or [],
+          "recuperacion": dict(x.split(":", 1) for x in a.recuperacion or [] if ":" in x),
+          "descuento-sala": a.descuento_sala}
 
     d = cargar()
     filas, ajustes, errores, avisos = cotizar(a.items, op, d)

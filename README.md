@@ -259,8 +259,11 @@ sin ayudante, con ayudante especialista (art. 63 par.), en sala especial, de end
 acto (art. 65: 60 % de honorarios y 50 % de sala; art. 66: 75 %; art. 67: 60/75/50 %) o un solo
 componente. Se aplican el contrato y el +30 % del art. 134 literal a (honorarios y sala). Si lo
 cobrado coincide con un escenario (tolerancia $100) queda Conforme con el escenario explicado; si
-supera a todos, Glosa sobre el mayor; si no, Revisar. `liquidar.py` (solo honorarios) se conserva
-sin cambios.
+supera a todos, Glosa sobre el mayor; si no, Revisar. También: recuperación de más de 6 horas
+(art. 84, por complejidad), descuento de la sala si la EPS aporta instrumentación (−20 %), enfermería
+(−25 %) o ambas (−45 %) (art. 77 par. 4, `--descuento-sala`), y cirugía de otro especialista en el
+mismo acto (art. 67 y nota del art. 77: sala 100 % de su mayor y 50 % de sus adicionales).
+`liquidar.py` (solo honorarios) se conserva.
 - **Conforme**: igual o menor que el Manual.
 
 El lector de RIPS toma **todos los campos** de cada registro, también los nuevos de la Res. 948 de
@@ -327,6 +330,11 @@ Al auditar con SOAT, una cirugía no tiene un valor único: la línea del RIPS p
 completa (cirujano + anestesiólogo + ayudante + sala + materiales; en grupos 20-23 los materiales van
 a precio de catálogo), una adicional del mismo acto (50 % de honorarios con igual vía, 75 % con otra
 vía, o 75 % + 50 % de sala + 75 % de materiales en otra región), una bilateral o un solo componente.
+Escenarios adicionales: completa con perfusionista en los grupos 20-23 (num. 47.2), cirugía de un
+especialista de otra especialidad en el mismo acto (num. 72: cirujano 100 %, anestesiólogo 75 %,
+ayudante 50 %, sala 50 %) e intervención incruenta en sala (num. 51 y 54.3: 45 % de la sala del grupo
++ materiales 39305). En exámenes y procedimientos de diagnóstico y tratamiento, el auditor puede
+marcar por línea «con anestesia general» (+50 %, num. 47.1.3).
 Si lo cobrado coincide con un escenario (tolerancia de $500 por el redondeo de cada componente) queda
 Conforme con el escenario explicado; si supera a todos, Glosa sobre el mayor; si no, Revisar.
 

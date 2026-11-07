@@ -537,6 +537,9 @@ class Cotizacion(BaseModel):
     uvr_sala: dict[str, str] = Field(default_factory=dict)   # cirugías en UVR: código -> sala
     sin_anestesia: list[str] = Field(default_factory=list)
     ayudante: list[str] = Field(default_factory=list)
+    anestesia_diag: list[str] = Field(default_factory=list)  # SOAT num. 47.1.3 (auditoría)
+    recuperacion: dict[str, str] = Field(default_factory=dict)  # UVR: código -> baja|mediana|alta
+    descuento_sala: str | None = Field(None, pattern="^(instrumentacion|enfermeria|ambos)?$")
 
 
 def sin_nan(x):
@@ -554,7 +557,9 @@ def opciones(c: Cotizacion):
           "portatil-eco": c.portatil_eco, "tecnecio": c.tecnecio, "bilateral": c.bilateral,
           "mismo-acto": c.mismo_acto or None, "region-134": c.region or None,
           "uvr-sala": {cz.normcod(k): v for k, v in c.uvr_sala.items() if v and v != "quirofano"},
-          "sin-anestesia": c.sin_anestesia, "ayudante": c.ayudante}
+          "sin-anestesia": c.sin_anestesia, "ayudante": c.ayudante,
+          "recuperacion": {cz.normcod(k): v for k, v in c.recuperacion.items() if v},
+          "descuento-sala": c.descuento_sala or None}
 
 
 def calcular(c: Cotizacion):
@@ -566,7 +571,8 @@ def calcular(c: Cotizacion):
     R = R[R.estado == "aprobada"]
     for f in filas:
         if f["unidad"] == "UVR":  # opciones de la cirugía en UVR (uvr.py)
-            f["aplicables"] = ["uvr-sala", "sin-anestesia"] + (["ayudante"] if f["valor"] >= 50 else []) + ["bilateral"]
+            f["aplicables"] = (["uvr-sala", "sin-anestesia"] + (["ayudante"] if f["valor"] >= 50 else [])
+                               + ["bilateral", "recuperacion"])
             continue
         f["aplicables"] = sorted({r.opcion for r in R[R.opcion.isin(OPC_ITEM)].itertuples()
                                   if f["base"] is not None and cz.en_alcance(f, r.alcance)})
@@ -741,7 +747,7 @@ def calcular_auditoria(a: Auditoria):
             raise HTTPException(404, str(e)) from e
     T = tarifas_otras(a.soat_version if a.tarifario == "soat" else "base")
     return sin_nan(au.auditar_tarifa(lineas, a.tarifario, T, a.contrato_pct, a.uvb,
-                                     propia, datos_cotizador()))
+                                     propia, datos_cotizador(), set(a.anestesia_diag)))
 
 
 @app.get("/api/tarifarios")

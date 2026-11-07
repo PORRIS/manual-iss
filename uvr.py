@@ -21,11 +21,19 @@ practicada en otra sala, o un solo componente. Este módulo calcula esos escenar
   endoscópicos no artroscópicos), que no tienen porcentaje adicional; diferente vía (art. 66): 75 %;
   distinta especialidad (art. 67): cirujano 60 %, anestesiólogo 75 % (par. 1), ayudante 50 % (par. 2).
 - Región del art. 134 literal a: +30 % en honorarios y derechos de sala del Capítulo I (no materiales).
+- Descuento de la sala de cirugía cuando la EPS aporta la instrumentación (20 %), la enfermería (25 %)
+  o ambas (45 %) (art. 77 par. 4, PDF pág. 156).
+- Sala de recuperación después de las primeras 6 horas (art. 84): S24101-S24103 según la complejidad.
+- Distinta especialidad (art. 67 y nota del art. 77): sala 100 % de la mayor de cada especialista y
+  50 % de sus adicionales. Las adicionales por diferente vía del mismo especialista solo tienen sala
+  (50 %, hasta 3) en politrauma (nota del art. 77).
 """
 import re
 import unicodedata
 
 EXCEPCION_65 = {"468601", "591100", "652901", "667601", "669901"}
+DESCUENTO_SALA = {"instrumentacion": 0.20, "enfermeria": 0.25, "ambos": 0.45}  # art. 77 par. 4
+RECUPERACION = {"baja": "S24101", "mediana": "S24102", "alta": "S24103"}  # art. 84
 SALAS = {  # artículo -> (agrupador en la base, nombre)
     77: ("SALA DE CIRUGIA", "quirófano"), 79: ("SALA DE PROCEDIMIENTOS ESPECIAL", "sala de procedimientos especial"),
     80: ("SALA DE ENDOSCOPIA", "sala de endoscopia"), 81: ("SALA DE PROCEDIMIENTOS BASICA", "sala básica"),
@@ -47,7 +55,10 @@ def tablas(con):
         rangos.setdefault(clave, []).append((int(m[1] or 0), int(m[2]), float(valor), codigo))
     fijos = dict(con.execute("SELECT codigo, valor FROM v_tarifas WHERE codigo IN ('S55114', 'S55115', 'S55116') "
                              "AND tipo = 'con_valor'"))
+    rec = dict(con.execute("SELECT codigo, valor FROM v_tarifas WHERE codigo IN ('S24101', 'S24102', 'S24103') "
+                           "AND tipo = 'con_valor'"))
     return dict(cirujano=par["S41101"], anestesiologo=par["S41201"], ayudante=par["S41301"],
+                recuperacion={k: rec.get(c) for k, c in RECUPERACION.items() if rec.get(c)},
                 ayudante_especialista=par["S41201"], sala_mayor_450=1410.0, rangos=rangos,
                 mat_especial=fijos.get("S55114", 24270.0), mat_basica=fijos.get("S55115", 10350.0))
 
@@ -60,20 +71,25 @@ def por_rango(uvr, filas):
     return None
 
 
-def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_texto=""):
+def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_texto="", descuento_sala=None):
     """[(nombre, valor, detalle)] de una cirugía en UVR. factor: contrato (ej. 1.3 = ISS + 30 %);
-    region: art. 134 literal a (+30 % en honorarios y sala). Devuelve también los avisos."""
+    region: art. 134 literal a (+30 % en honorarios y sala); descuento_sala: lo que aporta la EPS
+    (instrumentacion | enfermeria | ambos, art. 77 par. 4). Devuelve también los avisos."""
     avisos = []
     reg = 1.3 if region else 1.0
+    dto = 1 - DESCUENTO_SALA.get(descuento_sala or "", 0.0)
+    if dto != 1:
+        avisos.append(f"Derechos de sala de cirugía con descuento del {100 - dto * 100:g}%: la EPS aporta "
+                      f"{descuento_sala.replace('ambos', 'instrumentación y enfermería')} (art. 77 par. 4)")
     cir = uvr * tb["cirujano"] * reg
     anes = uvr * tb["anestesiologo"] * reg
     ayu = uvr * tb["ayudante"] * reg if uvr >= 50 else 0.0
     ayu_esp = uvr * tb["ayudante_especialista"] * reg if uvr >= 450 or codigo == "815101" else 0.0
     if uvr > 450:
-        sala_q, cod_sq = uvr * tb["sala_mayor_450"] * reg, "art. 77 par. 1 (UVR x $1.410)"
+        sala_q, cod_sq = uvr * tb["sala_mayor_450"] * reg * dto, "art. 77 par. 1 (UVR x $1.410)"
     else:
         sq = por_rango(uvr, tb["rangos"].get(77, []))
-        sala_q, cod_sq = (sq[0] * reg, sq[1]) if sq else (None, "")
+        sala_q, cod_sq = (sq[0] * reg * dto, sq[1]) if sq else (None, "")
     mq = por_rango(uvr, tb["rangos"].get("materiales", [])) if uvr <= 170 else None
     mat_q = mq[0] if mq else None
     if uvr > 170:
@@ -99,6 +115,16 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
         if ayu:
             esc.append(("Cirugía completa sin ayudante", cir + anes + sala_q + mat,
                         det([("cirujano", cir), ("anestesiólogo", anes), ("sala", sala_q), ("materiales", mat)])))
+        for nivel, v_rec in tb.get("recuperacion", {}).items():
+            esc.append((f"Cirugía completa + recuperación de complejidad {nivel} (art. 84)", hon + sala_q + mat + v_rec,
+                        det([("honorarios", hon), ("sala", sala_q), ("materiales", mat),
+                             (f"recuperación {RECUPERACION[nivel]} (más de 6 horas)", v_rec)])))
+        esc.append(("Mayor de otro especialista en el mismo acto (art. 67, nota del art. 77)",
+                    cir + 0.75 * anes + 0.5 * ayu + sala_q,
+                    "cirujano 100% (su mayor), anestesiólogo 75% (par. 1), ayudante 50% (par. 2), sala 100%"))
+        esc.append(("Adicional de un especialista de otra especialidad (art. 67, nota del art. 77)",
+                    0.6 * cir + 0.75 * anes + 0.5 * ayu + 0.5 * sala_q,
+                    "cirujano 60%, anestesiólogo 75%, ayudante 50%, sala 50%"))
         if ayu_esp:
             esc.append(("Cirugía completa con ayudante especialista (art. 63 par.)", cir + anes + ayu_esp + sala_q + mat,
                         det([("cirujano", cir), ("anestesiólogo", anes), ("ayudante especialista", ayu_esp),
@@ -112,7 +138,7 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
     if not excepcion:
         esc.append(("Adicional, igual vía, solo honorarios (art. 65)", 0.6 * hon, "60% de honorarios"))
     esc.append(("Adicional, diferente vía, honorarios (art. 66)", 0.75 * hon, "75% de honorarios"))
-    esc.append(("Adicional de otra especialidad (art. 67)", 0.6 * cir + 0.75 * anes + 0.5 * ayu,
+    esc.append(("Adicional de otra especialidad, solo honorarios (art. 67)", 0.6 * cir + 0.75 * anes + 0.5 * ayu,
                 "cirujano 60%, anestesiólogo 75%, ayudante 50%"))
     for art, (valor, cod) in otras.items():
         nombre = SALAS[art][1]
@@ -144,17 +170,21 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
 SALA_ART = {"quirofano": 77, "especial": 79, "endoscopia": 80, "basica": 81}
 
 
-def liquidar_acto(items, tb, via=None, region=False):
+def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None):
     """Liquida las cirugías en UVR de un acto con lo que declara quien cotiza.
 
     items: [dict(codigo, uvr, descripcion, cantidad, sala, anestesia, ayudante, bilateral)]
       sala: quirofano (por defecto) | especial | endoscopia | basica; anestesia: general o regional
       (False = local, sin honorario de anestesiólogo, art. 61 par. 1); ayudante: si hubo (solo desde
-      50 UVR, art. 63); bilateral: art. 64 (no en las «uni o bilateral»).
+      50 UVR, art. 63); bilateral: art. 64 (no en las «uni o bilateral»); recuperacion: baja | mediana
+      | alta si permaneció en recuperación más de 6 horas (art. 84).
+    descuento_sala: instrumentacion | enfermeria | ambos si la EPS los aporta (art. 77 par. 4).
     via: None (cirugías en actos distintos: cada una completa) | "igual" (art. 65) | "diferente" (art. 66).
     Devuelve ({codigo: dict(total, componentes=[(concepto, monto, cita)])}, avisos)."""
     reg = 1.3 if region else 1.0
     avisos = []
+    dto = 1 - DESCUENTO_SALA.get(descuento_sala or "", 0.0)
+    txt_dto = f" -{100 - dto * 100:g}% (art. 77 par. 4)" if dto != 1 else ""
     unidades = sorted(((it, k) for it in items for k in range(int(it.get("cantidad") or 1))),
                       key=lambda x: -x[0]["uvr"])
     multiple = via in ("igual", "diferente") and len(unidades) > 1
@@ -179,8 +209,8 @@ def liquidar_acto(items, tb, via=None, region=False):
             elif via == "igual":
                 f_hon, f_sala, nota = 0.6, 0.5, " (adicional, igual vía: 60% honorarios, art. 65; 50% sala, art. 77 par. 6)"
             else:
-                f_hon, f_sala, nota = 0.75, 0.0, (" (adicional, diferente vía: 75% honorarios, art. 66; la norma no fija "
-                                                  "derechos de sala para las adicionales por otra vía: no se suman)")
+                f_hon, f_sala, nota = 0.75, 0.0, (" (adicional, diferente vía: 75% honorarios, art. 66; sin derechos "
+                                                  "de sala: solo en politrauma, nota del art. 77)")
         cita_h = "art. 59" + (", art. 64" if bil else "") + (", art. 134 a" if region else "")
         cir = u * tb["cirujano"] * reg * f_bil * f_hon
         comp.append((f"Cirujano {u:g} UVR x {tb['cirujano']:g}{nota}", cir, cita_h))
@@ -200,9 +230,18 @@ def liquidar_acto(items, tb, via=None, region=False):
                 v_sala, txt = (s[0], f"Derechos de sala {s[1]}") if s else (None, "")
             if v_sala is None:
                 avisos.append(f"{cod}: sin tarifa de derechos de sala para {u:g} UVR")
-            else:
-                comp.append((txt + (" +75% bilateral" if bil else ""), v_sala * reg * f_bil * f_sala,
-                             "art. 77" + (" par. 5" if bil else "") + (" par. 6" if f_sala == 0.5 else "")))
+            elif f_sala:
+                comp.append((txt + (" +75% bilateral" if bil else "") + txt_dto, v_sala * reg * f_bil * f_sala * dto,
+                             "art. 77" + (" par. 5" if bil else "") + (" par. 6" if f_sala == 0.5 else "")
+                             + (" par. 4" if dto != 1 else "")))
+            if it.get("recuperacion"):
+                v_rec = tb.get("recuperacion", {}).get(it["recuperacion"])
+                if v_rec and not sala_otra_pagada & {"recuperacion"}:
+                    comp.append((f"Recuperación más de 6 horas, complejidad {it['recuperacion']} "
+                                 f"{RECUPERACION[it['recuperacion']]}", v_rec, "art. 84"))
+                    sala_otra_pagada.add("recuperacion")  # una sola vez por acto
+                elif not v_rec:
+                    avisos.append(f"{cod}: complejidad de recuperación no válida ({' | '.join(RECUPERACION)})")
             if multiple:
                 if n == 0:
                     avisos.append("Cirugías múltiples: los materiales de sutura y curación se pagan según consumo "

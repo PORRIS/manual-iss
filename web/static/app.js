@@ -504,6 +504,7 @@ async function pintarFuentes() {
 // Mismo cálculo que cotizar.py (POST /api/cotizar). La cotización se guarda en este navegador.
 const OPC_ETIQUETA = {
   "sin-anestesia": "Anestesia local (sin anestesiólogo)", ayudante: "Con ayudante",
+  "anestesia-diag": "Con anestesia general (+50 %, num. 47.1.3)",
   "solo-muestra": "Solo toma de muestra", "biopsia-multiple": "Biopsia múltiple",
   "portatil-eco": "Ecografía portátil", bilateral: "Bilateral", "portatil-rx": "Radiología portátil",
 };
@@ -512,7 +513,8 @@ const pesos = (v) => (v < 0 ? "−" : "") + "$" + new Intl.NumberFormat("es-CO",
 const normCod = (c) => { c = c.toUpperCase(); return /^\d+$/.test(c) ? c.padStart(6, "0") : c; };
 const partesItem = (s) => { const m = s.match(RE_ITEM); return m ? { cod: normCod(m[1]), cant: +(m[2] || 1), ref: m[3] || "" } : null; };
 const armarItem = (p) => p.cod + (p.cant > 1 ? "x" + p.cant : "") + (p.ref ? "@" + p.ref : "");
-const cotVacia = () => ({ items: [], opc: {}, rx: {}, sala: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
+const cotVacia = () => ({ items: [], opc: {}, rx: {}, sala: {}, recup: {}, descuentoSala: "", tecnecio: false, mismoActo: "", depto: "", muni: "" });
+const RECUP_UVR = { "": "no (o menos de 6 h)", baja: "complejidad baja", mediana: "complejidad mediana", alta: "complejidad alta" };
 const SALAS_UVR = { quirofano: "quirófano", especial: "sala especial", endoscopia: "endoscopia", basica: "sala básica" };
 let COT_CFG = null;
 let cotRes = null;
@@ -530,7 +532,9 @@ function pedidoCot(s = cot) {
     portatil_eco: lista("portatil-eco"), bilateral: lista("bilateral"),
     portatil_rx: Object.fromEntries(Object.entries(s.rx).filter(([, v]) => v)),
     uvr_sala: Object.fromEntries(Object.entries(s.sala || {}).filter(([, v]) => v)),
-    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"),
+    recuperacion: Object.fromEntries(Object.entries(s.recup || {}).filter(([, v]) => v)),
+    descuento_sala: s.descuentoSala || null,
+    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"), anestesia_diag: lista("anestesia-diag"),
     tecnecio: s.tecnecio, mismo_acto: s.mismoActo || null,
     region: s.depto ? `${s.depto}:${s.muni || "OTRO"}` : null,
   };
@@ -542,6 +546,7 @@ function podarCot() {
   for (const k of Object.keys(cot.opc)) if (!vivos.has(k)) delete cot.opc[k];
   for (const k of Object.keys(cot.rx)) if (!vivos.has(k)) delete cot.rx[k];
   for (const k of Object.keys(cot.sala || {})) if (!vivos.has(k)) delete cot.sala[k];
+  for (const k of Object.keys(cot.recup || {})) if (!vivos.has(k)) delete cot.recup[k];
 }
 
 async function postJSON(url, cuerpo) {
@@ -657,6 +662,7 @@ function enlazarCotizar() {
 /** Marca o desmarca una opción por línea (portátil, bilateral...). */
 function cambiarOpcion(t, s) {
   if (t.dataset.sala !== undefined) (s.sala ||= {})[t.dataset.sala] = t.value;
+  else if (t.dataset.recup !== undefined) (s.recup ||= {})[t.dataset.recup] = t.value;
   else if (t.dataset.rx !== undefined) s.rx[t.dataset.rx] = t.value;
   else if (t.dataset.op !== undefined) (s.opc[t.dataset.cod] ||= {})[t.dataset.op] = t.checked;
   else return false;
@@ -671,6 +677,7 @@ function enlazarCondiciones(el, estadoDe, recalc) {
     else if (t.id === "cotMuni") s.muni = t.value;
     else if (t.name === "mismoActo") s.mismoActo = t.value;
     else if (t.id === "cotTecnecio") s.tecnecio = t.checked;
+    else if (t.id === "cotDescuentoSala") s.descuentoSala = t.value;
     else return;
     recalc();
   });
@@ -684,6 +691,11 @@ function htmlOpciones(f, s = cot) {
       const v = s.sala?.[f.codigo] || "quirofano";
       return `<label class="opcion${v !== "quirofano" ? " activa" : ""}" title="Derechos de sala y materiales según la sala (arts. 77-81 y 85)">Sala
         <select data-sala="${esc(f.codigo)}">${Object.entries(SALAS_UVR).map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
+    }
+    if (op === "recuperacion") {
+      const v = s.recup?.[f.codigo] || "";
+      return `<label class="opcion${v ? " activa" : ""}" title="Sala de recuperación después de las primeras 6 horas (art. 84)">Recuperación &gt; 6 h
+        <select data-recup="${esc(f.codigo)}">${Object.entries(RECUP_UVR).map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
     }
     if (op === "portatil-rx") {
       const v = s.rx[f.codigo] || "";
@@ -789,6 +801,11 @@ function pintarCondiciones(s = cot, el = $("#cotCondiciones"), g = cotRes.global
       ${radio("igual", "Mismo especialista, igual vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 25 % del siguiente (art. 95 par. 7). UVR: 100 % + 60 % honorarios y 50 % sala (arts. 65, 77)" : "100 % de la mayor + 60 % honorarios y 50 % sala de la siguiente (arts. 65 y 77 par. 6)")}
       ${radio("diferente", "Diferente vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 70 % (art. 95 par. 7). UVR: 100 % + 75 % honorarios (art. 66)" : "100 % de la mayor + 75 % de honorarios de las demás (art. 66)")}`
       : `<p class="nota-campo">Aplica con conjuntos del art. 95 (códigos C…) o con dos o más cirugías en UVR.</p>`}
+    ${(g.uvr || 0) > 0 ? `<h2 class="subtitulo">${icono("porcentaje")}Derechos de sala de cirugía</h2>
+      <label class="campo-form"><span>La EPS aporta (art. 77 par. 4): se descuenta de la sala de cirugía</span>
+        <select id="cotDescuentoSala">${[["", "Nada (sala completa)"], ["instrumentacion", "Instrumentación (−20 %)"],
+          ["enfermeria", "Enfermería (−25 %)"], ["ambos", "Instrumentación y enfermería (−45 %)"]].map(([k, t]) =>
+          `<option value="${k}"${(s.descuentoSala || "") === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>` : ""}
     ${g.tecnecio ? `<h2 class="subtitulo">${icono("radiografia")}Medicina nuclear</h2>
       <label class="radio"><input type="checkbox" id="cotTecnecio"${s.tecnecio ? " checked" : ""}>
         <span>Con tecnecio 99<small>+$13.120 por paciente (art. 27 par. 16)</small></span></label>` : ""}`;
