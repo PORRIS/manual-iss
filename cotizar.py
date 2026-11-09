@@ -178,7 +178,9 @@ def aplicar(filas, op, d):
         ajustes.append(dict(regla=r.regla, codigo=f["codigo"] if f else "",
                             articulo=f["articulo"] if f else int(r.articulo),
                             cita=f"art. {r.articulo} {parte(r.paragrafo)} (pág. {r.pagina_pdf})",
-                            texto=r.texto, monto=monto))
+                            texto=r.texto, monto=monto,
+                            # en la auditoría un código puede repetirse en varias líneas
+                            **({"linea": f["linea"]} if f and "linea" in f else {})))
 
     def por_item(r, f):
         v, n = float(r.valor), f["cantidad"]
@@ -266,7 +268,8 @@ def aplicar(filas, op, d):
             for _, r in R[(R.opcion == "region-134") & (R.estado == "aprobada")].iterrows():
                 for f in [f for f in pesos_ if en_alcance(f, r.alcance)]:
                     pagado = f["base"] + sum(x["monto"] for x in previos
-                                             if x["codigo"] == f["codigo"])
+                                             if x["codigo"] == f["codigo"]
+                                             and x.get("linea") == f.get("linea"))
                     ajuste(r, f, pagado * float(r.valor))
                 for x in previos:
                     if not x["codigo"] and en_alcance({"articulo": x["articulo"]}, r.alcance):
@@ -311,7 +314,7 @@ def mismo_acto(op, pesos_, R, regla, ajuste, errores):
     else:
         rebaja = {}
         for v, f in unidades[1:]:
-            rebaja.setdefault(f["codigo"], [f, 0.0])[1] -= v * (1 - float(r.valor))
+            rebaja.setdefault(id(f), [f, 0.0])[1] -= v * (1 - float(r.valor))
         for f, monto in rebaja.values():
             ajuste(r, f, monto)
 

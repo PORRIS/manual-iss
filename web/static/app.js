@@ -836,8 +836,10 @@ async function exportarCot(boton) {
 
 // ---------- Auditar factura ----------
 // La factura se procesa en el servidor sin guardarse; aquí vive solo en memoria (no en el navegador).
-const ESTADOS = ["Conforme", "Glosa", "Revisar"];
-const audVacia = () => ({ archivo: null, grupo: "", lineas: [], dec: [], abiertas: new Set(), filtro: "",
+const ESTADOS = ["Conforme", "Glosa", "Revisar", "Sin tarifa"];
+/** "Sin tarifa" -> "e-sin-tarifa" (clase de color del estado). */
+const claseEstado = (e) => "e-" + e.toLowerCase().replace(/\s+/g, "-");
+const audVacia = () => ({ archivo: null, grupo: "", lineas: [], dec: [], abiertas: new Set(), fijas: new Set(), filtro: "", seccion: "", buscar: "",
   tarifario: "", uvb: null, propiaVersion: null, soatVersion: "base", contrato: 0, opc: {}, rx: {}, tecnecio: false, mismoActo: "", depto: "", muni: "" });
 let TAR_CFG = null;
 const nombreTarifario = (id = aud.tarifario) => TAR_CFG?.tarifarios.find((t) => t.id === id)?.nombre || "la tarifa";
@@ -854,7 +856,7 @@ function pedidoAud() {
     contrato_pct: aud.tarifario === "propia" ? 0 : aud.contrato || 0, tarifario: aud.tarifario || "iss",
     uvb: aud.uvb || versionSoat()?.uvb || TAR_CFG?.uvb || 12110, propia_version_id: aud.propiaVersion,
     soat_version: String(aud.soatVersion || "base"),
-    no_tarifadas: aud.tarifario === "propia" ? [] : grupoActual()?.no_tarifadas || [],
+    no_tarifadas: [], // van en la tabla (estado «Sin tarifa» con ISS y SOAT)
     factura: aud.archivo?.factura || "", grupo: grupoActual()?.etiqueta || "Líneas digitadas" };
 }
 
@@ -884,17 +886,50 @@ const recalcularAud = debounce(async () => {
 async function cargarFactura(archivo) {
   if (!archivo) return;
   if (archivo.size > 15e6) { avisar("El archivo pasa de 15 MB", true); return; }
+  const fin = cargaEnZona(archivo);
   try {
-    const r = await postJSON("/api/auditar/leer", { nombre: archivo.name, contenido: await archivo.text() });
+    fin.paso("Leyendo el archivo");
+    const contenido = await archivo.text();
+    fin.paso("El servidor está leyendo la factura");
+    const r = await postJSON("/api/auditar/leer", { nombre: archivo.name, contenido });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
     const f = await r.json();
     if (!f.grupos.length) throw new Error("La factura no trae líneas");
-    aud = { ...audVacia(), archivo: { ...f, nombre: archivo.name } };
+    // Lo que eligió el usuario antes de cargar (tarifario, versión, contrato, lugar) se conserva.
+    const { tarifario, uvb, propiaVersion, soatVersion, contrato, depto, muni } = aud;
+    aud = { ...audVacia(), tarifario, uvb, propiaVersion, soatVersion, contrato, depto, muni,
+      archivo: { ...f, nombre: archivo.name } };
     elegirGrupo(f.grupos[0].id);
     avisar(`Cargado ${archivo.name}`);
   } catch (e) {
     avisar(e.message, true);
+  } finally {
+    fin();
   }
+}
+
+/** Muestra en la zona de carga qué se está haciendo y cuántos segundos van; devuelve la función que la restaura. */
+function cargaEnZona(archivo) {
+  const zona = $("#zonaCarga");
+  if (!zona) return Object.assign(() => {}, { paso() {} });
+  const t0 = Date.now();
+  const mb = archivo.size >= 1e6 ? `${(archivo.size / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(archivo.size / 1e3))} KB`;
+  zona.classList.add("ocupada");
+  zona.setAttribute("aria-busy", "true");
+  const prog = document.createElement("span");
+  prog.className = "zona-progreso";
+  prog.innerHTML = `<span class="giro giro--oscuro"></span><span><b id="zonaPaso">Leyendo el archivo…</b>
+    <small>${esc(archivo.name)} · ${mb} · <span id="zonaSeg">0 s</span></small></span>`;
+  zona.append(prog);
+  const reloj = setInterval(() => { const el = $("#zonaSeg"); if (el) el.textContent = `${Math.round((Date.now() - t0) / 1000)} s`; }, 500);
+  const fin = () => {
+    clearInterval(reloj);
+    zona.classList.remove("ocupada");
+    zona.removeAttribute("aria-busy");
+    prog.remove();
+  };
+  fin.paso = (texto) => { const el = $("#zonaPaso"); if (el) el.textContent = texto + "…"; };
+  return fin;
 }
 
 /** Mientras no se elija el tarifario, no se calcula nada. */
@@ -903,16 +938,19 @@ function pintarAudPendiente() {
   audRes = null;
   const propia = aud.tarifario === "propia";
   $("#audLineas").innerHTML = `<div class="estado">${icono("capas")}<div><b>${propia ? "¿Con qué manual de tarifas propias?" : "¿Con qué tarifario se hace la auditoría?"}</b><br>
-    ${propia ? "Elija el manual y la versión a la derecha, o suba uno nuevo." : "Elíjalo arriba (ISS 2001, SOAT o tarifa propia)"} para comparar las ${aud.lineas.length} líneas.</div></div>`;
+    ${propia ? "Elija el manual y la versión en «Condiciones de la auditoría», o suba uno nuevo." : "Elíjalo arriba (ISS 2001, SOAT o tarifa propia)"} para comparar las ${aud.lineas.length} líneas.</div></div>`;
   $("#audNotas").hidden = true;
   $("#audCondiciones").innerHTML = propia ? htmlElegirPropia() : "";
+  if (propia) $("#audCondPanel").open = true;
+  $("#audCondPanel").hidden = !propia;
+  pintarResumenCond();
   $("#audTotal").innerHTML = `<p class="nota-campo">Elija el tarifario para ver los totales.</p>
     <div class="cot-acciones"><button class="boton boton--borde" id="audNueva" type="button">${icono("papelera")}Nueva</button></div>`;
 }
 
-/** Líneas del paciente según el tarifario: con tarifa propia también se comparan insumos y medicamentos. */
+/** Líneas del paciente. Insumos y medicamentos: con tarifa propia se comparan; con ISS y SOAT quedan en «Sin tarifa». */
 function lineasDelGrupo(g) {
-  return [...g.lineas, ...(aud.tarifario === "propia" ? g.no_tarifadas : [])].map((l) => ({ ...l }));
+  return [...g.lineas, ...g.no_tarifadas].map((l) => ({ ...l }));
 }
 
 async function elegirTarifario(id) {
@@ -925,7 +963,7 @@ async function elegirTarifario(id) {
     const digitadas = aud.lineas.filter((l) => l.origen === "digitada");
     aud.lineas = [...lineasDelGrupo(grupoActual()), ...digitadas];
   }
-  aud.dec = []; aud.abiertas = new Set(); aud.filtro = "";
+  aud.dec = []; aud.abiertas = new Set(); aud.fijas = new Set(); aud.filtro = ""; aud.seccion = ""; aud.buscar = "";
   pintarAudCarga();
   recalcularAud();
 }
@@ -936,6 +974,8 @@ function elegirGrupo(id) {
   aud.lineas = lineasDelGrupo(g);
   aud.dec = [];
   aud.abiertas = new Set();
+  aud.fijas = new Set();
+  aud.seccion = ""; aud.buscar = "";
   aud.opc = {}; aud.rx = {}; aud.tecnecio = false; aud.mismoActo = ""; aud.filtro = "";
   pintarAudCarga();
   recalcularAud();
@@ -980,16 +1020,14 @@ async function pintarAuditar() {
       <p class="ayuda">El archivo se lee en el servidor solo para esta consulta: no se guarda. Los documentos de los pacientes
         se muestran enmascarados.</p>
     </section>
-    <div class="cot-rejilla">
-      <div class="cot-principal">
-        <section class="panel" id="audLineas"></section>
-        <section class="panel" id="audNotas"></section>
-      </div>
-      <aside class="cot-lateral">
-        <section class="panel" id="audCondiciones"></section>
-        <section class="panel cot-total" id="audTotal"></section>
-      </aside>
-    </div>`;
+    <details class="panel aud-cond" id="audCondPanel"${aud.condAbiertas ? " open" : ""}>
+      <summary>${icono("filtro")}<b>Condiciones de la auditoría</b><span class="aud-cond__resumen" id="audCondResumen"></span>
+        <span class="aud-cond__accion">${icono("der")}</span></summary>
+      <div class="aud-cond__cuerpo" id="audCondiciones"></div>
+    </details>
+    <section class="panel" id="audLineas"></section>
+    <section class="panel" id="audNotas"></section>
+    <section class="aud-barra" id="audTotal"></section>`;
   const zona = $("#zonaCarga");
   $("#audArchivo").addEventListener("change", (ev) => { cargarFactura(ev.target.files[0]); ev.target.value = ""; });
   ["dragenter", "dragover"].forEach((t) => zona.addEventListener(t, (ev) => { ev.preventDefault(); zona.classList.add("encima"); }));
@@ -1006,6 +1044,7 @@ async function pintarAuditar() {
     f.codigo.focus();
     recalcularAud();
   });
+  $("#audCondPanel").addEventListener("toggle", (ev) => { aud.condAbiertas = ev.target.open; });
   enlazarAuditar();
   pintarAudCarga();
   if (audRes) pintarAudResultado();
@@ -1059,9 +1098,9 @@ function htmlPaciente(g) {
     ${campos.length ? `<details><summary>${icono("documento")}Datos del usuario en el RIPS</summary>${tabla(Object.fromEntries(campos))}</details>` : ""}
     ${g.episodios.length ? `<details><summary>${icono("lista")}Urgencias, hospitalización y recién nacidos (${g.episodios.length})</summary>
       ${g.episodios.map((e) => `<h4>${esc(ETQ_EPISODIO[e.tipo] || e.tipo)}</h4>${tabla(e.datos)}`).join("")}</details>` : ""}
-    ${Object.keys(sinTarifa).length ? `<details><summary>${icono("caja")}Sin tarifa por código en el Manual (${g.no_tarifadas.length}): se revisan aparte</summary>
+    ${Object.keys(sinTarifa).length && aud.tarifario !== "propia" ? `<details><summary>${icono("caja")}Sin tarifa por código en el Manual (${g.no_tarifadas.length}): estado «Sin tarifa»</summary>
       <ul>${Object.entries(sinTarifa).map(([k, t]) => `<li><b>${esc(k)}</b>: ${t.n} ítem(s) por ${pesos(t.valor)}. ${esc(t.motivo.split(": ").slice(1).join(": "))}</li>`).join("")}</ul>
-      <p class="sutil">Van en la hoja «Sin tarifa por código» del informe Excel.</p></details>` : ""}
+      <p class="sutil">Están en la tabla con el estado «Sin tarifa» (sin valor esperado): use ese filtro para verlos.</p></details>` : ""}
   </div>`;
 }
 
@@ -1074,7 +1113,9 @@ function enlazarAuditar() {
       const i = +q.dataset.quitar;
       aud.lineas.splice(i, 1);
       aud.dec.splice(i, 1);
-      aud.abiertas = new Set([...aud.abiertas].filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)));
+      const reindexar = (set) => new Set([...set].filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)));
+      aud.abiertas = reindexar(aud.abiertas);
+      aud.fijas = reindexar(aud.fijas);
       recalcularAud();
     } else if (v) {
       const i = +v.dataset.ver;
@@ -1082,9 +1123,25 @@ function enlazarAuditar() {
       pintarAudResultado();
     }
   });
+  const filtrar = debounce(() => pintarAudResultado(), 150);
+  tabla.addEventListener("input", (ev) => {
+    if (ev.target.id !== "audBuscar") return;
+    aud.buscar = ev.target.value;
+    aud.fijas = new Set();
+    filtrar();
+  });
   tabla.addEventListener("change", (ev) => {
     const t = ev.target;
+    if (t.id === "audBuscar") return;
+    if (t.id === "audSeccion") { aud.seccion = t.value; aud.fijas = new Set(); pintarAudResultado(); return; }
     const i = +(t.closest("[data-i]")?.dataset.i ?? -1);
+    // la línea que se está editando sigue a la vista aunque ya no cumpla los filtros
+    const hayFiltro = aud.filtro || aud.seccion || aud.buscar;
+    if (hayFiltro && i >= 0) aud.fijas.add(i);
+    if (t.dataset.op !== undefined && hayFiltro) {
+      // la opción es por código: también quedan a la vista las demás líneas del mismo código
+      aud.lineas.forEach((_, k) => { if (audRes?.lineas[k]?.manual?.codigo === t.dataset.cod) aud.fijas.add(k); });
+    }
     if (t.dataset.campo) {
       const l = aud.lineas[i];
       if (t.dataset.campo === "codigo") l.codigo = t.value.trim();
@@ -1126,6 +1183,7 @@ function enlazarAuditar() {
     const f = ev.target.closest("[data-filtro]");
     if (!f) return;
     aud.filtro = f.dataset.filtro;
+    aud.fijas = new Set();
     pintarAudResultado();
   });
   $("#audTotal").addEventListener("click", (ev) => {
@@ -1149,14 +1207,36 @@ function glosaLinea(i) {
   return x.estado === "Glosa" || x.estado === "Revisar" ? x.glosa || x.diferencia || 0 : 0;
 }
 
+/** Sección de la línea según su origen: "otrosServicios Estancias #3" -> "otrosServicios Estancias". */
+const seccionLinea = (x) => String(x.origen || "").replace(/\s*#.*$/, "").replace(/^línea \S+$/, "línea") || "digitada";
+const ETQ_SECCION = { consultas: "Consultas", procedimientos: "Procedimientos", medicamentos: "Medicamentos",
+  otrosServicios: "Otros servicios", línea: "Líneas de la factura XML", digitada: "Digitadas" };
+const etqSeccion = (k) => ETQ_SECCION[k] || k.replace(/^otrosServicios /, "");
+
+/** ¿La línea pasa los filtros de sección y de búsqueda? (el de estado se mira aparte) */
+function pasaFiltros(x, i) {
+  if (aud.seccion && seccionLinea(x) !== aud.seccion) return false;
+  const q = sinTildes(aud.buscar || "").trim();
+  if (!q) return true;
+  const l = aud.lineas[i] || {};
+  return [l.codigo, x.codigo, x.codigo_factura, x.manual?.codigo, x.manual?.descripcion, x.descripcion_factura]
+    .some((v) => sinTildes(String(v ?? "")).includes(q));
+}
+
 function pintarAudResultado() {
   if (!$("#audLineas") || !audRes) return;
   const d = audRes;
   const n = aud.lineas.length;
+  const enfocado = document.activeElement?.id === "audBuscar" ? document.activeElement.selectionStart : null;
+  const secciones = {};
+  d.lineas.forEach((x) => { const k = seccionLinea(x); secciones[k] = (secciones[k] || 0) + 1; });
+  let visibles = 0;
   const filas = d.lineas.map((x, i) => {
     const l = aud.lineas[i] || {};
     const est = estadoLinea(i);
-    if (aud.filtro && est !== aud.filtro) return "";
+    const fuera = (aud.filtro && est !== aud.filtro) || !pasaFiltros(x, i);
+    if (fuera && !aud.fijas.has(i)) return "";
+    visibles++;
     const sugerido = est === x.estado && !aud.dec[i]?.estado;
     const abierta = aud.abiertas.has(i);
     const alertas = x.alertas.length;
@@ -1175,7 +1255,7 @@ function pintarAudResultado() {
         <label class="aud-bloque"><span>Observación del auditor</span>
           <textarea data-dec="observacion" rows="2" placeholder="Sustento de la glosa o de la revisión">${esc(aud.dec[i]?.observacion || "")}</textarea></label>
       </td></tr>` : "";
-    return `<tr data-i="${i}" class="aud-fila e-${est.toLowerCase()}">
+    return `<tr data-i="${i}" class="aud-fila ${claseEstado(est)}${fuera ? " aud-fuera" : ""}"${fuera ? ` title="Ahora está en ${est}: se ve hasta que cambie el filtro"` : ""}>
       <td class="sutil">${esc(x.origen)}</td>
       <td><input class="aud-input cod" data-campo="codigo" value="${esc(l.codigo ?? x.codigo)}" aria-label="Código">
         ${x.manual && (x.codigo_factura || (aud.tarifario === "soat" && x.manual.codigo !== x.codigo)) ? `<small class="aud-homo" title="Código con el que se compara">→ ${esc(ETQ_TARIFARIO[aud.tarifario])} ${esc(x.manual.codigo)}</small>` : ""}</td>
@@ -1185,22 +1265,30 @@ function pintarAudResultado() {
       <td class="num">${x.facturado == null ? "—" : pesos(x.facturado)}</td>
       <td class="num">${x.esperado == null ? "—" : pesos(x.esperado)}</td>
       <td class="num monto ${dif > 1 ? "neg" : ""}">${dif == null ? "—" : (dif > 0 ? "+" : "") + pesos(dif)}</td>
-      <td><select class="aud-estado e-${est.toLowerCase()}" data-dec="estado" title="${esc(x.motivo)}${sugerido ? " (sugerido)" : ""}">
-        ${ESTADOS.map((e) => `<option${e === est ? " selected" : ""}>${e}</option>`).join("")}</select>
+      <td><select class="aud-estado ${claseEstado(est)}" data-dec="estado" title="${esc(x.motivo)}${sugerido ? " (sugerido)" : ""}">
+        ${ESTADOS.filter((e) => e !== "Sin tarifa" || x.estado === "Sin tarifa").map((e) => `<option${e === est ? " selected" : ""}>${e}</option>`).join("")}</select>
         ${est === "Glosa" ? `<input class="aud-input num aud-glosa" data-dec="glosa" inputmode="decimal" value="${glosaLinea(i)}" title="Valor a glosar" aria-label="Valor a glosar">` : ""}</td>
       <td><button class="aud-ver${alertas ? " con" : ""}" type="button" data-ver="${i}" title="Ver detalle">${alertas ? `${icono("alerta")}${alertas}` : icono("der")}</button></td>
       <td><button class="boton-icono" type="button" data-quitar="${i}" title="Quitar línea">${icono("x")}</button></td>
     </tr>${detalle}`;
   }).join("");
   $("#audLineas").innerHTML = `
-    <div class="aud-cabecera-lineas"><h2 class="subtitulo">${icono("lista")}Líneas de la factura (${n})</h2>
+    <div class="aud-cabecera-lineas"><h2 class="subtitulo">${icono("lista")}Líneas de la factura (${visibles === n ? n : `${visibles} de ${n}`})</h2>
+      <div class="aud-filtros">
+      <label class="aud-buscar">${icono("buscar")}<input id="audBuscar" type="search" placeholder="Buscar código o descripción"
+        value="${esc(aud.buscar)}" aria-label="Buscar código o descripción" autocomplete="off"></label>
+      ${Object.keys(secciones).length > 1 || aud.seccion ? `<select class="aud-seccion" id="audSeccion" aria-label="Sección">
+        <option value="">Todas las secciones</option>
+        ${Object.entries(secciones).map(([k, c]) => `<option value="${esc(k)}"${k === aud.seccion ? " selected" : ""}>${esc(etqSeccion(k))} (${c})</option>`).join("")}
+      </select>` : ""}
       <div class="segmentado">${[["", "Todas"], ...ESTADOS.map((e) => [e, e])].map(([v, t]) =>
-        `<button type="button" data-filtro="${v}" class="${aud.filtro === v ? "activo" : ""}">${t}</button>`).join("")}</div></div>
+        `<button type="button" data-filtro="${v}" class="${aud.filtro === v ? "activo" : ""}">${t}</button>`).join("")}</div></div></div>
     ${n ? `<div class="tabla-marco cot-tabla aud-tabla"><table>
       <thead><tr><th>Origen</th><th>Código</th><th>Descripción</th><th class="num">Cant.</th><th class="num">V. unit. cobrado</th>
         <th class="num">Facturado</th><th class="num">Según ${esc(ETQ_TARIFARIO[aud.tarifario] || "tarifa")}</th><th class="num">Diferencia</th><th>Estado</th><th></th><th></th></tr></thead>
-      <tbody>${filas}</tbody></table></div>`
+      <tbody>${filas || `<tr><td colspan="11" class="estado">Ninguna línea cumple los filtros.</td></tr>`}</tbody></table></div>`
       : `<div class="estado">${icono("lupa")}<div>Cargue una factura o digite la primera línea.</div></div>`}`;
+  if (enfocado != null) { const b = $("#audBuscar"); b.focus(); b.setSelectionRange(enfocado, enfocado); }
 
   const avisos = d.avisos.length ? `<details class="cot-detalles" open><summary>${icono("alerta")}Avisos (${d.avisos.length})</summary>
     <ul>${d.avisos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "";
@@ -1228,18 +1316,42 @@ function pintarAudResultado() {
   d.lineas.forEach((_, i) => cuenta[estadoLinea(i)]++);
   const glosa = d.lineas.reduce((s, _, i) => s + (glosaLinea(i) || 0), 0);
   const s = d.resumen;
+  $("#audCondPanel").hidden = false;
+  pintarResumenCond();
   $("#audTotal").innerHTML = `
-    <div class="cot-linea"><span>Facturado</span><b>${pesos(s.facturado)}</b></div>
-    <div class="cot-linea"><span>Según ${esc(nombreTarifario())}</span><b>${pesos(s.esperado)}</b></div>
-    <div class="cot-linea"><span>Líneas comparadas</span><b>${s.comparables} de ${s.lineas}</b></div>
-    <div class="aud-cuentas">${ESTADOS.map((e) => `<span class="aud-cuenta e-${e.toLowerCase()}"><b>${cuenta[e]}</b>${e}</span>`).join("")}</div>
-    <div class="cot-gran-total"><span>Total a glosar</span><strong class="aud-total-glosa">${pesos(glosa)}</strong></div>
     ${d.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>Revise las condiciones:</b>
       <ul>${d.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}
+    <div class="aud-barra__dato"><span>Facturado</span><b>${pesos(s.facturado)}</b></div>
+    <div class="aud-barra__dato"><span>Según ${esc(nombreTarifario())}</span><b>${pesos(s.esperado)}</b></div>
+    <div class="aud-barra__dato"><span>Comparadas</span><b>${s.comparables} de ${s.lineas}</b></div>
+    <div class="aud-cuentas">${ESTADOS.filter((e) => e !== "Sin tarifa" || cuenta[e]).map((e) => `<span class="aud-cuenta ${claseEstado(e)}"><b>${cuenta[e]}</b>${e}</span>`).join("")}</div>
+    <div class="aud-barra__dato aud-barra__glosa"><span>Total a glosar</span><strong class="aud-total-glosa">${pesos(glosa)}</strong></div>
     <div class="cot-acciones">
       <button class="boton boton--verde" id="audExcel" type="button"${n ? "" : " disabled"}>${icono("excel")}Informe Excel</button>
       <button class="boton boton--borde" id="audNueva" type="button">${icono("papelera")}Nueva</button>
     </div>`;
+}
+
+/** Una línea con lo elegido en las condiciones, para verlo con el panel plegado. */
+function pintarResumenCond() {
+  const el = $("#audCondResumen");
+  if (!el) return;
+  const t = aud.tarifario;
+  const partes = [ETQ_TARIFARIO[t] || ""];
+  if (t !== "propia" && t) partes.push(aud.contrato ? `contrato ${aud.contrato > 0 ? "+" : ""}${fmt.format(aud.contrato)} %` : "contrato 0 %");
+  if (t === "iss") {
+    const r = COT_CFG?.regiones.find((x) => x.clave === aud.depto);
+    partes.push(r ? `lugar: ${r.nombre}${aud.muni ? " (municipio exceptuado)" : ""}` : "fuera de las regiones del art. 134");
+    if (aud.mismoActo) partes.push(aud.mismoActo === "igual" ? "mismo acto, igual vía" : "mismo acto, diferente vía");
+    if (aud.tecnecio) partes.push("con tecnecio 99");
+  } else if (t === "soat") {
+    partes.push(versionSoat()?.nombre || "SOAT", `UVB ${pesos(aud.uvb || versionSoat()?.uvb || 12110)}`);
+  } else if (t === "propia") {
+    const m = (PROP_CFG?.manuales || []).find((x) => x.versiones.some((v) => v.id === aud.propiaVersion));
+    const v = m?.versiones.find((x) => x.id === aud.propiaVersion);
+    partes.push(v ? `${m.nombre} v${v.version}` : "falta elegir el manual");
+  }
+  el.textContent = partes.filter(Boolean).join(" · ");
 }
 
 async function exportarAud(boton) {

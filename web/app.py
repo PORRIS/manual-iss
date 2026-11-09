@@ -736,7 +736,8 @@ def tarifas_otras(version="base"):
 def calcular_auditoria(a: Auditoria):
     lineas = [ln.model_dump() for ln in a.lineas]
     if a.tarifario == "iss":
-        return sin_nan(au.auditar(lineas, opciones(a), datos_cotizador(), a.contrato_pct))
+        return sin_nan(au.con_sin_tarifa(lineas, lambda ls: au.auditar(
+            ls, opciones(a), datos_cotizador(), a.contrato_pct)))
     propia = None
     if a.tarifario == "propia":
         if not a.propia_version_id:
@@ -746,8 +747,10 @@ def calcular_auditoria(a: Auditoria):
         except ValueError as e:
             raise HTTPException(404, str(e)) from e
     T = tarifas_otras(a.soat_version if a.tarifario == "soat" else "base")
-    return sin_nan(au.auditar_tarifa(lineas, a.tarifario, T, a.contrato_pct, a.uvb,
-                                     propia, datos_cotizador(), set(a.anestesia_diag)))
+    auditar = lambda ls: au.auditar_tarifa(ls, a.tarifario, T, a.contrato_pct, a.uvb,  # noqa: E731
+                                           propia, datos_cotizador(), set(a.anestesia_diag))
+    # con tarifa propia los medicamentos e insumos sí se comparan
+    return sin_nan(auditar(lineas) if a.tarifario == "propia" else au.con_sin_tarifa(lineas, auditar))
 
 
 @app.get("/api/tarifarios")

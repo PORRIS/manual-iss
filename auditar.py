@@ -352,8 +352,9 @@ def auditar(lineas, op, d, contrato_pct=0.0):
             continue
         r["valor_manual"] = f["valor"]
         parte = f["cantidad"] / cant_cod[f["codigo"]]
-        aj = [a for a in ajustes if a["codigo"] == f["codigo"]]
-        r["ajustes"] = [dict(a, monto=a["monto"] * parte) for a in aj]
+        # cada ajuste es de una línea; los que no traen línea se reparten entre las del código
+        aj = [a for a in ajustes if a["codigo"] == f["codigo"] and a.get("linea", r["linea"]) == r["linea"]]
+        r["ajustes"] = [a if "linea" in a else dict(a, monto=a["monto"] * parte) for a in aj]
         r["esperado"] = f["base"] + sum(a["monto"] for a in r["ajustes"])
 
     # adicionales por paciente (sin código): se asignan a la primera línea a la que aplican
@@ -509,6 +510,41 @@ def auditar(lineas, op, d, contrato_pct=0.0):
                      comparables=sum(1 for r in res if r["diferencia"] is not None),
                      glosa_sugerida=sum(r["glosa"] for r in res if r["estado"] == "Glosa"),
                      en_revision=sum(1 for r in res if r["estado"] == "Revisar")))
+
+
+def con_sin_tarifa(lineas, auditar_fn):
+    """Con ISS 2001 y SOAT, los medicamentos, insumos y servicios complementarios no tienen tarifa
+    por código (arts. 87 y 88): las líneas que traen 'motivo' (las no_tarifadas de leer_rips) no se
+    comparan y quedan en el estado «Sin tarifa», en su misma posición. auditar_fn audita las demás."""
+    idx = [i for i, ln in enumerate(lineas) if not ln.get("motivo")]
+    out = auditar_fn([lineas[i] for i in idx])
+    if len(idx) == len(lineas):
+        return out
+    tarifadas = iter(out["lineas"])
+    res = []
+    for i, ln in enumerate(lineas):
+        if not ln.get("motivo"):
+            r = next(tarifadas)
+            r["linea"] = i
+            res.append(r)
+            continue
+        cant = int(round(_num(ln.get("cantidad"), 1) or 1))
+        unit = _num(ln.get("valor_unitario"))
+        res.append(dict(
+            linea=i, codigo=str(ln.get("codigo") or "").strip(), cantidad=cant, valor_unitario=unit,
+            descripcion_factura=ln.get("descripcion") or "", origen=ln.get("origen") or "",
+            fecha=ln.get("fecha") or "", seccion=ln.get("seccion") or "", datos=ln.get("datos") or {},
+            alertas=[dict(tipo="Sin tarifa", cita="", texto=ln["motivo"])], ajustes=[], aplicables=[],
+            facturado=None if unit is None else unit * cant, manual=None, valor_manual=None,
+            esperado=None, diferencia=None, estado="Sin tarifa", glosa=0.0,
+            motivo=ln["motivo"].split(":")[0] + ": sin tarifa por código en el tarifario"))
+    s = out["resumen"]
+    extra = [r for r in res if r["manual"] is None and r["alertas"] and r["alertas"][0]["tipo"] == "Sin tarifa"]
+    s["lineas"] = len(res)
+    s["facturado"] += sum(r["facturado"] or 0 for r in extra)
+    s["sin_tarifa"] = len(extra)
+    out["lineas"] = res
+    return out
 
 
 # ---------------------------------------------------------------- SOAT y tarifa propia
