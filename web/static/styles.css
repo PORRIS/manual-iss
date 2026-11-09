@@ -275,7 +275,7 @@ a.pagina:hover { color: var(--morado-oscuro); border-bottom-style: solid; }
 .cot-agregar { display: flex; gap: 12px; flex-wrap: wrap; }
 .cot-agregar .buscador { cursor: text; }
 .cot-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; margin-top: 20px; align-items: start; }
-.cot-principal, .cot-lateral { display: grid; gap: 20px; min-width: 0; }
+.cot-principal, .cot-lateral { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
 .cot-lateral { position: sticky; top: 84px; }
 .cot-rejilla .panel + .panel { margin-top: 0; }
 .cot-tabla { max-height: none; min-height: 0; }
