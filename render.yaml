@@ -1,6 +1,8 @@
 # Despliegue en Render (https://render.com): New > Blueprint > elegir este repositorio.
-# La BD no está en el repositorio (salida/ en .gitignore): se genera en el build con etl.py
-# a partir del XLS, los CSV del PDF y correcciones.csv, que sí están versionados.
+# Las BD no están en el repositorio (salida/ en .gitignore): se generan en el build.
+# - Manual ISS: etl.py a partir del XLS, los CSV del PDF y correcciones.csv.
+# - Manual SOAT 2026 (UVB): soat2026/extraer.py + etl.py desde el PDF de «manual tarifario sota/»,
+#   con sus pruebas; si un control o una prueba falla, el despliegue no se publica.
 services:
   - type: web
     name: manual-iss-2001
@@ -8,7 +10,10 @@ services:
     plan: free
     region: oregon
     branch: master
-    buildCommand: pip install uv && uv sync --frozen && uv run --frozen etl.py
+    buildCommand: >-
+      pip install uv && uv sync --frozen && uv run --frozen etl.py
+      && uv run --frozen soat2026/extraer.py && uv run --frozen soat2026/etl.py
+      && uv run --frozen soat2026/pruebas.py && uv run --frozen soat2026/pruebas_cotizar.py
     startCommand: uv run --frozen uvicorn web.app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /salud
     envVars:
