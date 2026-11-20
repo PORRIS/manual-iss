@@ -122,6 +122,15 @@
     enfermería de la EPS (77 par. 4: 20/25/45 %, PDF pág. 156), recuperación > 6 h (84), mayor y
     adicional de otro especialista (67 y nota del 77). Pruebas: BD 59, cotizador 44, auditoría 40.
 
+31. Manual SOAT 2026 (UVB) en base nueva e independiente: soat2026/ (extraer.py -> etl.py ->
+    manual_soat_2026.db; 89 artículos, 636 agrupadores con padre/hijos, 3.281 procedimientos, 16 controles
+    OK, 18 pruebas). Web: grupo «Manual SOAT 2026 (UVB)» (9 vistas, resumen y Excel organizado) y
+    «Cotizar SOAT 2026» (soat2026/cotizar.py, 19 pruebas). Interpretaciones del cotizador aprobadas
+    (2026-11-20): incruenta = 45 % de la sala del grupo; adicional igual vía u otra especialidad sin
+    sala ni materiales; bilateral antes del porcentaje de adicional; +25 % del art. 86 a solo a
+    honorarios, consultas y valoraciones; conjunto con cirugías sueltas = mayor. Pendiente: Render
+    (el PDF SOAT no está en el repositorio y el build no genera esta base).
+
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
 - Navicat (Windows) no puede abrirla por `\\wsl.localhost` ("database is locked": SQLite no

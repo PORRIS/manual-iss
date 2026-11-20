@@ -42,6 +42,12 @@ import soat_versiones as sv  # noqa: E402
 import tarifas_propias as tp  # noqa: E402
 import cotizar as cz  # noqa: E402
 from rutas import BASE, DB  # noqa: E402
+from soat2026 import exportar_excel as soat26_excel  # noqa: E402
+from soat2026 import cotizar as soat26_cot  # noqa: E402
+
+# Bases de datos que consulta la web: la del Manual ISS (por defecto) y la del Manual SOAT 2026
+# (soat2026/, independiente). Cada vista de VISTAS dice en "bd" de cuál sale.
+BASES = {"iss": DB, "soat2026": BASE / "soat2026" / "salida" / "manual_soat_2026.db"}
 
 ESTATICO = Path(__file__).resolve().parent / "static"
 
@@ -84,11 +90,58 @@ ETIQUETAS = {
     "parecido_actual": "Parecido actual", "codigo_sugerido": "ISS sugerido",
     "descripcion_sugerida": "Descripción sugerida", "parecido_sugerido": "Parecido sugerido",
     "estado_revision": "Estado", "codigo_en_homologacion": "En homologacion.csv",
+    "capitulo": "Cap.", "capitulo_titulo": "Título del capítulo", "articulo_nombre": "Artículo",
+    "grupo_quirurgico": "Grupo quirúrgico", "factor_smldv": "Factor SMLDV", "valor_smldv": "Valor SMLDV",
+    "valor_uvt": "Valor UVT", "valor_uvb": "Valor UVB (2026)", "pagina": "Pág. PDF",
+    "cirujano_uvb": "Cirujano", "anestesiologo_uvb": "Anestesiólogo", "ayudante_uvb": "Ayudante",
+    "sala_uvb": "Derechos de sala", "materiales_uvb": "Materiales", "concepto": "Concepto",
+    "tipo_tarifa": "Tipo de tarifa", "n_procedimientos": "N.º procedimientos",
+    "n_agrupadores": "N.º agrupadores", "n_paragrafos": "N.º parágrafos", "n_hijos": "N.º hijos",
+    "numero": "Número", "elemento": "Elemento", "esperado": "Esperado", "agrupador_id": "Id agrupador",
 }
 
-# vista -> configuración. codigo: columnas comparadas con el código; lista: columnas con códigos
+# vista -> configuración. oculta=True: no sale en el menú, en Inicio ni en la búsqueda global (la
+# vista sigue en la BD y la usa la auditoría). codigo: columnas comparadas con el código; lista: columnas con códigos
 # separados por coma; texto: columnas donde se buscan las palabras; ocultas: no se muestran.
+S26 = dict(bd="soat2026", grupo="Manual SOAT 2026 (UVB)", fuente_pdf="soat2026")
 VISTAS = {
+    "s26_tarifas": dict(S26, vista="v_tarifas", titulo="Tarifas SOAT 2026", icono="etiqueta",
+        descripcion="Todos los procedimientos del Manual SOAT 2026: capítulo, artículo, ruta de "
+                    "agrupadores, grupo quirúrgico (cirugías) o factor y valor en SMLDV, UVT y UVB.",
+        codigo=["codigo"], texto=["descripcion", "agrupador_ruta", "articulo_nombre"],
+        ocultas=["procedimiento_id", "agrupador_id", "descripcion_busqueda", "orden"], orden="orden"),
+    "s26_cirugias": dict(S26, vista="v_cirugias", titulo="Cirugías por grupo", icono="bisturi",
+        descripcion="Cirugías del capítulo III con su grupo quirúrgico y el valor UVB 2026 de "
+                    "cirujano, anestesiólogo, ayudante (grupo 6 en adelante), derechos de sala (art. 49) "
+                    "y materiales (art. 55; en los grupos 20-23 se pagan según consumo).",
+        codigo=["codigo"], texto=["descripcion", "agrupador_ruta", "articulo_nombre"]),
+    "s26_tarifas_grupo": dict(S26, vista="v_tarifas_grupo", titulo="Valores por grupo quirúrgico",
+        icono="capas", descripcion="Código y valor de cada concepto (cirujano, anestesiólogo, ayudante, "
+                    "sala, materiales) por grupo quirúrgico: arts. 48, 49 y 55.",
+        codigo=["codigo"], texto=["concepto", "descripcion"], orden="grupo, concepto"),
+    "s26_articulos": dict(S26, vista="v_articulos", titulo="Capítulos y artículos", icono="libro",
+        descripcion="Los 89 artículos con su capítulo, nombre, tipo de tarifa, número de "
+                    "procedimientos, agrupadores y parágrafos, y el texto del PDF.",
+        codigo=[], texto=["nombre", "texto", "capitulo_titulo"], orden="articulo"),
+    "s26_agrupadores": dict(S26, vista="v_agrupadores_ruta", titulo="Agrupadores (rutas)", icono="arbol",
+        descripcion="Títulos y subtítulos de cada artículo con su ruta completa (padre > hijo), "
+                    "número de hijos y de procedimientos.",
+        codigo=[], texto=["nombre", "ruta"], ocultas=["raiz_id"], orden="agrupador_id"),
+    "s26_notas": dict(S26, vista="v_notas", titulo="Parágrafos y notas", icono="texto",
+        descripcion="Parágrafos, incisos, literales y notas de cada artículo, con su agrupador.",
+        codigo=[], texto=["texto", "articulo_nombre", "agrupador_ruta", "tipo"], orden="id"),
+    "s26_manual_completo": dict(S26, vista="v_manual_completo", titulo="Manual SOAT completo", icono="lista",
+        descripcion="Todo el Manual SOAT 2026 en el orden del PDF: capítulos, artículos, agrupadores, "
+                    "procedimientos y notas.",
+        codigo=["codigo"], texto=["texto"], orden="orden"),
+    "s26_observaciones": dict(S26, vista="v_observaciones_pdf", titulo="Observaciones del PDF", icono="alerta",
+        descripcion="Datos del propio PDF que no cuadran o están vacíos, y diferencias con el "
+                    "Decreto 780 y la tabla SOAT 2026 (.xlsb). Se dejan como vienen en el PDF.",
+        codigo=["codigo"], texto=["detalle", "campo"], orden="id"),
+    "s26_validacion": dict(S26, vista="v_validacion", titulo="Validación SOAT 2026", icono="escudo",
+        descripcion="Controles con los que se construyó la base: cobertura de códigos, relectura del "
+                    "PDF, aritmética de los valores y cruces con otras fuentes.",
+        codigo=[], texto=["control", "detalle", "resultado"]),
     "v_manual_completo": dict(
         titulo="Manual completo", grupo="General", icono="libro",
         descripcion="Todo el Manual en el orden del Excel: artículos, agrupadores, procedimientos, "
@@ -130,12 +183,12 @@ VISTAS = {
                     "(grupo quirúrgico) aparece sin valor.",
         codigo=["cups", "codigo_soat"], texto=["nombre_cups", "descripcion_soat", "observacion"]),
     "v_soat_grupos": dict(
-        titulo="Cirugía SOAT por grupo", grupo="SOAT y tarifas propias", icono="bisturi",
+        titulo="Cirugía SOAT por grupo", grupo="SOAT y tarifas propias", icono="bisturi", oculta=True,
         descripcion="Grupo quirúrgico de cada procedimiento (Decreto 780 de 2016, anexo técnico 1) "
                     "y valor 2026 de cirujano, anestesiólogo, ayudante, sala y materiales.",
         codigo=["codigo"], texto=["descripcion"], orden="codigo"),
     "v_soat_reglas_cirugia": dict(
-        titulo="Reglas de cirugía SOAT", grupo="SOAT y tarifas propias", icono="porcentaje",
+        titulo="Reglas de cirugía SOAT", grupo="SOAT y tarifas propias", icono="porcentaje", oculta=True,
         descripcion="Porcentajes del decreto para bilaterales y cirugías múltiples (numerales 48.2, "
                     "54.2, 54.5 y 69 a 72).",
         codigo=["regla"], texto=["texto", "componente"]),
@@ -278,16 +331,31 @@ def norm(x):
     return "".join(c for c in s if not unicodedata.combining(c)).upper()
 
 
-def conexion():
-    if not DB.exists():
-        raise HTTPException(503, f"No existe la base {DB}. Genérela con ./actualizar.sh")
-    con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+def conexion(bd="iss"):
+    db = BASES[bd]
+    if not db.exists():
+        script = "soat2026/actualizar.sh" if bd == "soat2026" else "./actualizar.sh"
+        raise HTTPException(503, f"No existe la base {db}. Genérela con {script}")
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     con.create_function("NORM", 1, norm, deterministic=True)
     return con
 
 
+def sql_de(vista):
+    """Nombre de la vista en su BD (las de SOAT 2026 usan un id distinto: s26_...)."""
+    return VISTAS[vista].get("vista", vista)
+
+
+def con_de(vista):
+    return conexion(VISTAS[vista].get("bd", "iss"))
+
+
+def disponible(vista):
+    return BASES[VISTAS[vista].get("bd", "iss")].exists()
+
+
 def columnas(con, vista):
-    todas = [r[1] for r in con.execute(f"PRAGMA table_info({vista})")]
+    todas = [r[1] for r in con.execute(f"PRAGMA table_info({sql_de(vista)})")]
     return [c for c in todas if c not in VISTAS[vista].get("ocultas", [])]
 
 
@@ -361,13 +429,17 @@ def orden_sql(cfg, cols, orden, dir_):
 
 @app.get("/api/vistas")
 def api_vistas():
-    with conexion() as con:
-        return [
-            dict(id=v, titulo=c["titulo"], grupo=c["grupo"], icono=c["icono"],
-                 descripcion=c["descripcion"], por_codigo=bool(c["codigo"] or c.get("lista")),
-                 total=con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0])
-            for v, c in VISTAS.items()
-        ]
+    """Vistas del menú. Las de una BD que no existe (p. ej. SOAT 2026 sin generar) no se listan."""
+    res = []
+    for v, c in VISTAS.items():
+        if c.get("oculta") or not disponible(v):
+            continue
+        with con_de(v) as con:
+            total = con.execute(f"SELECT COUNT(*) FROM {sql_de(v)}").fetchone()[0]
+        res.append(dict(id=v, titulo=c["titulo"], grupo=c["grupo"], icono=c["icono"],
+                        descripcion=c["descripcion"], por_codigo=bool(c["codigo"] or c.get("lista")),
+                        fuente_pdf=c.get("fuente_pdf", "pdf"), total=total))
+    return res
 
 
 @app.get("/api/datos/{vista}")
@@ -375,13 +447,13 @@ def api_datos(vista: str, q: str = "", modo: str = "auto", pagina: int = Query(1
               tamano: int = 25, orden: str = "", dir: str = "asc"):
     cfg = config(vista)
     tamano = tamano if tamano in TAMANOS else 25
-    with conexion() as con:
+    with con_de(vista) as con:
         cols = columnas(con, vista)
         where, params, modo_usado = filtro(cfg, q, modo)
-        total = con.execute(f"SELECT COUNT(*) FROM {vista}").fetchone()[0]
-        filtrados = con.execute(f"SELECT COUNT(*) FROM {vista} {where}", params).fetchone()[0]
+        total = con.execute(f"SELECT COUNT(*) FROM {sql_de(vista)}").fetchone()[0]
+        filtrados = con.execute(f"SELECT COUNT(*) FROM {sql_de(vista)} {where}", params).fetchone()[0]
         filas = con.execute(
-            f"SELECT {', '.join(cols)} FROM {vista} {where} {orden_sql(cfg, cols, orden, dir)} "
+            f"SELECT {', '.join(cols)} FROM {sql_de(vista)} {where} {orden_sql(cfg, cols, orden, dir)} "
             f"LIMIT ? OFFSET ?", [*params, tamano, (pagina - 1) * tamano]).fetchall()
     return dict(columnas=[dict(id=c, etiqueta=ETIQUETAS.get(c, c)) for c in cols],
                 filas=filas, total=total, filtrados=filtrados, pagina=pagina, tamano=tamano,
@@ -392,14 +464,16 @@ def api_datos(vista: str, q: str = "", modo: str = "auto", pagina: int = Query(1
 def api_buscar(q: str, modo: str = "auto"):
     """Cuántas filas coinciden en cada vista (búsqueda global desde Inicio)."""
     res = []
-    with conexion() as con:
-        for v, cfg in VISTAS.items():
-            try:
-                where, params, m = filtro(cfg, q, modo)
-            except HTTPException:
-                continue
-            n = con.execute(f"SELECT COUNT(*) FROM {v} {where}", params).fetchone()[0]
-            res.append(dict(id=v, titulo=cfg["titulo"], icono=cfg["icono"], coincidencias=n, modo=m))
+    for v, cfg in VISTAS.items():
+        if cfg.get("oculta") or not disponible(v):
+            continue
+        try:
+            where, params, m = filtro(cfg, q, modo)
+        except HTTPException:
+            continue
+        with con_de(v) as con:
+            n = con.execute(f"SELECT COUNT(*) FROM {sql_de(v)} {where}", params).fetchone()[0]
+        res.append(dict(id=v, titulo=cfg["titulo"], icono=cfg["icono"], coincidencias=n, modo=m))
     return res
 
 
@@ -407,10 +481,10 @@ def api_buscar(q: str, modo: str = "auto"):
 def api_exportar(vista: str, q: str = "", modo: str = "auto", orden: str = "", dir: str = "asc",
                  completo: bool = False):
     cfg = config(vista)
-    with conexion() as con:
+    with con_de(vista) as con:
         cols = columnas(con, vista)
         where, params, modo_usado = ("", [], None) if completo else filtro(cfg, q, modo)
-        filas = con.execute(f"SELECT {', '.join(cols)} FROM {vista} {where} "
+        filas = con.execute(f"SELECT {', '.join(cols)} FROM {sql_de(vista)} {where} "
                             f"{orden_sql(cfg, cols, orden, dir)} LIMIT {MAX_EXCEL}", params).fetchall()
 
     wb = Workbook()
@@ -443,7 +517,9 @@ def api_exportar(vista: str, q: str = "", modo: str = "auto", orden: str = "", d
         info.append(["Modo", modo_usado])
     info.append(["Filas", len(filas)])
     info.append(["Generado", datetime.now().strftime("%Y-%m-%d %H:%M")])
-    info.append(["Fuente", "Manual Tarifario ISS 2001 (Acuerdo 256 de 2001) - salida/manual_iss.db"])
+    info.append(["Fuente", "Manual Tarifario SOAT 2026 (UVB) - soat2026/salida/manual_soat_2026.db"
+                 if cfg.get("bd") == "soat2026" else
+                 "Manual Tarifario ISS 2001 (Acuerdo 256 de 2001) - salida/manual_iss.db"])
     info.column_dimensions["A"].width = 12
     info.column_dimensions["B"].width = 70
     for (celda,) in info.iter_rows(min_col=1, max_col=1):
@@ -453,7 +529,7 @@ def api_exportar(vista: str, q: str = "", modo: str = "auto", orden: str = "", d
     wb.save(buf)
     buf.seek(0)
     sufijo = "completo" if completo else ("filtrado" if q.strip() else "todo")
-    nombre = f"{vista.removeprefix('v_')}_{sufijo}_{datetime.now():%Y%m%d_%H%M}.xlsx"
+    nombre = f"{sql_de(vista).removeprefix('v_')}{'_soat2026' if cfg.get('bd') == 'soat2026' else ''}_{sufijo}_{datetime.now():%Y%m%d_%H%M}.xlsx"
     return StreamingResponse(
         buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
@@ -465,6 +541,10 @@ FUENTES = {
                 titulo="Manual Tarifario ISS 2001 (PDF)",
                 descripcion="Acuerdo 256 de 2001. Fuente oficial: la base se validó contra este "
                             "documento y, donde difiere del Excel, manda el PDF."),
+    "soat2026": dict(archivo="manual tarifario sota/Manual-Tarifario-SOAT-2026-uvb.pdf", tipo="application/pdf",
+                     titulo="Manual Tarifario SOAT 2026 - UVB (PDF)",
+                     descripcion="Decreto 2423 de 1996 actualizado a 2026 en SMLDV, UVT y UVB. Fuente de "
+                                 "la base del menú «Manual SOAT 2026 (UVB)»."),
     "excel": dict(archivo="manual_iss.xls", tipo="application/vnd.ms-excel",
                   titulo="Manual Tarifario ISS 2001 (Excel)",
                   descripcion="Fuente secundaria: de aquí se cargaron las filas de la base, que "
@@ -497,6 +577,7 @@ def api_fuentes():
         if ruta.exists():
             res.append(dict(id=fid, archivo=f["archivo"], titulo=f["titulo"],
                             descripcion=f["descripcion"], bytes=ruta.stat().st_size,
+                            es_pdf=f["tipo"] == "application/pdf",
                             sha256=sha256(ruta)))
     return res
 
@@ -506,8 +587,47 @@ def fuente(fid: str, descargar: bool = False):
     """PDF: se abre en el navegador (admite #page=N); ?descargar=1 lo descarga."""
     ruta = ruta_fuente(fid)
     return FileResponse(ruta, media_type=FUENTES[fid]["tipo"], filename=ruta.name,
-                        content_disposition_type="attachment" if descargar or fid != "pdf"
+                        content_disposition_type="attachment" if descargar or FUENTES[fid]["tipo"] != "application/pdf"
                         else "inline")
+
+
+# ---------------------------------------------------------------- Manual SOAT 2026: resumen y Excel
+@app.get("/api/soat2026/resumen")
+def api_soat2026_resumen():
+    with conexion("soat2026") as con:
+        uno = lambda sql: con.execute(sql).fetchone()[0]  # noqa: E731
+        return dict(
+            parametros=[dict(concepto=c, valor=v, descripcion=d) for c, v, d in
+                        con.execute("SELECT concepto, valor, descripcion FROM parametros")],
+            conteos=dict(capitulos=uno("SELECT COUNT(*) FROM capitulos"),
+                         articulos=uno("SELECT COUNT(*) FROM articulos"),
+                         agrupadores=uno("SELECT COUNT(*) FROM agrupadores"),
+                         procedimientos=uno("SELECT COUNT(*) FROM procedimientos"),
+                         cirugias=uno("SELECT COUNT(*) FROM procedimientos WHERE grupo_quirurgico IS NOT NULL"),
+                         con_valor=uno("SELECT COUNT(*) FROM procedimientos WHERE grupo_quirurgico IS NULL"),
+                         notas=uno("SELECT COUNT(*) FROM notas")),
+            capitulos=[dict(numero=n, titulo=t, articulos=a, procedimientos=p) for n, t, a, p in con.execute(
+                "SELECT c.numero, c.titulo, COUNT(DISTINCT a.numero), COALESCE(SUM(a.n_procedimientos), 0) "
+                "FROM capitulos c LEFT JOIN articulos a ON a.capitulo_id = c.id GROUP BY c.id ORDER BY c.id")],
+            validacion=dict(ok=uno("SELECT COUNT(*) FROM validacion WHERE resultado = 'OK'"),
+                            total=uno("SELECT COUNT(*) FROM validacion")),
+            hojas=[h for h, _ in soat26_excel.HOJAS],
+        )
+
+
+@app.get("/api/soat2026/excel")
+def api_soat2026_excel():
+    """Excel organizado del Manual SOAT 2026: una hoja por tema (exportar_excel.py)."""
+    db = BASES["soat2026"]
+    if not db.exists():
+        raise HTTPException(503, "No existe la base del Manual SOAT 2026. Genérela con soat2026/actualizar.sh")
+    buf = io.BytesIO()
+    soat26_excel.escribir(buf, db)
+    buf.seek(0)
+    nombre = f"manual_soat_2026_{datetime.now():%Y%m%d_%H%M}.xlsx"
+    return StreamingResponse(
+        buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
 
 
 # ---------------------------------------------------------------- cotizador
@@ -1055,3 +1175,109 @@ def inicio():
 
 
 app.mount("/static", StaticFiles(directory=ESTATICO), name="static")
+
+
+# ---------------------------------------------------------------- Manual SOAT 2026: cotizador
+_S26 = {}
+
+
+def datos_s26():
+    """Datos del cotizador SOAT 2026; se recargan si la BD cambió (soat2026/actualizar.sh)."""
+    db = BASES["soat2026"]
+    if not db.exists():
+        raise HTTPException(503, "No existe la base del Manual SOAT 2026. Genérela con soat2026/actualizar.sh")
+    marca = db.stat().st_mtime
+    if _S26.get("marca") != marca:
+        _S26.update(d=soat26_cot.cargar(db), marca=marca)
+    return _S26["d"]
+
+
+class ItemS26(BaseModel):
+    codigo: str = Field(..., max_length=10)
+    cantidad: int = Field(1, ge=1, le=99)
+    opciones: list[str] = Field(default_factory=list, max_length=10)
+    relacion: str = Field("", max_length=30)
+
+
+class CotizacionS26(BaseModel):
+    items: list[ItemS26] = Field(default_factory=list, max_length=200)
+    uvb: float | None = Field(None, gt=0, le=1_000_000)
+    region: str = Field("", max_length=60)
+    exceptuado: bool = False
+
+
+def calcular_s26(c: CotizacionS26):
+    return soat26_cot.cotizar([i.model_dump() for i in c.items], datos_s26(), c.uvb, c.region, c.exceptuado)
+
+
+@app.get("/api/soat2026/cotizador")
+def api_s26_cotizador():
+    d = datos_s26()
+    return dict(uvb=d["uvb"], regiones=list(soat26_cot.REGIONES_86), exceptuados=list(soat26_cot.EXCEPTUADOS_86),
+                relaciones=[dict(id=k, texto=v) for k, v in soat26_cot.RELACION_TXT.items()])
+
+
+@app.get("/api/soat2026/buscar")
+def api_s26_buscar(q: str = Query("", max_length=100)):
+    """Sugerencias para agregar códigos por texto o por inicio de código (máximo 20)."""
+    ts = tokens(q)
+    if not ts:
+        return []
+    with conexion("soat2026") as con:
+        if all(t.isdigit() for t in ts) and len(ts) == 1:
+            where, params = "codigo LIKE ?", [ts[0] + "%"]
+        else:
+            where = " AND ".join("descripcion_busqueda LIKE ? ESCAPE '\\'" for _ in ts)
+            params = ["%" + escapar(norm(t)) + "%" for t in ts]
+        filas = con.execute(f"SELECT codigo, descripcion, grupo_quirurgico, valor_uvb, articulo_nombre "
+                            f"FROM v_tarifas WHERE {where} ORDER BY orden LIMIT 20", params).fetchall()
+    return [dict(codigo=c, descripcion=dsc, grupo=g, valor_uvb=v, articulo=a) for c, dsc, g, v, a in filas]
+
+
+@app.post("/api/soat2026/cotizar")
+def api_s26_cotizar(c: CotizacionS26):
+    return calcular_s26(c)
+
+
+@app.post("/api/soat2026/cotizar/excel")
+def api_s26_cotizar_excel(c: CotizacionS26):
+    r = calcular_s26(c)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cotización"
+    cab = ["Código", "Descripción", "Concepto", "Base", "Porcentaje", "Valor", "Regla aplicada"]
+    ws.append(cab)
+    nombres = dict(soat26_cot.CONCEPTOS, tarifa="Tarifa", anestesia="Anestesia general", perfusionista="Perfusionista")
+    for ln in r["lineas"]:
+        ws.append([ln["codigo"], ln["descripcion"], nombres.get(ln["concepto"], ln["concepto"]), ln["base"],
+                   ln["porcentaje"] / 100 * (1 + ln["region86"] / 100), ln["valor"], ln["regla"]])
+    ws.append([])
+    ws.append(["", "TOTAL", "", "", "", r["total"]])
+    verde = PatternFill("solid", fgColor="1DBB99")
+    for celda in ws[1]:
+        celda.fill, celda.font = verde, Font(bold=True, color="FFFFFF")
+    ws[f"B{ws.max_row}"].font = ws[f"F{ws.max_row}"].font = Font(bold=True)
+    for fila in ws.iter_rows(min_row=2):
+        fila[3].number_format = fila[5].number_format = '"$"#,##0'
+        fila[4].number_format = "0.##%"
+    for col, ancho in zip("ABCDEFG", (9, 60, 18, 14, 11, 14, 90)):
+        ws.column_dimensions[col].width = ancho
+    ws.freeze_panes = "A2"
+    info = wb.create_sheet("Condiciones")
+    for k, v in (("Manual", "Manual Tarifario SOAT 2026 (UVB) - soat2026/salida/manual_soat_2026.db"),
+                 ("UVB", r["uvb"]),
+                 ("Región (art. 86)", r["region"] or ("municipio exceptuado" if c.exceptuado else "no aplica")),
+                 ("Generado", datetime.now().strftime("%Y-%m-%d %H:%M"))):
+        info.append([k, v])
+    for a in r["avisos"]:
+        info.append(["Aviso", a])
+    for e in r["errores"]:
+        info.append(["Error", e])
+    info.column_dimensions["A"].width = 18
+    info.column_dimensions["B"].width = 110
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="cotizacion_soat2026_{datetime.now():%Y%m%d_%H%M}.xlsx"'})

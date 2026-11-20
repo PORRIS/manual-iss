@@ -484,3 +484,15 @@ tr.aud-fuera + tr.aud-detalle td { background: #fffbef; }
 .aud-estado.e-sin-tarifa { background: var(--morado-claro); color: var(--morado); border-color: #d6d0ec; }
 tr.aud-fila.e-sin-tarifa td:first-child { box-shadow: inset 3px 0 0 var(--morado); }
 .aud-cuenta.e-sin-tarifa { background: var(--morado-claro); color: var(--morado); }
+
+/* Manual SOAT 2026: subtítulos de la página de resumen */
+.subtitulo-s26 { margin: 24px 0 10px; font-size: 15px; font-weight: 600; }
+
+/* Cotizador SOAT 2026: sugerencias de búsqueda y campo de UVB */
+.s26-sugerencias { margin-top: 10px; border: 1px solid var(--borde); border-radius: 8px; max-height: 320px; overflow: auto; background: #fff; }
+.s26-sug { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 10px; width: 100%; padding: 8px 12px; border: 0;
+  border-bottom: 1px solid var(--borde); background: none; text-align: left; cursor: pointer; font: inherit; font-size: 13px; }
+.s26-sug:hover { background: var(--verde-claro); }
+.s26-sug .cod { font-weight: 600; color: var(--verde-oscuro); }
+.s26-sug .sutil { color: var(--texto-suave); }
+.s26-num { height: 40px; border: 1px solid var(--borde); border-radius: 8px; padding: 0 10px; font-size: 13.5px; }

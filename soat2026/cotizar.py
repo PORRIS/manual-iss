@@ -1,0 +1,408 @@
+"""Cotizador del Manual Tarifario SOAT 2026 (UVB), sobre soat2026/salida/manual_soat_2026.db.
+
+Una cotización es un paciente y un acto. Cada ítem es un código del Manual con opciones:
+
+- Procedimiento con valor (cap. IV y V, conjuntos del art. 64): factor UVB x UVB, por la cantidad.
+    bilateral       +75 % (art. 70 par. 2; conjuntos: art. 64 par. 3)
+    anestesia       anestesia general en un examen o procedimiento: +50 % de su tarifa (art. 48 a.2);
+                    los códigos 39150-39155 tienen valor propio y se cotizan aparte
+- Cirugía (código con grupo quirúrgico, cap. III): se liquida por componentes del grupo
+    cirujano y anestesiólogo (art. 48 a.1 y a.2), ayudante desde el grupo 06 (art. 48 a.3),
+    derechos de sala (art. 49) y materiales (art. 55; grupos 20-23 a precio de catálogo, par. 1).
+    sin_anestesiologo  anestesia local: no se cobra anestesiólogo
+    sin_ayudante       no se requirió ayudante (art. 48: solo cuando se requiere el recurso)
+    perfusionista      39129, solo grupos especiales 20-23 (art. 48 b)
+    bilateral          honorarios +75 % (art. 70), sala +50 % (art. 49 par. 1), materiales +75 % (art. 55 par. 4)
+    incruenta          en sala quirúrgica o especial (art. 52): sala = 45 % de la sala del grupo y
+                       materiales = 39305 (art. 55 par. 2)
+- Varias cirugías en el mismo acto: la mayor (grupo con mayor honorario de cirujano) va al 100 % y
+  cada adicional según su relación con ella:
+    igual_via          mismo cirujano, igual vía (art. 71): honorarios 50 %; sala y materiales no se suman
+    diferente_via      mismo cirujano, diferente vía (art. 72): honorarios 75 %; sala 50 % (art. 49
+                       par. 1); materiales 75 % (art. 55 inciso del par. 4)
+    otra_especialidad  cirujano de otra especialidad (art. 73): cirujano 100 %, anestesiólogo 75 %
+                       (par. 1), ayudante 50 % solo de la adicional de mayor grupo (par. 2), sala 50 %
+                       (art. 49 par. 1); materiales no se suman
+  Conjuntos (art. 64 par. 4 b): con más de uno, el mayor va al 100 % y cada otro al 25 % (igual vía)
+  o al 70 % (diferente vía u otra especialidad).
+- Región (art. 86): +25 % a consultas, valoraciones, cuidado intrahospitalario y servicios
+  profesionales de cirujano, ginecobstetra, anestesiólogo y ayudante (literal a); +15 % a los
+  exámenes y procedimientos del capítulo IV (literal b). No aplica en los municipios exceptuados.
+- Cada valor se ajusta a la centena más próxima (art. 89).
+
+Uso:
+  uv run soat2026/cotizar.py 19001 21101x2 1101            # código, códigoxcantidad
+  uv run soat2026/cotizar.py 1101 1102:diferente_via 1101:bilateral --region META
+  uv run soat2026/cotizar.py 1101:sin_ayudante:sin_anestesiologo --uvb 11552
+"""
+import argparse
+import re
+import sqlite3
+import sys
+from pathlib import Path
+
+BASE = Path(__file__).resolve().parent
+DB = BASE / "salida" / "manual_soat_2026.db"
+
+OPCIONES_CIRUGIA = ("bilateral", "sin_anestesiologo", "sin_ayudante", "perfusionista", "incruenta")
+OPCIONES_VALOR = ("bilateral", "anestesia")
+RELACIONES = ("igual_via", "diferente_via", "otra_especialidad")
+RELACION_TXT = {"igual_via": "mismo cirujano, igual vía", "diferente_via": "mismo cirujano, diferente vía",
+                "otra_especialidad": "cirujano de otra especialidad"}
+CONCEPTOS = (("cirujano", "Cirujano"), ("anestesiologo", "Anestesiólogo"), ("ayudante", "Ayudante"),
+             ("sala", "Derechos de sala"), ("materiales", "Materiales"))
+PROFESIONALES = {"cirujano", "anestesiologo", "ayudante"}
+
+# Art. 86: departamentos y región con incremento, y municipios exceptuados
+REGIONES_86 = ("AMAZONAS", "ARAUCA", "CASANARE", "CAQUETÁ", "CHOCÓ", "LA GUAJIRA", "GUAINÍA", "GUAVIARE", "META",
+               "PUTUMAYO", "SAN ANDRÉS Y PROVIDENCIA", "SUCRE", "VAUPÉS", "VICHADA", "REGIÓN DE URABÁ")
+EXCEPTUADOS_86 = ("Arauca", "Florencia", "Riohacha", "Sincelejo", "Villavicencio", "Yopal")
+# Art. 86 literal a: consultas, valoraciones, cuidado intrahospitalario, recién nacido, urgencias (art. 48 c)
+# y honorarios del parto (39116, ginecobstetra). Perfusión (39129), junta médica (39144) y sutura (39146)
+# no están en la lista del literal a.
+LITERAL_A = {"39116", "39130", "39131", "39132", "39133", "39134", "39135", "39136", "39137", "39138", "39139",
+             "39140", "39141", "39143", "39145", "39149", "39150", "39151", "39152", "39153", "39154", "39155"}
+RE_ITEM = re.compile(r"^(?P<codigo>\d{4,6})(?:x(?P<cant>\d+))?(?P<opc>(?::[a-z_]+)*)$")
+
+
+def centena(v):
+    """Art. 89: ajuste a la centena más próxima (las mitades suben)."""
+    return int((v + 50) // 100 * 100) if v >= 0 else -centena(-v)
+
+
+def pesos(v):
+    return "$" + f"{v:,.0f}".replace(",", ".")
+
+
+# ------------------------------------------------------------------------------------- datos
+def cargar(db=DB):
+    if not Path(db).exists():
+        raise FileNotFoundError(f"No existe {db}: genérela con soat2026/actualizar.sh")
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    procs = {}
+    for cod, desc, art, grupo, fuvb, pag, cap in con.execute(
+            "SELECT p.codigo, p.descripcion, p.articulo, p.grupo_quirurgico, p.factor_uvb, p.pagina, c.numero "
+            "FROM procedimientos p JOIN articulos a ON a.numero = p.articulo "
+            "JOIN capitulos c ON c.id = a.capitulo_id"):
+        procs[cod] = dict(codigo=cod, descripcion=desc, articulo=art, grupo=grupo, factor_uvb=fuvb,
+                          pagina=pag, capitulo=cap)
+    grupos = {}
+    for grupo, concepto, cod in con.execute(
+            "SELECT g.grupo, g.concepto, p.codigo FROM tarifas_grupo g JOIN procedimientos p ON p.id = g.procedimiento_id"):
+        grupos[(grupo, concepto)] = cod
+    uvb = con.execute("SELECT valor FROM parametros WHERE concepto = 'UVB'").fetchone()[0]
+    con.close()
+    return dict(procs=procs, grupos=grupos, uvb=uvb)
+
+
+def valor(d, cod, uvb):
+    """Valor en pesos de un código con factor UVB (art. 89: a la centena)."""
+    f = d["procs"][cod]["factor_uvb"]
+    return centena(f * uvb) if f is not None else None
+
+
+# ------------------------------------------------------------------------------------- lectura
+def leer_items(textos):
+    """'1101', '19001x2', '1102:diferente_via:bilateral' -> [{codigo, cantidad, opciones, relacion}]"""
+    items, errores = [], []
+    for t in textos:
+        t = t.strip()
+        if not t:
+            continue
+        m = RE_ITEM.match(t.lower())
+        if not m:
+            errores.append(f"«{t}»: escriba CODIGO, CODIGOxCANTIDAD o CODIGO:opcion (ej. 1101:bilateral)")
+            continue
+        opc = [o for o in m["opc"].split(":") if o]
+        rel = [o for o in opc if o in RELACIONES]
+        malas = [o for o in opc if o not in RELACIONES and o not in OPCIONES_CIRUGIA + OPCIONES_VALOR]
+        if malas:
+            errores.append(f"«{t}»: opción desconocida {', '.join(malas)}")
+            continue
+        items.append(dict(codigo=m["codigo"], cantidad=int(m["cant"] or 1),
+                          opciones=[o for o in opc if o not in RELACIONES], relacion=rel[0] if rel else ""))
+    return items, errores
+
+
+# ------------------------------------------------------------------------------------- cálculo
+def cotizar(items, d, uvb=None, region="", exceptuado=False):
+    """items: [{codigo, cantidad, opciones: [...], relacion: ''|igual_via|diferente_via|otra_especialidad}]
+    Devuelve {lineas, total, avisos, errores, uvb, region}. Cada línea: item (índice), codigo, descripcion,
+    concepto, base, porcentaje, valor, regla."""
+    uvb = uvb or d["uvb"]
+    region = (region or "").strip().upper()
+    if region and region not in REGIONES_86:
+        return dict(lineas=[], total=0, avisos=[], errores=[f"Región «{region}» no está en el art. 86"],
+                    uvb=uvb, region=region)
+    lineas, avisos, errores = [], [], []
+    cirugias, conjuntos = [], []
+    info = []      # por ítem de entrada: tipo, grupo y si es la intervención mayor del acto
+
+    def linea(i, it, concepto, base, pct, regla, codigo=None, descripcion=None):
+        lineas.append(dict(item=i, codigo=codigo or it["codigo"], descripcion=descripcion or it["descripcion"],
+                           concepto=concepto, base=base, porcentaje=pct, valor=centena(base * pct / 100),
+                           regla=regla, region86=0))
+
+    # 1) validar y separar
+    norm = []
+    for i, it in enumerate(items):
+        p = d["procs"].get(str(it["codigo"]).strip())
+        if not p:
+            errores.append(f"El código {it['codigo']} no está en el Manual SOAT 2026")
+            info.append(dict(item=i, codigo=str(it["codigo"]), error=True))
+            continue
+        tipo = ("cirugia" if p["grupo"] is not None else
+                "conjunto" if p["articulo"] == 64 and len(p["codigo"]) == 6 else "valor")
+        info.append(dict(item=i, codigo=p["codigo"], descripcion=p["descripcion"], tipo=tipo, grupo=p["grupo"],
+                         articulo=p["articulo"], pagina=p["pagina"], mayor=False,
+                         opciones=list(OPCIONES_CIRUGIA if tipo == "cirugia" else OPCIONES_VALOR)))
+        it = dict(it, **{k: p[k] for k in ("descripcion", "articulo", "grupo", "capitulo", "pagina")})
+        it["opciones"] = list(dict.fromkeys(it.get("opciones") or []))
+        it["cantidad"] = max(1, int(it.get("cantidad") or 1))
+        it["i"] = i
+        norm.append(it)
+        if p["grupo"] is not None:
+            malas = [o for o in it["opciones"] if o not in OPCIONES_CIRUGIA]
+            if malas:
+                avisos.append(f"{p['codigo']}: la opción {', '.join(malas)} no aplica a una cirugía; se ignora")
+            for n in range(it["cantidad"]):    # cada repetición es otra cirugía del mismo acto
+                cirugias.append(dict(it, cantidad=1, rep=n))
+        else:
+            malas = [o for o in it["opciones"] if o not in OPCIONES_VALOR]
+            if malas:
+                avisos.append(f"{p['codigo']}: la opción {', '.join(malas)} solo aplica a cirugías; se ignora")
+            if p["factor_uvb"] is None:
+                errores.append(f"{p['codigo']}: el PDF no trae valor para este código")
+            elif p["articulo"] == 64 and len(p["codigo"]) == 6:   # conjuntos quirúrgicos (502001...)
+                conjuntos.append(it)
+            else:
+                valorado(it, d, uvb, linea, avisos)
+
+    # 2) cirugías: componentes del grupo y porcentajes del mismo acto
+    mayores = set()
+    if cirugias:
+        mayores.add(liquidar_cirugias(cirugias, d, uvb, linea, avisos, errores))
+    # 3) conjuntos de atención integral (art. 64)
+    if conjuntos:
+        mayores.add(liquidar_conjuntos(conjuntos, d, uvb, linea, avisos, bool(cirugias)))
+    for x in info:
+        x["mayor"] = x["item"] in mayores
+
+    # 4) art. 86: incremento regional
+    if region and not exceptuado:
+        for ln in lineas:
+            pct = incremento_86(ln, d)
+            if pct:
+                ln["region86"] = pct
+                ln["valor"] = centena(ln["valor"] * (1 + pct / 100))
+                ln["regla"] += f"; +{pct} % región (art. 86 literal {'a' if pct == 25 else 'b'})"
+    elif region and exceptuado:
+        avisos.append("Municipio exceptuado del art. 86 (Arauca, Florencia, Riohacha, Sincelejo, Villavicencio o "
+                      "Yopal): no se aplica el incremento regional")
+    lineas.sort(key=lambda ln: (ln["item"], [c for c, _ in CONCEPTOS].index(ln["concepto"])
+                                if ln["concepto"] in dict(CONCEPTOS) else 9))
+    return dict(lineas=lineas, total=sum(ln["valor"] for ln in lineas), avisos=avisos, errores=errores,
+                uvb=uvb, region=region if not exceptuado else "", items=info)
+
+
+def incremento_86(ln, d):
+    p = d["procs"].get(ln["codigo"])
+    if ln["concepto"] in PROFESIONALES:
+        return 25
+    if ln["concepto"] == "anestesia":
+        return 25
+    if ln["concepto"] != "tarifa" or not p:
+        return 0
+    if ln["codigo"] in LITERAL_A:
+        return 25
+    if p["capitulo"] == "IV":
+        return 15
+    return 0
+
+
+def valorado(it, d, uvb, linea, avisos):
+    """Procedimiento con valor propio (cap. IV y V)."""
+    v = valor(d, it["codigo"], uvb) * it["cantidad"]
+    pct, regla = 100, f"{d['procs'][it['codigo']]['factor_uvb']:g} UVB x {pesos(uvb)}"
+    if it["cantidad"] > 1:
+        regla += f" x {it['cantidad']}"
+    if "bilateral" in it["opciones"]:
+        pct, regla = 175, regla + "; bilateral +75 % (art. 70 par. 2)"
+    linea(it["i"], it, "tarifa", v, pct, regla)
+    if "anestesia" in it["opciones"]:
+        if it["codigo"].startswith("3915"):
+            avisos.append(f"{it['codigo']} ya es una tarifa de anestesia (art. 48): no se suma el 50 %")
+        else:
+            linea(it["i"], it, "anestesia", v, 50, "anestesia general: 50 % de la tarifa del procedimiento (art. 48 a.2)",
+                  descripcion=f"Anestesia general — {it['descripcion']}")
+
+
+def componentes(c, d, uvb):
+    """Valores base del grupo de una cirugía: {concepto: (código, valor)}."""
+    g = c["grupo"]
+    out = {}
+    for concepto, _ in CONCEPTOS:
+        cod = d["grupos"].get((g, concepto))
+        if cod:
+            out[concepto] = (cod, valor(d, cod, uvb))
+    return out
+
+
+def liquidar_cirugias(cirugias, d, uvb, linea, avisos, errores):
+    validas = []
+    for c in cirugias:
+        comp = componentes(c, d, uvb)
+        if "cirujano" not in comp:
+            errores.append(f"{c['codigo']} (grupo {c['grupo']:02d}): el art. 48 no trae honorarios para este grupo "
+                           "(la tabla empieza en el grupo 02)")
+            continue
+        c["comp"] = comp
+        validas.append(c)
+    if not validas:
+        return None
+    # la mayor: grupo con mayor honorario de cirujano (a igualdad, la primera digitada)
+    mayor = max(validas, key=lambda c: (c["comp"]["cirujano"][1], -c["i"], -c["rep"]))
+    adicionales = [c for c in validas if c is not mayor]
+    # art. 73 par. 2: con otra especialidad, el ayudante solo cobra la adicional de mayor grupo
+    otras = [c for c in adicionales if (c.get("relacion") or "igual_via") == "otra_especialidad"]
+    ayud_otra = max(otras, key=lambda c: c["grupo"]) if otras else None
+    for c in [mayor] + adicionales:
+        es_mayor = c is mayor
+        rel = "" if es_mayor else (c.get("relacion") or "igual_via")
+        o = c["opciones"]
+        g = c["grupo"]
+        bil = "bilateral" in o
+        incruenta = "incruenta" in o
+        sufijo = f" — {'cirugía mayor' if es_mayor and adicionales else ('adicional, ' + RELACION_TXT[rel]) if rel else 'cirugía'}"
+        if c["rep"]:
+            sufijo += f" (repetición {c['rep'] + 1})"
+        for concepto, nombre in CONCEPTOS:
+            if concepto not in c["comp"]:
+                if concepto == "materiales" and g >= 20 and not incruenta:
+                    avisos.append(f"{c['codigo']} (grupo {g}): los materiales de los grupos 20-23 se pagan a precio "
+                                  "comercial de catálogo (art. 55 par. 1); no se cotizan")
+                continue
+            cod, base = c["comp"][concepto]
+            if concepto == "anestesiologo" and "sin_anestesiologo" in o:
+                continue
+            if concepto == "ayudante" and "sin_ayudante" in o:
+                continue
+            reglas = [f"{nombre} grupo {g:02d}"]
+            pct = 100.0
+            # bilateral (art. 70 honorarios; art. 49 par. 1 sala; art. 55 par. 4 materiales)
+            if bil:
+                extra = 50 if concepto == "sala" else 75
+                pct *= 1 + extra / 100
+                reglas.append(f"bilateral +{extra} % ({'art. 49 par. 1' if concepto == 'sala' else 'art. 55 par. 4' if concepto == 'materiales' else 'art. 70'})")
+            # incruenta en sala (art. 52 y art. 55 par. 2)
+            if incruenta and concepto == "sala":
+                pct *= 0.45
+                reglas.append("incruenta: 45 % de la sala del grupo (art. 52)")
+            if incruenta and concepto == "materiales":
+                continue      # se reemplaza por 39305 abajo
+            # cirugía adicional del mismo acto
+            if rel:
+                p = porcentaje_adicional(concepto, rel, c is ayud_otra)
+                if p == 0:
+                    continue
+                pct *= p / 100
+                reglas.append(f"adicional {RELACION_TXT[rel]}: {p:g} % ({ARTICULO_REL[(rel, concepto)]})")
+            linea(c["i"], c, concepto, base, round(pct, 4), "; ".join(reglas),
+                  descripcion=f"{c['descripcion']}{sufijo}")
+        if incruenta:
+            mat = valor(d, "39305", uvb)
+            pct = 100.0
+            reglas = ["materiales en procedimiento incruento: 39305 (art. 55 par. 2)"]
+            if rel and porcentaje_adicional("materiales", rel, False):
+                p = porcentaje_adicional("materiales", rel, False)
+                pct = p
+                reglas.append(f"adicional {RELACION_TXT[rel]}: {p:g} %")
+            if not rel or porcentaje_adicional("materiales", rel, False):
+                linea(c["i"], c, "materiales", mat, pct, "; ".join(reglas), codigo="39305",
+                      descripcion=f"{c['descripcion']}{sufijo}")
+        if "perfusionista" in o:
+            if g >= 20:
+                linea(c["i"], c, "perfusionista", valor(d, "39129", uvb), 100,
+                      "perfusionista, grupos especiales 20-23 (art. 48 b)", codigo="39129",
+                      descripcion=f"Perfusionista — {c['descripcion']}")
+            else:
+                avisos.append(f"{c['codigo']}: el perfusionista solo se paga en los grupos especiales 20 a 23 (art. 48 b)")
+    if len(validas) > 1:
+        avisos.append(f"Cirugía mayor del acto: {mayor['codigo']} (grupo {mayor['grupo']:02d}); "
+                      "las demás se liquidan como adicionales según su relación con ella")
+    return mayor["i"]
+
+
+# (relación, concepto) -> artículo que la sustenta
+ARTICULO_REL = {
+    ("igual_via", "cirujano"): "art. 71", ("igual_via", "anestesiologo"): "art. 71", ("igual_via", "ayudante"): "art. 71",
+    ("diferente_via", "cirujano"): "art. 72", ("diferente_via", "anestesiologo"): "art. 72",
+    ("diferente_via", "ayudante"): "art. 72", ("diferente_via", "sala"): "art. 49 par. 1",
+    ("diferente_via", "materiales"): "art. 55 par. 4",
+    ("otra_especialidad", "cirujano"): "art. 73", ("otra_especialidad", "anestesiologo"): "art. 73 par. 1",
+    ("otra_especialidad", "ayudante"): "art. 73 par. 2", ("otra_especialidad", "sala"): "art. 49 par. 1",
+}
+
+
+def porcentaje_adicional(concepto, rel, ayudante_de_la_mayor_adicional):
+    if rel == "igual_via":
+        return 50 if concepto in PROFESIONALES else 0
+    if rel == "diferente_via":
+        return {"cirujano": 75, "anestesiologo": 75, "ayudante": 75, "sala": 50, "materiales": 75}[concepto]
+    if rel == "otra_especialidad":
+        if concepto == "ayudante":
+            return 50 if ayudante_de_la_mayor_adicional else 0
+        return {"cirujano": 100, "anestesiologo": 75, "sala": 50, "materiales": 0}[concepto]
+    return 100
+
+
+def liquidar_conjuntos(conjuntos, d, uvb, linea, avisos, hay_cirugias):
+    vals = [(c, valor(d, c["codigo"], uvb)) for c in conjuntos]
+    mayor = max(vals, key=lambda x: (x[1], -x[0]["i"]))[0]
+    for c, v in vals:
+        pct, regla = 100.0, f"conjunto integral {d['procs'][c['codigo']]['factor_uvb']:g} UVB x {pesos(uvb)} (art. 64)"
+        if "bilateral" in c["opciones"]:
+            pct *= 1.75
+            regla += "; bilateral +75 % (art. 64 par. 3)"
+        if c is not mayor:
+            rel = c.get("relacion") or "igual_via"
+            p = 25 if rel == "igual_via" else 70
+            pct *= p / 100
+            regla += f"; otro conjunto del mismo acto, {RELACION_TXT[rel]}: {p} % (art. 64 par. 4 b)"
+        for n in range(c["cantidad"]):
+            linea(c["i"], c, "tarifa", v, round(pct, 4), regla)
+    if hay_cirugias:
+        avisos.append("Hay conjuntos y cirugías en el mismo acto: el conjunto es la intervención mayor (100 %) y "
+                      "las cirugías se pagan con los porcentajes de adicional (art. 64 par. 4 a); revise la "
+                      "relación de cada cirugía")
+    return mayor["i"]
+
+
+# ------------------------------------------------------------------------------------- consola
+def main():
+    ap = argparse.ArgumentParser(description="Cotizador del Manual Tarifario SOAT 2026 (UVB)")
+    ap.add_argument("items", nargs="+", help="CODIGO, CODIGOxCANTIDAD, CODIGO:opcion[:opcion] "
+                    f"(cirugía: {', '.join(OPCIONES_CIRUGIA + RELACIONES)}; con valor: {', '.join(OPCIONES_VALOR)})")
+    ap.add_argument("--uvb", type=float, help="valor de la UVB (por defecto el del PDF: 12.110)")
+    ap.add_argument("--region", default="", help=f"departamento del art. 86: {', '.join(REGIONES_86)}")
+    ap.add_argument("--exceptuado", action="store_true", help="municipio exceptuado del art. 86")
+    a = ap.parse_args()
+    d = cargar()
+    items, errores = leer_items(a.items)
+    if errores:
+        sys.exit("\n".join(errores))
+    r = cotizar(items, d, a.uvb, a.region, a.exceptuado)
+    for e in r["errores"]:
+        print("ERROR:", e)
+    print(f"UVB {pesos(r['uvb'])}" + (f" · región {r['region']} (art. 86)" if r["region"] else ""))
+    for ln in r["lineas"]:
+        print(f"  {ln['codigo']:>6}  {ln['concepto']:<14} {pesos(ln['base']):>13} x {ln['porcentaje']:>7g} % "
+              f"= {pesos(ln['valor']):>13}   {ln['descripcion'][:50]}  [{ln['regla']}]")
+    print(f"TOTAL {pesos(r['total'])}")
+    for av in r["avisos"]:
+        print("AVISO:", av)
+    sys.exit(1 if r["errores"] else 0)
+
+
+if __name__ == "__main__":
+    main()

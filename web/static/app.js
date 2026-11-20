@@ -45,7 +45,7 @@ const icono = (n) => `<svg class="icono" viewBox="0 0 24 24" aria-hidden="true">
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 4 });
-const SIN_SEPARADOR = new Set(["pagina_pdf", "articulo", "nivel", "fila_excel", "orden", "id", "n_componentes", "padre_id", "raiz_id"]);
+const SIN_SEPARADOR = new Set(["pagina_pdf", "pagina", "grupo_quirurgico", "grupo", "agrupador_id", "articulo", "nivel", "fila_excel", "orden", "id", "n_componentes", "padre_id", "raiz_id"]);
 const COL_CODIGO = new Set(["codigo", "ref", "paquete", "paquete_codigo", "componente_codigo", "pb", "marca"]);
 const sinTildes = (c) => c.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
 
@@ -137,6 +137,11 @@ function navegar(cambios, reemplazar = false) {
 }
 
 // ---------- Menú ----------
+const GRUPO_S26 = "Manual SOAT 2026 (UVB)";
+/** PDF al que enlaza la columna de página de la vista actual ("pdf": ISS; "soat2026": SOAT). */
+const fuenteVista = () => VISTAS.find((x) => x.id === estado.vista)?.fuente_pdf || "pdf";
+const esColPagina = (c) => c === "pagina_pdf" || c === "paginas_pdf" || (c === "pagina" && fuenteVista() !== "pdf");
+
 function pintarMenu() {
   const grupos = {};
   VISTAS.forEach((v) => (grupos[v.grupo] ||= []).push(v));
@@ -147,6 +152,8 @@ function pintarMenu() {
       <a class="menu__item" href="#/auditar" data-vista="auditar">${icono("lupa")}<span>Auditar factura</span></a>`;
     if (g === "SOAT y tarifas propias") h += `<a class="menu__item" href="#/soat-versiones" data-vista="soat-versiones">${icono("calendario")}<span>Versiones de tarifa SOAT</span></a>
       <a class="menu__item" href="#/tarifas-propias" data-vista="tarifas-propias">${icono("subir")}<span>Manuales de tarifas propias</span></a>`;
+    if (g === GRUPO_S26) h += `<a class="menu__item" href="#/soat2026" data-vista="soat2026">${icono("descarga")}<span>Resumen y descarga Excel</span></a>
+      <a class="menu__item" href="#/soat2026-cotizar" data-vista="soat2026-cotizar">${icono("calculadora")}<span>Cotizar SOAT 2026</span></a>`;
     h += vs.map((v) => `<a class="menu__item" href="#/${v.id}" data-vista="${v.id}">${icono(v.icono)}
       <span>${esc(v.titulo)}</span><small>${fmt.format(v.total)}</small></a>`).join("");
   }
@@ -240,7 +247,11 @@ async function pintarInicio() {
       <div class="tarjeta-vista__icono">${icono(v.icono)}</div>
       <div><h3>${esc(v.titulo)}</h3><p>${esc(v.descripcion)}</p>
         <div class="cifra"><b>${fmt.format(v.total)}</b> filas</div></div>${insignia}</button>`;
-  }).join("") + `<button class="tarjeta-vista tarjeta-fuentes" data-vista="fuentes">
+  }).join("") + (VISTAS.some((v) => v.grupo === GRUPO_S26) ? `<button class="tarjeta-vista tarjeta-cotizar" data-vista="soat2026">
+      <div class="tarjeta-vista__icono">${icono("descarga")}</div>
+      <div><h3>Manual SOAT 2026 (UVB)</h3><p>Resumen de la base nueva del Manual SOAT 2026 (capítulos, artículos,
+        agrupadores y procedimientos) y descarga del Excel organizado por hojas.</p></div></button>` : "")
+    + `<button class="tarjeta-vista tarjeta-fuentes" data-vista="fuentes">
       <div class="tarjeta-vista__icono">${icono("documento")}</div>
       <div><h3>PDF y Excel originales</h3><p>Descargue los documentos de donde sale la información:
         el PDF oficial del Acuerdo 256 de 2001 y el Excel de origen.</p></div></button>`;
@@ -327,7 +338,7 @@ function palabrasResaltado(d) {
 function celda(col, valor, palabras) {
   if (valor === null || valor === undefined || valor === "") return `<td class="vacio">—</td>`;
   if (col === "tipo_fila") return `<td><span class="etiqueta-fila">${esc(valor)}</span></td>`;
-  if (col === "pagina_pdf" || col === "paginas_pdf") return `<td class="num">${enlacesPaginas(valor)}</td>`;
+  if (esColPagina(col)) return `<td class="num">${enlacesPaginas(valor, fuenteVista())}</td>`;
   if (col === "resultado") return `<td><span class="resultado ${valor === "OK" ? "ok" : "revisar"}">${esc(valor)}</span></td>`;
   if (typeof valor === "number") {
     return `<td class="num">${SIN_SEPARADOR.has(col) ? valor : fmt.format(valor)}</td>`;
@@ -337,9 +348,9 @@ function celda(col, valor, palabras) {
 }
 
 /** Páginas del PDF como enlaces que abren el PDF en esa página ("3,9,25" -> 3 enlaces). */
-function enlacesPaginas(valor) {
+function enlacesPaginas(valor, fuente = "pdf") {
   return String(valor).split(/\s*,\s*/).filter(Boolean).map((p) => /^\d+$/.test(p)
-    ? `<a class="pagina" href="/fuentes/pdf#page=${p}" target="_blank" rel="noopener" title="Abrir el PDF en la página ${p}">${p}</a>`
+    ? `<a class="pagina" href="/fuentes/${fuente}#page=${p}" target="_blank" rel="noopener" title="Abrir el PDF en la página ${p}">${p}</a>`
     : esc(p)).join(", ");
 }
 
@@ -412,7 +423,7 @@ function abrirDetalle(d, i) {
     const v = f[j];
     const vacio = v === null || v === undefined || v === "";
     const txt = vacio ? "—" : typeof v === "number" && !SIN_SEPARADOR.has(c.id) ? fmt.format(v) : v;
-    const html = !vacio && (c.id === "pagina_pdf" || c.id === "paginas_pdf") ? enlacesPaginas(v) : esc(txt);
+    const html = !vacio && esColPagina(c.id) ? enlacesPaginas(v, fuenteVista()) : esc(txt);
     return `<div class="campo"><dt>${esc(c.etiqueta)}</dt><dd class="${vacio ? "vacio" : ""}">${html}</dd></div>`;
   }).join("")}</dl>`;
   if (codigo) {
@@ -485,7 +496,7 @@ async function pintarFuentes() {
   try { fs = await api("/api/fuentes"); } catch (e) { $("#fuentes").innerHTML = `<div class="estado">${esc(e.message)}</div>`; return; }
   $("#fuentes").innerHTML = fs.map((f) => `
     <article class="fuente">
-      <div class="fuente__icono ${f.id}">${icono(f.id === "pdf" ? "documento" : "excel")}</div>
+      <div class="fuente__icono ${f.es_pdf ? "pdf" : "excel"}">${icono(f.es_pdf ? "documento" : "excel")}</div>
       <div class="fuente__texto">
         <h3>${esc(f.titulo)}</h3>
         <p>${esc(f.descripcion)}</p>
@@ -493,8 +504,8 @@ async function pintarFuentes() {
         <div class="fuente__hash" title="SHA-256">SHA-256: <code>${esc(f.sha256)}</code></div>
       </div>
       <div class="fuente__acciones">
-        ${f.id === "pdf" ? `<a class="boton boton--borde" href="/fuentes/pdf" target="_blank" rel="noopener">${icono("externo")}Ver</a>` : ""}
-        <a class="boton ${f.id === "pdf" ? "boton--verde" : "boton--morado"}" href="/fuentes/${f.id}?descargar=1">${icono("descarga")}Descargar</a>
+        ${f.es_pdf ? `<a class="boton boton--borde" href="/fuentes/${f.id}" target="_blank" rel="noopener">${icono("externo")}Ver</a>` : ""}
+        <a class="boton ${f.es_pdf ? "boton--verde" : "boton--morado"}" href="/fuentes/${f.id}?descargar=1">${icono("descarga")}Descargar</a>
       </div>
     </article>`).join("") + `<p class="ayuda">En las vistas de novedades y validación, el número de página del PDF
       es un enlace: abre el PDF directamente en esa página.</p>`;
@@ -1699,7 +1710,275 @@ function pintarListaSoat() {
       <td class="sin-salto"><a class="boton-icono" href="/api/soat/plantilla?version=${esc(v.id)}" title="Plantilla prellenada con esta versión">${icono("excel")}</a>
         ${v.predeterminada ? "" : `<button class="boton-icono" type="button" data-tarifas-soat="${v.id}" title="Ver tarifas">${icono("lista")}</button>`}
         <button class="boton-icono" type="button" data-usar-soat="${v.id}" title="Usar en una auditoría">${icono("lupa")}</button></td></tr>`).join("")}</tbody></table></div>
-    <p class="ayuda">Las tarifas de la versión por defecto se consultan en «SOAT 2026» y «Cirugía SOAT por grupo».</p>`;
+    <p class="ayuda">Las tarifas de la versión por defecto se consultan en «SOAT 2026»; las cirugías por grupo, en «Manual SOAT 2026 (UVB) → Cirugías por grupo».</p>`;
+}
+
+// ---------- Manual SOAT 2026 (UVB): resumen y descarga del Excel organizado ----------
+async function pintarSoat2026() {
+  $("#migaVista").textContent = "Manual SOAT 2026 (UVB)";
+  const c = $("#contenido");
+  c.dataset.vista = "soat2026";
+  c.innerHTML = `<section class="panel"><div class="cabecera">
+      <div class="cabecera__icono">${icono("libro")}</div>
+      <div><h1>Manual Tarifario SOAT 2026 (UVB)</h1><p>Base de datos nueva, separada del Manual ISS, construida desde el PDF
+        «Manual-Tarifario-SOAT-2026-uvb»: capítulos, artículos, agrupadores (con sus hijos), procedimientos y notas.</p></div></div>
+      <div id="s26"><div class="estado">Cargando…</div></div></section>`;
+  let r;
+  try { r = await api("/api/soat2026/resumen"); } catch (e) { $("#s26").innerHTML = `<div class="estado">${icono("alerta")}<div>${esc(e.message)}</div></div>`; return; }
+  const k = r.conteos;
+  const vistas = VISTAS.filter((v) => v.grupo === GRUPO_S26);
+  $("#s26").innerHTML = `
+    <div class="resumen">
+      <span class="chip">${fmt.format(k.capitulos)} capítulos</span>
+      <span class="chip">${fmt.format(k.articulos)} artículos</span>
+      <span class="chip">${fmt.format(k.agrupadores)} agrupadores</span>
+      <span class="chip">${fmt.format(k.procedimientos)} procedimientos</span>
+      <span class="chip chip--gris">${fmt.format(k.cirugias)} cirugías por grupo · ${fmt.format(k.con_valor)} con valor</span>
+      <span class="chip ${r.validacion.ok === r.validacion.total ? "" : "chip--morado"}">${icono("escudo")}Validación ${r.validacion.ok}/${r.validacion.total} OK</span>
+    </div>
+    <div class="fuentes">
+      <article class="fuente">
+        <div class="fuente__icono excel">${icono("excel")}</div>
+        <div class="fuente__texto"><h3>Excel organizado</h3>
+          <p>Todo el Manual en un solo archivo, una hoja por tema: ${r.hojas.map(esc).join(", ")}.</p></div>
+        <div class="fuente__acciones"><button class="boton boton--morado" id="s26Excel">${icono("descarga")}Descargar Excel</button></div>
+      </article>
+      <article class="fuente">
+        <div class="fuente__icono pdf">${icono("documento")}</div>
+        <div class="fuente__texto"><h3>PDF de origen</h3><p>Manual Tarifario SOAT 2026 (UVB), 102 páginas. En las tablas, el número
+          de página es un enlace que abre el PDF en esa página.</p></div>
+        <div class="fuente__acciones">
+          <a class="boton boton--borde" href="/fuentes/soat2026" target="_blank" rel="noopener">${icono("externo")}Ver</a>
+          <a class="boton boton--verde" href="/fuentes/soat2026?descargar=1">${icono("descarga")}Descargar</a></div>
+      </article>
+    </div>
+    <h3 class="subtitulo-s26">Valores 2026</h3>
+    <div class="tabla-marco"><table><thead><tr><th>Unidad</th><th class="num">Valor</th><th>Descripción</th></tr></thead><tbody>
+      ${r.parametros.map((p) => `<tr><td class="cod">${esc(p.concepto)}</td><td class="num">${pesos(p.valor)}</td><td>${esc(p.descripcion)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <h3 class="subtitulo-s26">Capítulos</h3>
+    <div class="tabla-marco"><table><thead><tr><th>Capítulo</th><th>Título</th><th class="num">Artículos</th><th class="num">Procedimientos</th></tr></thead><tbody>
+      ${r.capitulos.map((x) => `<tr><td class="cod">${esc(x.numero)}</td><td>${esc(x.titulo || "—")}</td><td class="num">${fmt.format(x.articulos)}</td><td class="num">${fmt.format(x.procedimientos)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <h3 class="subtitulo-s26">Consultar</h3>
+    <div class="rejilla">${vistas.map((v) => `<button class="tarjeta-vista" data-vista="${v.id}">
+      <div class="tarjeta-vista__icono">${icono(v.icono)}</div>
+      <div><h3>${esc(v.titulo)}</h3><p>${esc(v.descripcion)}</p><div class="cifra"><b>${fmt.format(v.total)}</b> filas</div></div></button>`).join("")}</div>`;
+  $("#s26").querySelectorAll(".tarjeta-vista").forEach((t) =>
+    t.addEventListener("click", () => navegar({ vista: t.dataset.vista, pagina: 1, orden: "", dir: "asc" })));
+  $("#s26Excel").addEventListener("click", async (ev) => {
+    const b = ev.currentTarget, original = b.innerHTML;
+    b.disabled = true;
+    b.innerHTML = `<span class="giro"></span><span>Generando…</span>`;
+    try {
+      const resp = await fetch("/api/soat2026/excel");
+      if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || resp.statusText);
+      const nombre = (resp.headers.get("Content-Disposition") || "").match(/filename="(.+)"/)?.[1] || "manual_soat_2026.xlsx";
+      const url = URL.createObjectURL(await resp.blob());
+      const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      avisar(`Descargado ${nombre}`);
+    } catch (e) { avisar("No se pudo generar el Excel: " + e.message, true); }
+    finally { b.disabled = false; b.innerHTML = original; }
+  });
+}
+
+// ---------- Cotizador del Manual SOAT 2026 (POST /api/soat2026/cotizar) ----------
+// La cotización se guarda en este navegador. Un ítem: {codigo, cantidad, opciones: [], relacion}.
+const OPC_S26 = {
+  bilateral: ["Bilateral", "Cirugía: honorarios +75 % (art. 70), sala +50 % (art. 49 par. 1), materiales +75 % (art. 55 par. 4). Con valor: +75 % (art. 70 par. 2; conjuntos art. 64 par. 3)"],
+  sin_anestesiologo: ["Anestesia local", "No se cobra anestesiólogo"],
+  sin_ayudante: ["Sin ayudante", "La ayudantía se paga solo cuando se requiere el recurso (art. 48 a.3)"],
+  perfusionista: ["Perfusionista", "39129, solo grupos especiales 20 a 23 (art. 48 b)"],
+  incruenta: ["Incruenta en sala", "Art. 52: sala = 45 % de la del grupo; materiales 39305 (art. 55 par. 2)"],
+  anestesia: ["Anestesia general", "+50 % de la tarifa del procedimiento (art. 48 a.2)"],
+};
+const CONCEPTO_S26 = { tarifa: "Tarifa", cirujano: "Cirujano", anestesiologo: "Anestesiólogo", ayudante: "Ayudante",
+  sala: "Derechos de sala", materiales: "Materiales", anestesia: "Anestesia general", perfusionista: "Perfusionista" };
+const s26Vacia = () => ({ items: [], uvb: "", region: "", exceptuado: false });
+let s26 = (() => { try { return Object.assign(s26Vacia(), JSON.parse(localStorage.getItem("cotizacion_s26")) || {}); } catch { return s26Vacia(); } })();
+let S26_CFG = null, s26Res = null;
+const guardarS26 = () => { try { localStorage.setItem("cotizacion_s26", JSON.stringify(s26)); } catch { /* sin almacenamiento */ } };
+const pedidoS26 = () => ({ items: s26.items, uvb: +s26.uvb || null, region: s26.region, exceptuado: s26.exceptuado });
+
+async function pintarS26Cotizar() {
+  $("#migaVista").textContent = "Cotizar SOAT 2026";
+  const c = $("#contenido");
+  c.dataset.vista = "soat2026-cotizar";
+  if (!S26_CFG) {
+    try { S26_CFG = await api("/api/soat2026/cotizador"); } catch (e) {
+      c.innerHTML = `<div class="panel estado">${icono("alerta")}<div>${esc(e.message)}</div></div>`; return;
+    }
+  }
+  c.innerHTML = `
+    <section class="panel">
+      <div class="cabecera">
+        <div class="cabecera__icono">${icono("calculadora")}</div>
+        <div><h1>Cotizar SOAT 2026</h1><p>Cotiza un paciente con el Manual Tarifario SOAT 2026 (UVB). Los procedimientos con valor
+          se liquidan por factor UVB; las cirugías, por los componentes de su grupo quirúrgico: cirujano, anestesiólogo, ayudante,
+          derechos de sala y materiales (arts. 48, 49 y 55). Con varias cirugías, la mayor va al 100 % y cada adicional según su
+          relación con ella (arts. 71-73). Cada valor se ajusta a la centena (art. 89).</p></div>
+      </div>
+      <form class="cot-agregar" id="s26Form" autocomplete="off">
+        <label class="buscador">${icono("mas")}
+          <input id="s26Codigo" placeholder="Códigos (1101, 19001x2) o texto para buscar (colecistectomía)" aria-label="Código o texto"></label>
+        <button class="boton boton--verde" type="submit">${icono("mas")}Agregar</button>
+      </form>
+      <div class="s26-sugerencias" id="s26Sug" hidden></div>
+      <div class="ayuda"><code>CODIGO</code> una vez, <code>CODIGOx2</code> con cantidad; varios separados por coma o espacio.
+        Si escribe texto, elija el procedimiento en la lista.</div>
+    </section>
+    <div class="cot-rejilla">
+      <div class="cot-principal">
+        <section class="panel" id="s26Items"></section>
+        <section class="panel" id="s26Lineas"></section>
+      </div>
+      <aside class="cot-lateral">
+        <section class="panel" id="s26Cond"></section>
+        <section class="panel cot-total" id="s26Total"></section>
+      </aside>
+    </div>`;
+  const entrada = $("#s26Codigo");
+  $("#s26Form").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const ts = entrada.value.split(/[\s,;]+/).filter(Boolean);
+    if (ts.length && ts.every((t) => /^\d{4,6}(x\d+)?$/i.test(t))) {
+      ts.forEach((t) => { const [cod, cant] = t.toLowerCase().split("x"); s26.items.push({ codigo: cod, cantidad: +(cant || 1), opciones: [], relacion: "" }); });
+      entrada.value = ""; $("#s26Sug").hidden = true; recalcularS26();
+    } else buscarS26(entrada.value);
+  });
+  entrada.addEventListener("input", debounce(() => {
+    const v = entrada.value.trim();
+    if (v.length >= 3 && !/^[\d\s,x;]+$/i.test(v)) buscarS26(v); else $("#s26Sug").hidden = true;
+  }, 300));
+  pintarS26Cond();
+  if (s26Res) pintarS26Resultado();
+  recalcularS26();
+  entrada.focus();
+}
+
+async function buscarS26(q) {
+  const caja = $("#s26Sug");
+  let rs;
+  try { rs = await api(`/api/soat2026/buscar?${new URLSearchParams({ q })}`); } catch (e) { avisar(e.message, true); return; }
+  caja.hidden = false;
+  caja.innerHTML = rs.length ? rs.map((r) => `<button type="button" class="s26-sug" data-cod="${esc(r.codigo)}">
+      <span class="cod">${esc(r.codigo)}</span><span>${esc(r.descripcion)}<small class="sutil"> · ${esc(r.articulo)}</small></span>
+      <b>${r.grupo != null ? `grupo ${String(r.grupo).padStart(2, "0")}` : r.valor_uvb != null ? pesos(r.valor_uvb) : ""}</b></button>`).join("")
+    : `<div class="estado">Sin resultados para «${esc(q)}»</div>`;
+  caja.querySelectorAll(".s26-sug").forEach((b) => b.addEventListener("click", () => {
+    s26.items.push({ codigo: b.dataset.cod, cantidad: 1, opciones: [], relacion: "" });
+    $("#s26Codigo").value = ""; caja.hidden = true; recalcularS26(); $("#s26Codigo").focus();
+  }));
+}
+
+let s26Seq = 0;
+async function recalcularS26() {
+  guardarS26();
+  const n = ++s26Seq;
+  try {
+    const resp = await postJSON("/api/soat2026/cotizar", pedidoS26());
+    if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || resp.statusText);
+    const d = await resp.json();
+    if (n !== s26Seq) return;            // llegó una respuesta más nueva
+    s26Res = d;
+  } catch (e) { avisar("No se pudo cotizar: " + e.message, true); return; }
+  if (estado.vista === "soat2026-cotizar") pintarS26Resultado();
+}
+
+function pintarS26Cond() {
+  $("#s26Cond").innerHTML = `
+    <h2 class="subtitulo">${icono("mapa")}Condiciones</h2>
+    <label class="campo-form"><span>Valor de la UVB (vacío = ${pesos(S26_CFG.uvb)}, 2026)</span>
+      <input class="s26-num" id="s26Uvb" type="number" min="1" step="1" value="${esc(s26.uvb)}" placeholder="${S26_CFG.uvb}"></label>
+    <label class="campo-form"><span>Departamento o región (art. 86: +25 % honorarios y consultas, +15 % capítulo IV)</span>
+      <select id="s26Region"><option value="">No aplica</option>
+        ${S26_CFG.regiones.map((r) => `<option${r === s26.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
+    <label class="opcion${s26.exceptuado ? " activa" : ""}" title="${esc(S26_CFG.exceptuados.join(", "))}">
+      <input type="checkbox" id="s26Exc"${s26.exceptuado ? " checked" : ""}>Municipio exceptuado (${esc(S26_CFG.exceptuados.join(", "))})</label>`;
+  $("#s26Uvb").addEventListener("change", (e) => { s26.uvb = e.target.value; recalcularS26(); });
+  $("#s26Region").addEventListener("change", (e) => { s26.region = e.target.value; recalcularS26(); });
+  $("#s26Exc").addEventListener("change", (e) => { s26.exceptuado = e.target.checked; pintarS26Cond(); recalcularS26(); });
+}
+
+function pintarS26Resultado() {
+  const r = s26Res;
+  if (!$("#s26Items") || !r) return;
+  const info = r.items || [];
+  const varias = (tipo) => info.filter((x) => x.tipo === tipo).length > 1;
+  const quitar = (i) => `<button class="boton-icono" type="button" data-s26-quitar="${i}" title="Quitar">${icono("x")}</button>`;
+  const filas = s26.items.map((it, i) => {
+    const x = info.find((y) => y.item === i);
+    if (!x || x.error) return `<tr class="cot-error"><td class="cod">${esc(it.codigo)}</td><td colspan="4">No está en el Manual SOAT 2026</td><td>${quitar(i)}</td></tr>`;
+    const tipo = x.tipo === "cirugia" ? `Cirugía · grupo ${String(x.grupo).padStart(2, "0")}` : x.tipo === "conjunto" ? "Conjunto integral (art. 64)" : `Art. ${x.articulo}`;
+    const rel = (x.tipo === "cirugia" || x.tipo === "conjunto") && (varias(x.tipo) || it.cantidad > 1)
+      ? (x.mayor ? `<span class="chip">Intervención mayor (100 %)</span>`
+        : `<label class="opcion activa" title="Relación con la intervención mayor (arts. 71-73; conjuntos art. 64 par. 4)">Adicional:
+            <select data-s26-rel="${i}">${S26_CFG.relaciones.map((o) => `<option value="${o.id}"${(it.relacion || "igual_via") === o.id ? " selected" : ""}>${esc(o.texto)}</option>`).join("")}</select></label>`)
+      : "";
+    const opcs = x.opciones.filter((o) => !(o === "perfusionista" && x.grupo < 20)).map((o) => `<label class="opcion" title="${esc(OPC_S26[o][1])}">
+        <input type="checkbox" data-s26-op="${o}" data-i="${i}"${it.opciones.includes(o) ? " checked" : ""}>${OPC_S26[o][0]}</label>`).join("");
+    return `<tr>
+      <td class="cod">${esc(x.codigo)}</td>
+      <td><div class="recorte">${esc(x.descripcion)}</div><small class="sutil">${esc(tipo)} · <a class="pagina" href="/fuentes/soat2026#page=${x.pagina}" target="_blank" rel="noopener">pág. ${x.pagina}</a></small></td>
+      <td class="num"><input class="cant" type="number" min="1" max="99" value="${it.cantidad}" data-s26-cant="${i}" aria-label="Cantidad"></td>
+      <td><div class="opciones">${rel}${opcs}</div></td>
+      <td class="num"><b>${pesos(r.lineas.filter((l) => l.item === i).reduce((s, l) => s + l.valor, 0))}</b></td>
+      <td>${quitar(i)}</td></tr>`;
+  }).join("");
+  $("#s26Items").innerHTML = `<h2 class="subtitulo">${icono("lista")}Servicios (${s26.items.length})</h2>
+    ${s26.items.length ? `<div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Descripción</th><th class="num">Cant.</th>
+      <th>Opciones</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>`
+      : `<div class="estado">${icono("calculadora")}<div>Agregue códigos para empezar.</div></div>`}`;
+  $("#s26Lineas").hidden = !r.lineas.length && !r.avisos.length;
+  $("#s26Lineas").innerHTML = (r.lineas.length ? `<h2 class="subtitulo">${icono("porcentaje")}Liquidación por componente</h2>
+    <div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Concepto</th><th>Descripción</th><th class="num">Base</th>
+      <th class="num">%</th><th class="num">Valor</th><th>Regla aplicada</th></tr></thead><tbody>
+      ${r.lineas.map((l) => `<tr><td class="cod">${esc(l.codigo)}</td><td>${esc(CONCEPTO_S26[l.concepto] || l.concepto)}</td>
+        <td><div class="recorte" title="${esc(l.descripcion)}">${esc(l.descripcion)}</div></td><td class="num">${pesos(l.base)}</td>
+        <td class="num">${fmt.format(Math.round(l.porcentaje * (1 + l.region86 / 100) * 100) / 100)}</td>
+        <td class="num"><b>${pesos(l.valor)}</b></td><td><small>${esc(l.regla)}</small></td></tr>`).join("")}
+    </tbody></table></div>` : "")
+    + (r.avisos.length ? `<details class="cot-detalles" open><summary>${icono("alerta")}Avisos (${r.avisos.length})</summary>
+      <ul>${r.avisos.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></details>` : "");
+  $("#s26Total").innerHTML = `
+    <div class="cot-linea"><span>UVB</span><b>${pesos(r.uvb)}</b></div>
+    <div class="cot-linea"><span>Región (art. 86)</span><b>${esc(r.region || "no aplica")}</b></div>
+    <div class="cot-gran-total"><span>Total</span><strong>${pesos(r.total)}</strong></div>
+    ${r.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>Revise:</b><ul>${r.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}
+    <div class="cot-acciones">
+      <button class="boton boton--verde" id="s26Excel" type="button"${r.lineas.length ? "" : " disabled"}>${icono("excel")}Excel</button>
+      <button class="boton boton--borde" id="s26Limpiar" type="button">${icono("papelera")}Limpiar</button></div>`;
+  enlazarS26();
+}
+
+function enlazarS26() {
+  document.querySelectorAll("[data-s26-quitar]").forEach((b) => b.addEventListener("click", () => { s26.items.splice(+b.dataset.s26Quitar, 1); recalcularS26(); }));
+  document.querySelectorAll("[data-s26-cant]").forEach((n) => n.addEventListener("change", () => {
+    s26.items[+n.dataset.s26Cant].cantidad = Math.max(1, Math.min(99, +n.value || 1)); recalcularS26(); }));
+  document.querySelectorAll("[data-s26-op]").forEach((k) => k.addEventListener("change", () => {
+    const it = s26.items[+k.dataset.i], o = k.dataset.s26Op;
+    it.opciones = k.checked ? [...new Set([...it.opciones, o])] : it.opciones.filter((x) => x !== o);
+    recalcularS26(); }));
+  document.querySelectorAll("[data-s26-rel]").forEach((sel) => sel.addEventListener("change", () => {
+    s26.items[+sel.dataset.s26Rel].relacion = sel.value; recalcularS26(); }));
+  $("#s26Limpiar").addEventListener("click", () => { s26 = s26Vacia(); pintarS26Cond(); recalcularS26(); });
+  $("#s26Excel").addEventListener("click", async (ev) => {
+    const b = ev.currentTarget, original = b.innerHTML;
+    b.disabled = true; b.innerHTML = `<span class="giro"></span><span>Generando…</span>`;
+    try {
+      const resp = await fetch("/api/soat2026/cotizar/excel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pedidoS26()) });
+      if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || resp.statusText);
+      const nombre = (resp.headers.get("Content-Disposition") || "").match(/filename="(.+)"/)?.[1] || "cotizacion_soat2026.xlsx";
+      const url = URL.createObjectURL(await resp.blob());
+      const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      avisar(`Descargado ${nombre}`);
+    } catch (e) { avisar("No se pudo exportar: " + e.message, true); }
+    finally { b.disabled = false; b.innerHTML = original; }
+  });
 }
 
 // ---------- Arranque ----------
@@ -1710,6 +1989,8 @@ function render() {
   else if (estado.vista === "auditar") pintarAuditar();
   else if (estado.vista === "tarifas-propias") pintarPropias();
   else if (estado.vista === "soat-versiones") pintarSoatVersiones();
+  else if (estado.vista === "soat2026") pintarSoat2026();
+  else if (estado.vista === "soat2026-cotizar") pintarS26Cotizar();
   else if (estado.vista) pintarVista();
   else { $("#contenido").dataset.vista = ""; pintarInicio(); }
 }
