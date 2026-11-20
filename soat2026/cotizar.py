@@ -33,12 +33,15 @@ Una cotización es un paciente y un acto. Cada ítem es un código del Manual co
   profesionales de cirujano, ginecobstetra, anestesiólogo y ayudante (literal a); +15 % a los
   exámenes y procedimientos del capítulo IV (literal b). No aplica en los municipios exceptuados.
 - Cada valor se ajusta a la centena más próxima (art. 89).
+- Ajuste del contrato (opcional, 0 % por defecto): un porcentaje (+4, -5...) que se aplica al final sobre
+  cada valor ya liquidado con las reglas del PDF, a la centena. Con 0 % no cambia nada.
 
 Uso:
   uv run soat2026/cotizar.py 19001 21101x2 1101            # código, códigoxcantidad
   uv run soat2026/cotizar.py 1101 1102:diferente_via 1101:bilateral --region META
   uv run soat2026/cotizar.py 1101:sin_ayudante:sin_anestesiologo --valor 11552   # UVB de otro año
   uv run soat2026/cotizar.py 1101 19001 --unidad smldv                           # en SMLDV
+  uv run soat2026/cotizar.py 1101 --contrato 4                                   # contrato SOAT + 4 %
 """
 import argparse
 import re
@@ -150,17 +153,23 @@ def leer_items(textos):
 
 
 # ------------------------------------------------------------------------------------- cálculo
-def cotizar(items, d, valor_unidad=None, region="", exceptuado=False, unidad="uvb"):
+def cotizar(items, d, valor_unidad=None, region="", exceptuado=False, unidad="uvb", contrato_pct=0.0):
     """items: [{codigo, cantidad, opciones: [...], relacion: ''|igual_via|diferente_via|otra_especialidad}]
     unidad: uvb | uvt | smldv; valor_unidad: pesos por unidad (por defecto el del PDF).
+    contrato_pct: ajuste del contrato en % sobre cada valor final (0 = valores del PDF tal cual).
     Devuelve {lineas, total, avisos, errores, unidad, valor_unidad, region, items}. Cada línea: item (índice), codigo, descripcion,
     concepto, base, porcentaje, valor, regla."""
     uvb = tasa(d, unidad, valor_unidad)          # unidad elegida: {unidad, nombre, valor}
-    salida = dict(unidad=uvb["unidad"], unidad_nombre=uvb["nombre"], valor_unidad=uvb["valor"])
+    contrato_pct = float(contrato_pct or 0)
+    salida = dict(unidad=uvb["unidad"], unidad_nombre=uvb["nombre"], valor_unidad=uvb["valor"],
+                  contrato_pct=contrato_pct)
+    if contrato_pct <= -100:
+        return dict(lineas=[], total=0, total_manual=0, ajuste_contrato=0, avisos=[], items=[], region="",
+                    errores=["El ajuste del contrato debe ser mayor que -100 %"], **salida)
     region = (region or "").strip().upper()
     if region and region not in REGIONES_86:
-        return dict(lineas=[], total=0, avisos=[], errores=[f"Región «{region}» no está en el art. 86"],
-                    region=region, items=[], **salida)
+        return dict(lineas=[], total=0, total_manual=0, ajuste_contrato=0, avisos=[],
+                    errores=[f"Región «{region}» no está en el art. 86"], region=region, items=[], **salida)
     lineas, avisos, errores = [], [], []
     cirugias, conjuntos = [], []
     info = []      # por ítem de entrada: tipo, grupo y si es la intervención mayor del acto
@@ -227,9 +236,19 @@ def cotizar(items, d, valor_unidad=None, region="", exceptuado=False, unidad="uv
     elif region and exceptuado:
         avisos.append("Municipio exceptuado del art. 86 (Arauca, Florencia, Riohacha, Sincelejo, Villavicencio o "
                       "Yopal): no se aplica el incremento regional")
+    # 5) ajuste del contrato, al final y sobre el valor ya liquidado con las reglas del PDF
+    for ln in lineas:
+        ln["valor_manual"] = ln["valor"]
+        ln["ajuste_contrato"] = 0
+        if contrato_pct:
+            ln["valor"] = centena(ln["valor_manual"] * (1 + contrato_pct / 100))
+            ln["ajuste_contrato"] = ln["valor"] - ln["valor_manual"]
+            ln["regla"] += f"; contrato {contrato_pct:+g} %"
     lineas.sort(key=lambda ln: (ln["item"], [c for c, _ in CONCEPTOS].index(ln["concepto"])
                                 if ln["concepto"] in dict(CONCEPTOS) else 9))
     return dict(lineas=lineas, total=sum(ln["valor"] for ln in lineas), avisos=avisos, errores=errores,
+                total_manual=sum(ln["valor_manual"] for ln in lineas),
+                ajuste_contrato=sum(ln["ajuste_contrato"] for ln in lineas),
                 region=region if not exceptuado else "", items=info, **salida)
 
 
@@ -416,18 +435,22 @@ def main():
                     "UVT 52.374, SMLDV 58.363)")
     ap.add_argument("--region", default="", help=f"departamento del art. 86: {', '.join(REGIONES_86)}")
     ap.add_argument("--exceptuado", action="store_true", help="municipio exceptuado del art. 86")
+    ap.add_argument("--contrato", type=float, default=0.0, help="ajuste del contrato en %% (ej. 4 o -5; por defecto 0)")
     a = ap.parse_args()
     d = cargar()
     items, errores = leer_items(a.items)
     if errores:
         sys.exit("\n".join(errores))
-    r = cotizar(items, d, a.valor, a.region, a.exceptuado, a.unidad)
+    r = cotizar(items, d, a.valor, a.region, a.exceptuado, a.unidad, a.contrato)
     for e in r["errores"]:
         print("ERROR:", e)
     print(f"{r['unidad_nombre']} {pesos(r['valor_unidad'])}" + (f" · región {r['region']} (art. 86)" if r["region"] else ""))
     for ln in r["lineas"]:
         print(f"  {ln['codigo']:>6}  {ln['concepto']:<14} {pesos(ln['base']):>13} x {ln['porcentaje']:>7g} % "
               f"= {pesos(ln['valor']):>13}   {ln['descripcion'][:50]}  [{ln['regla']}]")
+    if r["contrato_pct"]:
+        print(f"Según el PDF {pesos(r['total_manual'])} · contrato {r['contrato_pct']:+g} % "
+              f"{'+' if r['ajuste_contrato'] >= 0 else ''}{pesos(r['ajuste_contrato'])}")
     print(f"TOTAL {pesos(r['total'])}")
     for av in r["avisos"]:
         print("AVISO:", av)

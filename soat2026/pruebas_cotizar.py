@@ -55,6 +55,14 @@ PRUEBAS = [
     ("SMLDV con región: capítulo IV +15 % (91.600 -> 105.340 -> 105.300)", ["19001"],
      dict(unidad="smldv", region="META"), 105_300, None),
     ("código inexistente da error", ["99999"], {}, 0, lambda r: r["errores"]),
+    ("contrato 0 %: valores del PDF tal cual, sin ajuste", ["1101"], dict(contrato_pct=0), 2_490_900,
+     lambda r: r["ajuste_contrato"] == 0 and r["total_manual"] == r["total"]),
+    ("contrato +4 % por línea: 605.700 + 346.400 + 165.600 + 1.001.900 + 470.900 (ajuste +99.600)",
+     ["1101"], dict(contrato_pct=4), 2_590_500, lambda r: r["ajuste_contrato"] == 99_600 and r["total_manual"] == 2_490_900),
+    ("contrato -5 %: 553.300 + 316.400 + 151.200 + 915.200 + 430.200", ["1101"], dict(contrato_pct=-5), 2_366_300, None),
+    ("contrato después del art. 86: 71.800 -> +15 % 82.600 -> +4 % 85.904 -> 85.900", ["19001"],
+     dict(region="META", contrato_pct=4), 85_900, None),
+    ("contrato de -100 % o menos da error", ["19001"], dict(contrato_pct=-100), 0, lambda r: r["errores"]),
 ]
 
 

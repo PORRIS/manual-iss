@@ -1205,11 +1205,12 @@ class CotizacionS26(BaseModel):
     valor_unidad: float | None = Field(None, gt=0, le=10_000_000)
     region: str = Field("", max_length=60)
     exceptuado: bool = False
+    contrato_pct: float = Field(0.0, gt=-100, le=500)   # 0 = valores del PDF tal cual
 
 
 def calcular_s26(c: CotizacionS26):
     return soat26_cot.cotizar([i.model_dump() for i in c.items], datos_s26(), c.valor_unidad, c.region,
-                              c.exceptuado, c.unidad)
+                              c.exceptuado, c.unidad, c.contrato_pct)
 
 
 @app.get("/api/soat2026/cotizador")
@@ -1250,28 +1251,41 @@ def api_s26_cotizar_excel(c: CotizacionS26):
     wb = Workbook()
     ws = wb.active
     ws.title = "Cotización"
-    cab = ["Código", "Descripción", "Concepto", "Base", "Porcentaje", "Valor", "Regla aplicada"]
+    con_contrato = bool(r["contrato_pct"])          # con 0 % no se agregan columnas de contrato
+    cab = ["Código", "Descripción", "Concepto", "Base", "Porcentaje"]
+    cab += ["Valor según PDF", f"Contrato {r['contrato_pct']:+g} %", "Valor"] if con_contrato else ["Valor"]
+    cab.append("Regla aplicada")
     ws.append(cab)
     nombres = dict(soat26_cot.CONCEPTOS, tarifa="Tarifa", anestesia="Anestesia general", perfusionista="Perfusionista")
     for ln in r["lineas"]:
-        ws.append([ln["codigo"], ln["descripcion"], nombres.get(ln["concepto"], ln["concepto"]), ln["base"],
-                   ln["porcentaje"] / 100 * (1 + ln["region86"] / 100), ln["valor"], ln["regla"]])
+        fila = [ln["codigo"], ln["descripcion"], nombres.get(ln["concepto"], ln["concepto"]), ln["base"],
+                ln["porcentaje"] / 100 * (1 + ln["region86"] / 100)]
+        fila += [ln["valor_manual"], ln["ajuste_contrato"], ln["valor"]] if con_contrato else [ln["valor"]]
+        ws.append(fila + [ln["regla"]])
     ws.append([])
-    ws.append(["", "TOTAL", "", "", "", r["total"]])
+    ws.append(["", "TOTAL", "", "", ""] + ([r["total_manual"], r["ajuste_contrato"], r["total"]]
+                                            if con_contrato else [r["total"]]))
     verde = PatternFill("solid", fgColor="1DBB99")
     for celda in ws[1]:
         celda.fill, celda.font = verde, Font(bold=True, color="FFFFFF")
-    ws[f"B{ws.max_row}"].font = ws[f"F{ws.max_row}"].font = Font(bold=True)
+    for celda in ws[ws.max_row]:
+        celda.font = Font(bold=True)
+    n_valores = 3 if con_contrato else 1
     for fila in ws.iter_rows(min_row=2):
-        fila[3].number_format = fila[5].number_format = '"$"#,##0'
+        fila[3].number_format = '"$"#,##0'
         fila[4].number_format = "0.##%"
-    for col, ancho in zip("ABCDEFG", (9, 60, 18, 14, 11, 14, 90)):
-        ws.column_dimensions[col].width = ancho
+        for k in range(5, 5 + n_valores):
+            fila[k].number_format = '"$"#,##0'
+    anchos = (9, 60, 18, 14, 11) + ((15, 14, 14) if con_contrato else (14,)) + (90,)
+    for i, ancho in enumerate(anchos, 1):
+        ws.column_dimensions[get_column_letter(i)].width = ancho
     ws.freeze_panes = "A2"
     info = wb.create_sheet("Condiciones")
     for k, v in (("Manual", "Manual Tarifario SOAT 2026 (UVB) - soat2026/salida/manual_soat_2026.db"),
                  ("Unidad", f"{r['unidad_nombre']} a {soat26_cot.pesos(r['valor_unidad'])}"),
                  ("Región (art. 86)", r["region"] or ("municipio exceptuado" if c.exceptuado else "no aplica")),
+                 ("Ajuste del contrato", f"{r['contrato_pct']:+g} % sobre los valores del PDF"
+                  if r["contrato_pct"] else "0 % (valores del PDF tal cual)"),
                  ("Generado", datetime.now().strftime("%Y-%m-%d %H:%M"))):
         info.append([k, v])
     for a in r["avisos"]:

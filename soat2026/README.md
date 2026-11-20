@@ -106,7 +106,7 @@ uv run soat2026/cotizar.py 19001 21101x2                       # procedimientos 
 uv run soat2026/cotizar.py 1102 1101:diferente_via --region META
 uv run soat2026/cotizar.py 13350:incruenta 1101:bilateral:sin_ayudante --valor 11552
 uv run soat2026/cotizar.py 1101 19001 --unidad smldv
-uv run soat2026/pruebas_cotizar.py                              # 25 pruebas calculadas a mano
+uv run soat2026/pruebas_cotizar.py                              # 30 pruebas calculadas a mano
 ```
 
 Una cotización es un paciente y un acto. Se elige la unidad (`--unidad uvb|uvt|smldv`, en la web
@@ -122,6 +122,7 @@ más. Los códigos 23106 (las tres unidades), 25123 y 25128 (UVT) no traen facto
 | Cirugía (grupo) | Cirujano + anestesiólogo + ayudante (desde el grupo 06) + sala (art. 49) + materiales (art. 55; grupos 20-23 a precio de catálogo, no se cotizan). Opciones: `bilateral` (honorarios +75 %, sala +50 %, materiales +75 %), `sin_anestesiologo`, `sin_ayudante`, `perfusionista` (39129, grupos 20-23), `incruenta` (art. 52: sala 45 %, materiales 39305) |
 | Varias cirugías | La mayor (mayor honorario de cirujano) al 100 %. Adicional `igual_via` (art. 71): honorarios 50 %; `diferente_via` (art. 72): honorarios 75 %, sala 50 %, materiales 75 %; `otra_especialidad` (art. 73): cirujano 100 %, anestesiólogo 75 %, ayudante 50 % solo de la adicional de mayor grupo, sala 50 % |
 | Varios conjuntos (art. 64 par. 4 b) | El mayor al 100 %; cada otro 25 % (igual vía) o 70 % (diferente vía u otra especialidad) |
+| Ajuste del contrato | Opcional, **0 % por defecto** (con 0 % los valores son los del PDF tal cual). Un porcentaje (+4 = «SOAT + 4 %», −5) que se aplica al final sobre cada valor ya liquidado, a la centena; se muestra aparte (según el PDF, ajuste, total). `--contrato 4` en consola |
 | Región (art. 86) | +25 % honorarios de cirugía, consultas, valoraciones y cuidado intrahospitalario (literal a); +15 % capítulo IV (literal b). No en Arauca, Florencia, Riohacha, Sincelejo, Villavicencio ni Yopal |
 
 **Interpretaciones aprobadas por el usuario (2026-11-20):** incruenta = 45 % de la sala del grupo (como en la auditoría

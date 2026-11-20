@@ -1796,13 +1796,13 @@ const OPC_S26 = {
 };
 const CONCEPTO_S26 = { tarifa: "Tarifa", cirujano: "Cirujano", anestesiologo: "Anestesiólogo", ayudante: "Ayudante",
   sala: "Derechos de sala", materiales: "Materiales", anestesia: "Anestesia general", perfusionista: "Perfusionista" };
-const s26Vacia = () => ({ items: [], unidad: "uvb", valor: "", region: "", exceptuado: false });
+const s26Vacia = () => ({ items: [], unidad: "uvb", valor: "", region: "", exceptuado: false, contrato: "" });
 let s26 = (() => { try { return Object.assign(s26Vacia(), JSON.parse(localStorage.getItem("cotizacion_s26")) || {}); } catch { return s26Vacia(); } })();
 let S26_CFG = null, s26Res = null;
 const guardarS26 = () => { try { localStorage.setItem("cotizacion_s26", JSON.stringify(s26)); } catch { /* sin almacenamiento */ } };
 if (s26.uvb && !s26.valor) { s26.valor = s26.uvb; delete s26.uvb; }   // cotizaciones guardadas antes de elegir unidad
 const pedidoS26 = () => ({ items: s26.items, unidad: s26.unidad || "uvb", valor_unidad: +s26.valor || null,
-  region: s26.region, exceptuado: s26.exceptuado });
+  region: s26.region, exceptuado: s26.exceptuado, contrato_pct: +s26.contrato || 0 });
 const unidadS26 = () => S26_CFG.unidades.find((u) => u.id === (s26.unidad || "uvb")) || S26_CFG.unidades[0];
 
 async function pintarS26Cotizar() {
@@ -1902,11 +1902,14 @@ function pintarS26Cond() {
       <select id="s26Region"><option value="">No aplica</option>
         ${S26_CFG.regiones.map((r) => `<option${r === s26.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
     <label class="opcion${s26.exceptuado ? " activa" : ""}" title="${esc(S26_CFG.exceptuados.join(", "))}">
-      <input type="checkbox" id="s26Exc"${s26.exceptuado ? " checked" : ""}>Municipio exceptuado (${esc(S26_CFG.exceptuados.join(", "))})</label>`;
+      <input type="checkbox" id="s26Exc"${s26.exceptuado ? " checked" : ""}>Municipio exceptuado (${esc(S26_CFG.exceptuados.join(", "))})</label>
+    <label class="campo-form s26-contrato"><span>Ajuste del contrato (%): 0 = valores del PDF tal cual; ej. 4 para «SOAT + 4 %» o -5</span>
+      <input class="s26-num" id="s26Contrato" type="number" step="0.01" min="-99.99" max="500" value="${esc(s26.contrato ?? "")}" placeholder="0"></label>`;
   $("#s26Unidad").addEventListener("change", (e) => { s26.unidad = e.target.value; s26.valor = ""; pintarS26Cond(); recalcularS26(); });
   $("#s26Uvb").addEventListener("change", (e) => { s26.valor = e.target.value; recalcularS26(); });
   $("#s26Region").addEventListener("change", (e) => { s26.region = e.target.value; recalcularS26(); });
   $("#s26Exc").addEventListener("change", (e) => { s26.exceptuado = e.target.checked; pintarS26Cond(); recalcularS26(); });
+  $("#s26Contrato").addEventListener("change", (e) => { s26.contrato = e.target.value; recalcularS26(); });
 }
 
 function pintarS26Resultado() {
@@ -1941,10 +1944,11 @@ function pintarS26Resultado() {
   $("#s26Lineas").hidden = !r.lineas.length && !r.avisos.length;
   $("#s26Lineas").innerHTML = (r.lineas.length ? `<h2 class="subtitulo">${icono("porcentaje")}Liquidación por componente</h2>
     <div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Concepto</th><th>Descripción</th><th class="num">Base</th>
-      <th class="num">%</th><th class="num">Valor</th><th>Regla aplicada</th></tr></thead><tbody>
+      <th class="num">%</th>${r.contrato_pct ? `<th class="num">Según PDF</th><th class="num">Contrato</th>` : ""}<th class="num">Valor</th><th>Regla aplicada</th></tr></thead><tbody>
       ${r.lineas.map((l) => `<tr><td class="cod">${esc(l.codigo)}</td><td>${esc(CONCEPTO_S26[l.concepto] || l.concepto)}</td>
         <td><div class="recorte" title="${esc(l.descripcion)}">${esc(l.descripcion)}</div></td><td class="num">${pesos(l.base)}</td>
         <td class="num">${fmt.format(Math.round(l.porcentaje * (1 + l.region86 / 100) * 100) / 100)}</td>
+        ${r.contrato_pct ? `<td class="num">${pesos(l.valor_manual)}</td><td class="num">${l.ajuste_contrato >= 0 ? "+" : ""}${pesos(l.ajuste_contrato)}</td>` : ""}
         <td class="num"><b>${pesos(l.valor)}</b></td><td><small>${esc(l.regla)}</small></td></tr>`).join("")}
     </tbody></table></div>` : "")
     + (r.avisos.length ? `<details class="cot-detalles" open><summary>${icono("alerta")}Avisos (${r.avisos.length})</summary>
@@ -1952,6 +1956,8 @@ function pintarS26Resultado() {
   $("#s26Total").innerHTML = `
     <div class="cot-linea"><span>Unidad</span><b>${esc(r.unidad_nombre)} · ${pesos(r.valor_unidad)}</b></div>
     <div class="cot-linea"><span>Región (art. 86)</span><b>${esc(r.region || "no aplica")}</b></div>
+    ${r.contrato_pct ? `<div class="cot-linea"><span>Según el PDF</span><b>${pesos(r.total_manual)}</b></div>
+      <div class="cot-linea"><span>Contrato ${r.contrato_pct > 0 ? "+" : ""}${fmt.format(r.contrato_pct)} %</span><b class="monto ${r.ajuste_contrato < 0 ? "neg" : "pos"}">${r.ajuste_contrato >= 0 ? "+" : ""}${pesos(r.ajuste_contrato)}</b></div>` : ""}
     <div class="cot-gran-total"><span>Total</span><strong>${pesos(r.total)}</strong></div>
     ${r.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>Revise:</b><ul>${r.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}
     <div class="cot-acciones">
