@@ -1796,11 +1796,14 @@ const OPC_S26 = {
 };
 const CONCEPTO_S26 = { tarifa: "Tarifa", cirujano: "Cirujano", anestesiologo: "Anestesiólogo", ayudante: "Ayudante",
   sala: "Derechos de sala", materiales: "Materiales", anestesia: "Anestesia general", perfusionista: "Perfusionista" };
-const s26Vacia = () => ({ items: [], uvb: "", region: "", exceptuado: false });
+const s26Vacia = () => ({ items: [], unidad: "uvb", valor: "", region: "", exceptuado: false });
 let s26 = (() => { try { return Object.assign(s26Vacia(), JSON.parse(localStorage.getItem("cotizacion_s26")) || {}); } catch { return s26Vacia(); } })();
 let S26_CFG = null, s26Res = null;
 const guardarS26 = () => { try { localStorage.setItem("cotizacion_s26", JSON.stringify(s26)); } catch { /* sin almacenamiento */ } };
-const pedidoS26 = () => ({ items: s26.items, uvb: +s26.uvb || null, region: s26.region, exceptuado: s26.exceptuado });
+if (s26.uvb && !s26.valor) { s26.valor = s26.uvb; delete s26.uvb; }   // cotizaciones guardadas antes de elegir unidad
+const pedidoS26 = () => ({ items: s26.items, unidad: s26.unidad || "uvb", valor_unidad: +s26.valor || null,
+  region: s26.region, exceptuado: s26.exceptuado });
+const unidadS26 = () => S26_CFG.unidades.find((u) => u.id === (s26.unidad || "uvb")) || S26_CFG.unidades[0];
 
 async function pintarS26Cotizar() {
   $("#migaVista").textContent = "Cotizar SOAT 2026";
@@ -1815,8 +1818,8 @@ async function pintarS26Cotizar() {
     <section class="panel">
       <div class="cabecera">
         <div class="cabecera__icono">${icono("calculadora")}</div>
-        <div><h1>Cotizar SOAT 2026</h1><p>Cotiza un paciente con el Manual Tarifario SOAT 2026 (UVB). Los procedimientos con valor
-          se liquidan por factor UVB; las cirugías, por los componentes de su grupo quirúrgico: cirujano, anestesiólogo, ayudante,
+        <div><h1>Cotizar SOAT 2026</h1><p>Cotiza un paciente con el Manual Tarifario SOAT 2026. Elija la unidad: UVB, UVT o SMLDV (valor = factor
+          de esa unidad × su valor). Los procedimientos con valor se liquidan por su factor; las cirugías, por los componentes de su grupo quirúrgico: cirujano, anestesiólogo, ayudante,
           derechos de sala y materiales (arts. 48, 49 y 55). Con varias cirugías, la mayor va al 100 % y cada adicional según su
           relación con ella (arts. 71-73). Cada valor se ajusta a la centena (art. 89).</p></div>
       </div>
@@ -1890,14 +1893,18 @@ async function recalcularS26() {
 function pintarS26Cond() {
   $("#s26Cond").innerHTML = `
     <h2 class="subtitulo">${icono("mapa")}Condiciones</h2>
-    <label class="campo-form"><span>Valor de la UVB (vacío = ${pesos(S26_CFG.uvb)}, 2026)</span>
-      <input class="s26-num" id="s26Uvb" type="number" min="1" step="1" value="${esc(s26.uvb)}" placeholder="${S26_CFG.uvb}"></label>
+    <label class="campo-form"><span>Liquidar en (valor = factor de la unidad × su valor)</span>
+      <select id="s26Unidad">${S26_CFG.unidades.map((u) => `<option value="${u.id}"${u.id === unidadS26().id ? " selected" : ""}>${esc(u.nombre)} · ${pesos(u.valor)}</option>`).join("")}</select>
+      <small class="sutil">${esc(unidadS26().descripcion)}</small></label>
+    <label class="campo-form"><span>Valor de la ${esc(unidadS26().nombre)} (vacío = ${pesos(unidadS26().valor)}, la del PDF)</span>
+      <input class="s26-num" id="s26Uvb" type="number" min="1" step="1" value="${esc(s26.valor)}" placeholder="${unidadS26().valor}"></label>
     <label class="campo-form"><span>Departamento o región (art. 86: +25 % honorarios y consultas, +15 % capítulo IV)</span>
       <select id="s26Region"><option value="">No aplica</option>
         ${S26_CFG.regiones.map((r) => `<option${r === s26.region ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
     <label class="opcion${s26.exceptuado ? " activa" : ""}" title="${esc(S26_CFG.exceptuados.join(", "))}">
       <input type="checkbox" id="s26Exc"${s26.exceptuado ? " checked" : ""}>Municipio exceptuado (${esc(S26_CFG.exceptuados.join(", "))})</label>`;
-  $("#s26Uvb").addEventListener("change", (e) => { s26.uvb = e.target.value; recalcularS26(); });
+  $("#s26Unidad").addEventListener("change", (e) => { s26.unidad = e.target.value; s26.valor = ""; pintarS26Cond(); recalcularS26(); });
+  $("#s26Uvb").addEventListener("change", (e) => { s26.valor = e.target.value; recalcularS26(); });
   $("#s26Region").addEventListener("change", (e) => { s26.region = e.target.value; recalcularS26(); });
   $("#s26Exc").addEventListener("change", (e) => { s26.exceptuado = e.target.checked; pintarS26Cond(); recalcularS26(); });
 }
@@ -1943,7 +1950,7 @@ function pintarS26Resultado() {
     + (r.avisos.length ? `<details class="cot-detalles" open><summary>${icono("alerta")}Avisos (${r.avisos.length})</summary>
       <ul>${r.avisos.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></details>` : "");
   $("#s26Total").innerHTML = `
-    <div class="cot-linea"><span>UVB</span><b>${pesos(r.uvb)}</b></div>
+    <div class="cot-linea"><span>Unidad</span><b>${esc(r.unidad_nombre)} · ${pesos(r.valor_unidad)}</b></div>
     <div class="cot-linea"><span>Región (art. 86)</span><b>${esc(r.region || "no aplica")}</b></div>
     <div class="cot-gran-total"><span>Total</span><strong>${pesos(r.total)}</strong></div>
     ${r.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>Revise:</b><ul>${r.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}

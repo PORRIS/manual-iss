@@ -1201,19 +1201,24 @@ class ItemS26(BaseModel):
 
 class CotizacionS26(BaseModel):
     items: list[ItemS26] = Field(default_factory=list, max_length=200)
-    uvb: float | None = Field(None, gt=0, le=1_000_000)
+    unidad: str = Field("uvb", pattern="^(uvb|uvt|smldv)$")
+    valor_unidad: float | None = Field(None, gt=0, le=10_000_000)
     region: str = Field("", max_length=60)
     exceptuado: bool = False
 
 
 def calcular_s26(c: CotizacionS26):
-    return soat26_cot.cotizar([i.model_dump() for i in c.items], datos_s26(), c.uvb, c.region, c.exceptuado)
+    return soat26_cot.cotizar([i.model_dump() for i in c.items], datos_s26(), c.valor_unidad, c.region,
+                              c.exceptuado, c.unidad)
 
 
 @app.get("/api/soat2026/cotizador")
 def api_s26_cotizador():
     d = datos_s26()
-    return dict(uvb=d["uvb"], regiones=list(soat26_cot.REGIONES_86), exceptuados=list(soat26_cot.EXCEPTUADOS_86),
+    descr = {"uvb": "Unidad de valor básico: tarifa oficial SOAT 2026", "uvt": "Unidad de valor tributario",
+             "smldv": "Salario mínimo legal diario vigente (base del decreto original)"}
+    return dict(uvb=d["uvb"], unidades=[dict(id=u, nombre=n, valor=d["valores"][u], descripcion=descr[u])
+                                        for u, n in soat26_cot.UNIDADES.items()], regiones=list(soat26_cot.REGIONES_86), exceptuados=list(soat26_cot.EXCEPTUADOS_86),
                 relaciones=[dict(id=k, texto=v) for k, v in soat26_cot.RELACION_TXT.items()])
 
 
@@ -1265,7 +1270,7 @@ def api_s26_cotizar_excel(c: CotizacionS26):
     ws.freeze_panes = "A2"
     info = wb.create_sheet("Condiciones")
     for k, v in (("Manual", "Manual Tarifario SOAT 2026 (UVB) - soat2026/salida/manual_soat_2026.db"),
-                 ("UVB", r["uvb"]),
+                 ("Unidad", f"{r['unidad_nombre']} a {soat26_cot.pesos(r['valor_unidad'])}"),
                  ("Región (art. 86)", r["region"] or ("municipio exceptuado" if c.exceptuado else "no aplica")),
                  ("Generado", datetime.now().strftime("%Y-%m-%d %H:%M"))):
         info.append([k, v])

@@ -104,12 +104,17 @@ En `web/app.py` estas vistas llevan `bd="soat2026"` y el nombre real de la vista
 ```bash
 uv run soat2026/cotizar.py 19001 21101x2                       # procedimientos con valor
 uv run soat2026/cotizar.py 1102 1101:diferente_via --region META
-uv run soat2026/cotizar.py 13350:incruenta 1101:bilateral:sin_ayudante --uvb 11552
-uv run soat2026/pruebas_cotizar.py                              # 19 pruebas calculadas a mano
+uv run soat2026/cotizar.py 13350:incruenta 1101:bilateral:sin_ayudante --valor 11552
+uv run soat2026/cotizar.py 1101 19001 --unidad smldv
+uv run soat2026/pruebas_cotizar.py                              # 25 pruebas calculadas a mano
 ```
 
-Una cotización es un paciente y un acto. Valor = factor UVB x UVB (por defecto $12.110), ajustado
-a la centena (art. 89).
+Una cotización es un paciente y un acto. Se elige la unidad (`--unidad uvb|uvt|smldv`, en la web
+«Liquidar en»): valor = factor de esa unidad x su valor (UVB $12.110, UVT $52.374, SMLDV $58.363; con
+`--valor` o en la web se puede usar otro), ajustado a la centena (art. 89). En UVB y SMLDV el
+resultado es igual al valor impreso en el PDF en todos los códigos; en UVT, 200 códigos difieren
+hasta $300 porque el PDF imprime el factor UVT con 2 decimales y su columna de valor se calculó con
+más. Los códigos 23106 (las tres unidades), 25123 y 25128 (UVT) no traen factor y dan error.
 
 | Caso | Cómo se liquida |
 |---|---|

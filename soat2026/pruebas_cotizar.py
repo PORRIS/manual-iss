@@ -42,7 +42,18 @@ PRUEBAS = [
     ("art. 86: la estancia no se incrementa", ["38111"], dict(region="META"), 297_700, None),
     ("art. 86: municipio exceptuado", ["19001"], dict(region="META", exceptuado=True), 71_800, None),
     ("UVB 2025 (11.552): cirujano 48,09 -> 555.500; sala 79,55 -> 919.000; materiales 37,39 -> 431.900",
-     ["1101:sin_anestesiologo:sin_ayudante"], dict(uvb=11552), 555_500 + 919_000 + 431_900, None),
+     ["1101:sin_anestesiologo:sin_ayudante"], dict(valor_unidad=11552), 555_500 + 919_000 + 431_900, None),
+    ("SMLDV: 19001 1,57 x 58.363 = 91.629,91 -> 91.600 (igual al valor impreso)", ["19001"], dict(unidad="smldv"),
+     91_600, lambda r: r["unidad_nombre"] == "SMLDV"),
+    ("UVT: 19001 1,38 x 52.374 = 72.276,12 -> 72.300 (igual al impreso)", ["19001"], dict(unidad="uvt"), 72_300, None),
+    ("UVT: 19016 0,74 x 52.374 = 38.756,76 -> 38.800 (el PDF imprime 38.600: factor con más decimales)",
+     ["19016"], dict(unidad="uvt"), 38_800, None),
+    ("SMLDV cirugía 1101 grupo 09: suma de las columnas SMLDV impresas 744.700 + 426.000 + 203.700 + "
+     "1.231.500 + 579.000", ["1101"], dict(unidad="smldv"), 744_700 + 426_000 + 203_700 + 1_231_500 + 579_000, None),
+    ("UVT sin factor en el PDF (25123) da error y sugiere otra unidad", ["25123"], dict(unidad="uvt"), 0,
+     lambda r: "otra unidad" in r["errores"][0]),
+    ("SMLDV con región: capítulo IV +15 % (91.600 -> 105.340 -> 105.300)", ["19001"],
+     dict(unidad="smldv", region="META"), 105_300, None),
     ("código inexistente da error", ["99999"], {}, 0, lambda r: r["errores"]),
 ]
 

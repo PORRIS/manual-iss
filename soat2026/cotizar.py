@@ -2,7 +2,11 @@
 
 Una cotización es un paciente y un acto. Cada ítem es un código del Manual con opciones:
 
-- Procedimiento con valor (cap. IV y V, conjuntos del art. 64): factor UVB x UVB, por la cantidad.
+- Unidad de liquidación, a elegir (el PDF trae las tres): UVB ($12.110, la tarifa oficial 2026), UVT
+  ($52.374) o SMLDV ($58.363). Valor = factor de esa unidad x valor de la unidad. El valor de la unidad
+  se puede cambiar (otro año). En UVT el PDF imprime el factor con 2 decimales y su columna de valor
+  se calculó con más decimales: en 200 códigos factor x $52.374 difiere del valor impreso hasta $300.
+- Procedimiento con valor (cap. IV y V, conjuntos del art. 64): factor x unidad, por la cantidad.
     bilateral       +75 % (art. 70 par. 2; conjuntos: art. 64 par. 3)
     anestesia       anestesia general en un examen o procedimiento: +50 % de su tarifa (art. 48 a.2);
                     los códigos 39150-39155 tienen valor propio y se cotizan aparte
@@ -33,7 +37,8 @@ Una cotización es un paciente y un acto. Cada ítem es un código del Manual co
 Uso:
   uv run soat2026/cotizar.py 19001 21101x2 1101            # código, códigoxcantidad
   uv run soat2026/cotizar.py 1101 1102:diferente_via 1101:bilateral --region META
-  uv run soat2026/cotizar.py 1101:sin_ayudante:sin_anestesiologo --uvb 11552
+  uv run soat2026/cotizar.py 1101:sin_ayudante:sin_anestesiologo --valor 11552   # UVB de otro año
+  uv run soat2026/cotizar.py 1101 19001 --unidad smldv                           # en SMLDV
 """
 import argparse
 import re
@@ -62,6 +67,7 @@ EXCEPTUADOS_86 = ("Arauca", "Florencia", "Riohacha", "Sincelejo", "Villavicencio
 # no están en la lista del literal a.
 LITERAL_A = {"39116", "39130", "39131", "39132", "39133", "39134", "39135", "39136", "39137", "39138", "39139",
              "39140", "39141", "39143", "39145", "39149", "39150", "39151", "39152", "39153", "39154", "39155"}
+UNIDADES = {"uvb": "UVB", "uvt": "UVT", "smldv": "SMLDV"}
 RE_ITEM = re.compile(r"^(?P<codigo>\d{4,6})(?:x(?P<cant>\d+))?(?P<opc>(?::[a-z_]+)*)$")
 
 
@@ -80,25 +86,44 @@ def cargar(db=DB):
         raise FileNotFoundError(f"No existe {db}: genérela con soat2026/actualizar.sh")
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     procs = {}
-    for cod, desc, art, grupo, fuvb, pag, cap in con.execute(
-            "SELECT p.codigo, p.descripcion, p.articulo, p.grupo_quirurgico, p.factor_uvb, p.pagina, c.numero "
+    for cod, desc, art, grupo, fsm, fut, fuvb, pag, cap in con.execute(
+            "SELECT p.codigo, p.descripcion, p.articulo, p.grupo_quirurgico, p.factor_smldv, p.factor_uvt, "
+            "p.factor_uvb, p.pagina, c.numero "
             "FROM procedimientos p JOIN articulos a ON a.numero = p.articulo "
             "JOIN capitulos c ON c.id = a.capitulo_id"):
         procs[cod] = dict(codigo=cod, descripcion=desc, articulo=art, grupo=grupo, factor_uvb=fuvb,
+                          factor_uvt=fut, factor_smldv=fsm,
                           pagina=pag, capitulo=cap)
     grupos = {}
     for grupo, concepto, cod in con.execute(
             "SELECT g.grupo, g.concepto, p.codigo FROM tarifas_grupo g JOIN procedimientos p ON p.id = g.procedimiento_id"):
         grupos[(grupo, concepto)] = cod
-    uvb = con.execute("SELECT valor FROM parametros WHERE concepto = 'UVB'").fetchone()[0]
+    param = dict(con.execute("SELECT concepto, valor FROM parametros"))
     con.close()
-    return dict(procs=procs, grupos=grupos, uvb=uvb)
+    return dict(procs=procs, grupos=grupos, uvb=param["UVB"],
+                valores={u: param[n] for u, n in UNIDADES.items()})
 
 
-def valor(d, cod, uvb):
-    """Valor en pesos de un código con factor UVB (art. 89: a la centena)."""
-    f = d["procs"][cod]["factor_uvb"]
-    return centena(f * uvb) if f is not None else None
+def factor(d, cod, u):
+    """Factor del código en la unidad elegida (None o 0 = el PDF no lo trae)."""
+    return d["procs"][cod][f"factor_{u['unidad']}"]
+
+
+def valor(d, cod, u):
+    """Valor en pesos: factor de la unidad x valor de la unidad, a la centena (art. 89)."""
+    f = factor(d, cod, u)
+    return centena(f * u["valor"]) if f else None
+
+
+def tasa(d, unidad="uvb", valor_unidad=None):
+    unidad = (unidad or "uvb").lower()
+    if unidad not in UNIDADES:
+        raise ValueError(f"Unidad «{unidad}» no válida: use {', '.join(UNIDADES)}")
+    return dict(unidad=unidad, nombre=UNIDADES[unidad], valor=valor_unidad or d["valores"][unidad])
+
+
+def formula(d, cod, u):
+    return f"{factor(d, cod, u):g} {u['nombre']} x {pesos(u['valor'])}"
 
 
 # ------------------------------------------------------------------------------------- lectura
@@ -125,15 +150,17 @@ def leer_items(textos):
 
 
 # ------------------------------------------------------------------------------------- cálculo
-def cotizar(items, d, uvb=None, region="", exceptuado=False):
+def cotizar(items, d, valor_unidad=None, region="", exceptuado=False, unidad="uvb"):
     """items: [{codigo, cantidad, opciones: [...], relacion: ''|igual_via|diferente_via|otra_especialidad}]
-    Devuelve {lineas, total, avisos, errores, uvb, region}. Cada línea: item (índice), codigo, descripcion,
+    unidad: uvb | uvt | smldv; valor_unidad: pesos por unidad (por defecto el del PDF).
+    Devuelve {lineas, total, avisos, errores, unidad, valor_unidad, region, items}. Cada línea: item (índice), codigo, descripcion,
     concepto, base, porcentaje, valor, regla."""
-    uvb = uvb or d["uvb"]
+    uvb = tasa(d, unidad, valor_unidad)          # unidad elegida: {unidad, nombre, valor}
+    salida = dict(unidad=uvb["unidad"], unidad_nombre=uvb["nombre"], valor_unidad=uvb["valor"])
     region = (region or "").strip().upper()
     if region and region not in REGIONES_86:
         return dict(lineas=[], total=0, avisos=[], errores=[f"Región «{region}» no está en el art. 86"],
-                    uvb=uvb, region=region)
+                    region=region, items=[], **salida)
     lineas, avisos, errores = [], [], []
     cirugias, conjuntos = [], []
     info = []      # por ítem de entrada: tipo, grupo y si es la intervención mayor del acto
@@ -171,8 +198,9 @@ def cotizar(items, d, uvb=None, region="", exceptuado=False):
             malas = [o for o in it["opciones"] if o not in OPCIONES_VALOR]
             if malas:
                 avisos.append(f"{p['codigo']}: la opción {', '.join(malas)} solo aplica a cirugías; se ignora")
-            if p["factor_uvb"] is None:
-                errores.append(f"{p['codigo']}: el PDF no trae valor para este código")
+            if not factor(d, p["codigo"], uvb):
+                errores.append(f"{p['codigo']}: el PDF no trae factor {uvb['nombre']} para este código"
+                               + (" (pruebe con otra unidad)" if any(p[f"factor_{x}"] for x in UNIDADES) else ""))
             elif p["articulo"] == 64 and len(p["codigo"]) == 6:   # conjuntos quirúrgicos (502001...)
                 conjuntos.append(it)
             else:
@@ -202,7 +230,7 @@ def cotizar(items, d, uvb=None, region="", exceptuado=False):
     lineas.sort(key=lambda ln: (ln["item"], [c for c, _ in CONCEPTOS].index(ln["concepto"])
                                 if ln["concepto"] in dict(CONCEPTOS) else 9))
     return dict(lineas=lineas, total=sum(ln["valor"] for ln in lineas), avisos=avisos, errores=errores,
-                uvb=uvb, region=region if not exceptuado else "", items=info)
+                region=region if not exceptuado else "", items=info, **salida)
 
 
 def incremento_86(ln, d):
@@ -223,7 +251,7 @@ def incremento_86(ln, d):
 def valorado(it, d, uvb, linea, avisos):
     """Procedimiento con valor propio (cap. IV y V)."""
     v = valor(d, it["codigo"], uvb) * it["cantidad"]
-    pct, regla = 100, f"{d['procs'][it['codigo']]['factor_uvb']:g} UVB x {pesos(uvb)}"
+    pct, regla = 100, formula(d, it["codigo"], uvb)
     if it["cantidad"] > 1:
         regla += f" x {it['cantidad']}"
     if "bilateral" in it["opciones"]:
@@ -287,7 +315,7 @@ def liquidar_cirugias(cirugias, d, uvb, linea, avisos, errores):
                 continue
             if concepto == "ayudante" and "sin_ayudante" in o:
                 continue
-            reglas = [f"{nombre} grupo {g:02d}"]
+            reglas = [f"{nombre} grupo {g:02d}: {cod} = {formula(d, cod, uvb)}"]
             pct = 100.0
             # bilateral (art. 70 honorarios; art. 49 par. 1 sala; art. 55 par. 4 materiales)
             if bil:
@@ -360,7 +388,7 @@ def liquidar_conjuntos(conjuntos, d, uvb, linea, avisos, hay_cirugias):
     vals = [(c, valor(d, c["codigo"], uvb)) for c in conjuntos]
     mayor = max(vals, key=lambda x: (x[1], -x[0]["i"]))[0]
     for c, v in vals:
-        pct, regla = 100.0, f"conjunto integral {d['procs'][c['codigo']]['factor_uvb']:g} UVB x {pesos(uvb)} (art. 64)"
+        pct, regla = 100.0, f"conjunto integral {formula(d, c['codigo'], uvb)} (art. 64)"
         if "bilateral" in c["opciones"]:
             pct *= 1.75
             regla += "; bilateral +75 % (art. 64 par. 3)"
@@ -383,7 +411,9 @@ def main():
     ap = argparse.ArgumentParser(description="Cotizador del Manual Tarifario SOAT 2026 (UVB)")
     ap.add_argument("items", nargs="+", help="CODIGO, CODIGOxCANTIDAD, CODIGO:opcion[:opcion] "
                     f"(cirugía: {', '.join(OPCIONES_CIRUGIA + RELACIONES)}; con valor: {', '.join(OPCIONES_VALOR)})")
-    ap.add_argument("--uvb", type=float, help="valor de la UVB (por defecto el del PDF: 12.110)")
+    ap.add_argument("--unidad", default="uvb", choices=list(UNIDADES), help="unidad de liquidación (por defecto uvb)")
+    ap.add_argument("--valor", type=float, help="pesos por unidad (por defecto el del PDF: UVB 12.110, "
+                    "UVT 52.374, SMLDV 58.363)")
     ap.add_argument("--region", default="", help=f"departamento del art. 86: {', '.join(REGIONES_86)}")
     ap.add_argument("--exceptuado", action="store_true", help="municipio exceptuado del art. 86")
     a = ap.parse_args()
@@ -391,10 +421,10 @@ def main():
     items, errores = leer_items(a.items)
     if errores:
         sys.exit("\n".join(errores))
-    r = cotizar(items, d, a.uvb, a.region, a.exceptuado)
+    r = cotizar(items, d, a.valor, a.region, a.exceptuado, a.unidad)
     for e in r["errores"]:
         print("ERROR:", e)
-    print(f"UVB {pesos(r['uvb'])}" + (f" · región {r['region']} (art. 86)" if r["region"] else ""))
+    print(f"{r['unidad_nombre']} {pesos(r['valor_unidad'])}" + (f" · región {r['region']} (art. 86)" if r["region"] else ""))
     for ln in r["lineas"]:
         print(f"  {ln['codigo']:>6}  {ln['concepto']:<14} {pesos(ln['base']):>13} x {ln['porcentaje']:>7g} % "
               f"= {pesos(ln['valor']):>13}   {ln['descripcion'][:50]}  [{ln['regla']}]")
