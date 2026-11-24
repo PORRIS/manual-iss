@@ -297,6 +297,9 @@ input.cant:focus, .campo-form select:focus { outline: 0; border-color: var(--ver
   border-radius: 999px; font-size: 12px; cursor: pointer; user-select: none; white-space: nowrap; background: #fff; }
 .opcion input { accent-color: var(--verde); margin: 0; }
 .opcion select { border: 0; background: none; font-size: 12px; padding: 0; cursor: pointer; }
+.opcion .opcion__valor { width: 110px; border: 0; border-bottom: 1px solid var(--borde); background: none; font-size: 12px; padding: 0 2px; text-align: right; -moz-appearance: textfield; appearance: textfield; }
+.opcion .opcion__valor:focus { outline: 0; border-bottom-color: var(--verde); }
+.opcion .opcion__valor::-webkit-outer-spin-button, .opcion .opcion__valor::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .opcion.activa, .opcion:has(input:checked) { background: var(--verde-claro); border-color: var(--verde); color: var(--verde-oscuro); font-weight: 600; }
 .monto.pos { color: var(--verde-oscuro); }
 .monto.neg { color: var(--vino); }
@@ -496,3 +499,9 @@ tr.aud-fila.e-sin-tarifa td:first-child { box-shadow: inset 3px 0 0 var(--morado
 .s26-sug .cod { font-weight: 600; color: var(--verde-oscuro); }
 .s26-sug .sutil { color: var(--texto-suave); }
 .s26-num { height: 40px; border: 1px solid var(--borde); border-radius: 8px; padding: 0 10px; font-size: 13.5px; }
+.cot-contrato { margin: 10px 0 4px; }
+.cot-contrato input { height: 40px; border: 1px solid var(--borde); border-radius: 8px; padding: 0 10px; background: #fff; color: var(--texto); font-size: 13.5px; }
+.cot-contrato input:focus { outline: 0; border-color: var(--verde); box-shadow: 0 0 0 3px rgba(29, 187, 153, .15); }
+.cot-sum-form { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 2fr) minmax(0, 1fr) 70px auto auto; gap: 8px; align-items: center; margin: 10px 0; }
+.cot-sum-form select, .cot-sum-form input:not([type="checkbox"]) { height: 38px; border: 1px solid var(--borde); border-radius: 8px; padding: 0 10px; font-size: 13px; background: #fff; color: var(--texto); min-width: 0; }
+@media (max-width: 900px) { .cot-sum-form { grid-template-columns: 1fr 1fr; } }

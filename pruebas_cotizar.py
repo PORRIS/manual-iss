@@ -68,6 +68,47 @@ CASOS = [
      1.3 * (122650 + 81175) + 57410, "1,3 x (122.650 + 81.175) + 57.410"),
     ("UVR: recuperación más de 6 horas, complejidad alta (art. 84)", ["386100"],
      {"recuperacion": {"386100": "alta"}}, 309680, "261.235 + S24103 48.445"),
+    ("UVR: más de 170 UVR con hoja de gasto (art. 85 par. 1)", ["849501"],
+     dict(ayudante=["849501"], materiales={"849501": 500000}), 2900000,
+     "600 x (1.270 + 960 + 360 + 1.410) + hoja de gasto 500.000"),
+    ("UVR: ayudante de igual especialidad desde 450 UVR (art. 63 par.)", ["849501"],
+     dict(ayudante_especialista=["849501"]), 2760000, "600 x (1.270 + 960 + 960 + 1.410)"),
+    ("UVR: ayudante de igual especialidad con menos de 450 UVR: a $360", ["487702"],
+     dict(ayudante=["487702"], ayudante_especialista=["487702"]), 300 * 2590 + 401015,
+     "300 x (1.270 + 960 + 360) + sala 401.015"),
+    ("UVR: hoja de gasto sin recargo bilateral", ["849501"],
+     dict(bilateral=["849501"], materiales={"849501": 500000}), 1.75 * 600 * (1270 + 960 + 1410) + 500000,
+     "1,75 x 600 x (1.270 + 960 + 1.410) + 500.000"),
+    ("UVR: hasta 170 UVR la hoja de gasto no se usa (tarifa fija)", ["386100"],
+     dict(materiales={"386100": 100000}), 261235, "igual que sin hoja"),
+    ("UVR: múltiples con hoja de gasto", ["487702", "386100"],
+     dict(mismo_acto="igual", ayudante=["487702", "386100"], materiales={"487702": 300000}), 1604072.5,
+     "1.304.072,5 + hoja de gasto 300.000"),
+    # art. 85 par. 1 y 5: múltiples con todas de 170 UVR o menos: materiales por tabla, 100 % + 50 %
+    ("UVR: múltiples igual vía, todas <= 170 UVR: materiales 100 % + 50 % (art. 85 par. 5)", ["386100", "797501"],
+     dict(mismo_acto="igual"), 346755,
+     "386100: 122.650 + 81.175 + 57.410; 797501: 60% x 78.050 + 50% x 44.270 + 50% x 33.110"),
+    ("UVR: múltiples diferente vía, todas <= 170 UVR: adicional sin sala ni materiales (solo politrauma)",
+     ["386100", "797501"], dict(mismo_acto="diferente"), 319772.5, "261.235 + 75% x 78.050"),
+    # politrauma: art. 65 par., art. 77 par. 6 y art. 85 par. 5
+    ("UVR: igual vía, tercera cirugía sin politrauma: no se paga (art. 65 par.)", ["386100", "797501x2"],
+     dict(mismo_acto="igual"), 346755, "igual que con dos"),
+    ("UVR: igual vía con politrauma: la tercera también al 60 % / 50 %", ["386100", "797501x2"],
+     dict(mismo_acto="igual", politrauma=True), 432275, "346.755 + 46.830 + 22.135 + 16.555"),
+    ("UVR: diferente vía con politrauma: sala y materiales 50 % hasta la tercera adicional", ["386100", "797501x4"],
+     dict(mismo_acto="diferente", politrauma=True), 611455,
+     "261.235 + 3 x (58.537,5 + 22.135 + 16.555) + 58.537,5"),
+    # art. 67: distinta especialidad
+    ("UVR: distinta especialidad, cada uno su mayor (art. 67): anestesiólogo 75 % en la segunda",
+     ["386100", "797501"], dict(mismo_acto="distinta", especialista={"386100": "1", "797501": "2"}), 408265,
+     "261.235 + 35 x 1.270 + 75% x 35 x 960 + 44.270 + 33.110"),
+    ("UVR: distinta especialidad, mismo especialista en las dos: cirujano 60 %, sala y materiales 50 %",
+     ["386100", "797501"], dict(mismo_acto="distinta"), 351795,
+     "261.235 + 60% x 44.450 + 75% x 33.600 + 50% x 44.270 + 50% x 33.110"),
+    ("UVR: distinta especialidad con ayudante: 100 % + 50 % (art. 67 par. 2); materiales por consumo (>170)",
+     ["487702", "386100"], dict(mismo_acto="distinta", ayudante=["487702", "386100"],
+                                especialista={"487702": "1", "386100": "2"}), 1378540,
+     "487702: 381.000 + 288.000 + 108.000 + 401.015; 386100: 69.850 + 75% x 52.800 + 50% x 19.800 + 81.175"),
     ("UVR: la EPS aporta la instrumentación (art. 77 par. 4)", ["386100"],
      {"descuento_sala": "instrumentacion"}, 245000, "261.235 - 20% x sala 81.175"),
     ("UVR: la EPS aporta instrumentación y enfermería", ["386100"], {"descuento_sala": "ambos"},
@@ -108,6 +149,9 @@ ERRORES = [
      "no tiene cirugías en UVR"),
     ("sala no válida para cirugía en UVR", ["386100"], {"uvr_sala": {"386100": "cocina"}}, "sala no válida"),
     ("descuento de sala no válido", ["386100"], {"descuento_sala": "todo"}, "no válido"),
+    ("hoja de gasto con valor no numérico", ["849501"], {"materiales": {"849501": "mucho"}}, "hoja de gasto"),
+    ("hoja de gasto de un código que no está", ["849501"], {"materiales": {"386100": 1000}}, "no es una cirugía en UVR"),
+    ("politrauma sin mismo acto", ["386100", "797501"], {"politrauma": True}, "--politrauma"),
     ("recuperación con complejidad no válida", ["386100"], {"recuperacion": {"386100": "extrema"}},
      "complejidad no válida"),
     ("tecnecio sin medicina nuclear", ["903801"], dict(tecnecio=True), "ningún ítem"),
@@ -119,6 +163,28 @@ ERRORES = [
 ]
 
 fallas = 0
+# suministros del art. 88 (pág. 161): compra + 12 %; tutor en préstamo 25 % de eso (par. 2)
+from cotizar import liquidar_suministros
+SUMI = [
+    ("art. 88: 2 placas de $850.000 + 12 %", [dict(descripcion="placa", precio=850000, cantidad=2)], 1_904_000),
+    ("art. 87 a: medicamento, prestador externo: 3 x $100.000 + 12 %",
+     [dict(precio=100000, cantidad=3, tipo="med_externo")], 336_000),
+    ("art. 87 b: medicamento, prestador interno: 3 x $100.000 + 5 %",
+     [dict(precio=100000, cantidad=3, tipo="med_interno")], 315_000),
+    ("art. 88 par. 2: tutor en préstamo de $2.000.000: 25 % de 2.240.000", [dict(precio=2_000_000, prestamo=True)], 560_000),
+]
+for desc, lista, esperado in SUMI:
+    lineas, err = liquidar_suministros(lista)
+    obtenido = sum(x["monto"] for x in lineas)
+    ok = not err and abs(obtenido - esperado) < 0.01
+    fallas += not ok
+    print(f"{'OK ' if ok else 'MAL'} {desc}: {obtenido:,.2f} (esperado {esperado:,.2f})")
+ok = bool(liquidar_suministros([dict(precio=0)])[1])
+fallas += not ok
+print(f"{'OK ' if ok else 'MAL'} error esperado - suministro con precio 0")
+ok = bool(liquidar_suministros([dict(precio=1000, prestamo=True, tipo="med_externo")])[1])
+fallas += not ok
+print(f"{'OK ' if ok else 'MAL'} error esperado - préstamo en un medicamento")
 for desc, items, op, esperado, calculo in CASOS:
     obtenido = total(items, **op)
     ok = abs(obtenido - esperado) < 0.01
@@ -129,5 +195,6 @@ for desc, items, op, frase in ERRORES:
     ok = any(frase in x for x in e)
     fallas += not ok
     print(f"{'OK ' if ok else 'MAL'} error esperado - {desc}: {e[0][:90] if e else 'sin error'}")
-print(f"\n{len(CASOS) + len(ERRORES) - fallas}/{len(CASOS) + len(ERRORES)} pruebas correctas")
+n = len(CASOS) + len(ERRORES) + len(SUMI) + 2
+print(f"\n{n - fallas}/{n} pruebas correctas")
 raise SystemExit(1 if fallas else 0)

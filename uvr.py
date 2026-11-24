@@ -12,7 +12,7 @@ practicada en otra sala, o un solo componente. Este módulo calcula esos escenar
   450 UVR (par. 1); sala de procedimientos especial (art. 79, S22201-S22214), sala de endoscopia
   (art. 80, S22224-S22237) y sala básica (art. 81, S22104-S22115).
 - Materiales de sutura y curación (art. 85): quirófano por rango hasta 170 UVR (S55101-S55113); más de
-  170 UVR, según consumo (par. 1, sin valor fijo); sala especial o endoscopia $24.270 (S55114, par. 2);
+  170 UVR o en cirugías múltiples, según consumo (par. 1): el valor de la hoja de gasto si se digita; sala especial o endoscopia $24.270 (S55114, par. 2);
   sala básica $10.350 (S55115, par. 3).
 - Bilateral (art. 64, art. 77 par. 5, art. 85 par. 5): honorarios, sala de cirugía y materiales +75 %,
   salvo las descritas como «uni o bilateral».
@@ -170,16 +170,23 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
 SALA_ART = {"quirofano": 77, "especial": 79, "endoscopia": 80, "basica": 81}
 
 
-def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None):
+def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None, politrauma=False):
     """Liquida las cirugías en UVR de un acto con lo que declara quien cotiza.
 
     items: [dict(codigo, uvr, descripcion, cantidad, sala, anestesia, ayudante, bilateral)]
       sala: quirofano (por defecto) | especial | endoscopia | basica; anestesia: general o regional
       (False = local, sin honorario de anestesiólogo, art. 61 par. 1); ayudante: si hubo (solo desde
-      50 UVR, art. 63); bilateral: art. 64 (no en las «uni o bilateral»); recuperacion: baja | mediana
-      | alta si permaneció en recuperación más de 6 horas (art. 84).
+      50 UVR, art. 63); ayudante_especialista: el ayudante es de igual especialidad que el cirujano
+      principal (art. 63 par.: $960 por UVR con 450 UVR o más, o en el 815101; implica ayudante); bilateral: art. 64 (no en las «uni o bilateral»); recuperacion: baja | mediana
+      | alta si permaneció en recuperación más de 6 horas (art. 84); materiales_consumo: valor en
+      pesos de la hoja de gasto, cuando los materiales se pagan según consumo (art. 85 par. 1: más de
+      170 UVR o cirugías múltiples en quirófano); va una vez por código, sin recargos.
     descuento_sala: instrumentacion | enfermeria | ambos si la EPS los aporta (art. 77 par. 4).
-    via: None (cirugías en actos distintos: cada una completa) | "igual" (art. 65) | "diferente" (art. 66).
+    via: None (cirugías en actos distintos: cada una completa) | "igual" (art. 65) | "diferente" (art. 66)
+      | "distinta" (especialistas de distinta especialidad, art. 67: cada ítem trae «especialista»).
+    politrauma: abdominal, torácico, craneofacial o fracturas múltiples. Igual vía: desde la tercera
+      cirugía también se paga (60 % honorarios, art. 65 par.; 50 % sala y materiales, arts. 77 par. 6 y
+      85 par. 5); diferente vía: sala y materiales al 50 % en las tres primeras adicionales.
     Devuelve ({codigo: dict(total, componentes=[(concepto, monto, cita)])}, avisos)."""
     reg = 1.3 if region else 1.0
     avisos = []
@@ -187,9 +194,19 @@ def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None):
     txt_dto = f" -{100 - dto * 100:g}% (art. 77 par. 4)" if dto != 1 else ""
     unidades = sorted(((it, k) for it in items for k in range(int(it.get("cantidad") or 1))),
                       key=lambda x: -x[0]["uvr"])
-    multiple = via in ("igual", "diferente") and len(unidades) > 1
+    multiple = via in ("igual", "diferente", "distinta") and len(unidades) > 1
+    # art. 85 par. 1: materiales según consumo en la de más de 170 UVR y en las múltiples en las que
+    # alguna pasa de 170 UVR; si todas tienen 170 o menos, van por tabla (par. 5: 100 % + 50 %)
+    max_q = max((float(it["uvr"]) for it, _ in unidades if (it.get("sala") or "quirofano") == "quirofano"),
+                default=0.0)
+    vistos_esp = {}  # art. 67: cirugías ya liquidadas de cada especialista
+    if via == "distinta" and multiple and len({str(it.get("especialista") or "1") for it in items}) < 2:
+        avisos.append("Distinta especialidad (art. 67): todas las cirugías quedaron con el mismo especialista; "
+                      "indique el especialista de cada una o use igual o diferente vía (arts. 65-66)")
     res = {}
     sala_otra_pagada = set()
+    mat_consumo = set()  # códigos con la hoja de gasto ya sumada (una vez por código)
+    hay_hoja = any(it.get("materiales_consumo") for it in items)
     for n, (it, _) in enumerate(unidades):
         cod, u = it["codigo"], float(it["uvr"])
         sala = it.get("sala") or "quirofano"
@@ -198,27 +215,67 @@ def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None):
         bil = bool(it.get("bilateral")) and not re.search(r"UNI\s*(?:O|/|Y/O)?\s*BILATERAL", sin_tildes)
         if it.get("bilateral") and not bil:
             avisos.append(f"{cod}: descrita como «uni o bilateral»: sin recargo bilateral (art. 64)")
-        f_bil = 1.75 if bil else 1.0
+
+        def poner(texto, valor, cita, quien, cita_bil):
+            """Componente al 100 % y, si es bilateral, su 75 % adicional en línea aparte, como lo dice
+            la norma (art. 64 honorarios, art. 77 par. 5 sala, art. 85 par. 5 materiales)."""
+            comp.append((texto, valor, cita))
+            if bil:
+                comp.append((f"Adicional bilateral 75 % de {quien}", valor * 0.75, cita_bil))
         # porcentaje de honorarios y de sala de quirófano según el orden en el acto
+        especialista = str(it.get("especialista") or "1")
+        k_esp = vistos_esp.get(especialista, 0)
+        vistos_esp[especialista] = k_esp + 1
         f_hon, f_sala, nota = 1.0, 1.0, ""
-        if multiple and n > 0:
+        f_anes = f_ayu = None  # None = igual que el cirujano
+        if multiple and via == "distinta":
+            # art. 67: cada especialista 100 % de su mayor y 60 % de sus demás; anestesiólogo 100 % de la
+            # mayor del acto y 75 % de las demás (par. 1); ayudante 100 % + 50 % (par. 2); sala y materiales
+            # 100 % de la mayor de cada especialista y 50 % de sus demás (art. 77 par. 6; art. 85 par. 5)
+            f_hon = 1.0 if k_esp == 0 else 0.6
+            f_sala = 1.0 if k_esp == 0 else 0.5
+            f_anes = 1.0 if n == 0 else 0.75
+            f_ayu = 1.0 if n == 0 else 0.5
+            nota = (f" (especialista {especialista}: " + ("su mayor, 100 %" if k_esp == 0 else "adicional, 60 %")
+                    + ", art. 67)")
+        elif multiple and n > 0:
             if it["codigo"] in EXCEPCION_65 and via == "igual":
                 f_hon, f_sala, nota = 0.0, 0.0, " (excepción del art. 65: sin porcentaje adicional)"
-            elif via == "igual" and n >= 2:
+            elif via == "igual" and n >= 2 and not politrauma:
                 f_hon, f_sala, nota = 0.0, 0.0, " (art. 65 par.: sin pagos adicionales desde la tercera, salvo politrauma)"
             elif via == "igual":
-                f_hon, f_sala, nota = 0.6, 0.5, " (adicional, igual vía: 60% honorarios, art. 65; 50% sala, art. 77 par. 6)"
+                f_hon, f_sala, nota = 0.6, 0.5, (" (adicional, igual vía: 60% honorarios, art. 65"
+                                                 + (" par., politrauma" if n >= 2 else "") + "; 50% sala, art. 77 par. 6)")
+            elif politrauma and n <= 3:
+                f_hon, f_sala, nota = 0.75, 0.5, (" (adicional, diferente vía: 75% honorarios, art. 66; politrauma: 50% "
+                                                  "sala y materiales hasta la tercera adicional, arts. 77 par. 6 y 85 par. 5)")
             else:
                 f_hon, f_sala, nota = 0.75, 0.0, (" (adicional, diferente vía: 75% honorarios, art. 66; sin derechos "
-                                                  "de sala: solo en politrauma, nota del art. 77)")
-        cita_h = "art. 59" + (", art. 64" if bil else "") + (", art. 134 a" if region else "")
-        cir = u * tb["cirujano"] * reg * f_bil * f_hon
-        comp.append((f"Cirujano {u:g} UVR x {tb['cirujano']:g}{nota}", cir, cita_h))
+                                                  "de sala" + (": politrauma solo hasta la tercera adicional, art. 77 par. 6)"
+                                                               if politrauma else ": solo en politrauma, art. 77 par. 6)"))
+        f_anes = f_hon if f_anes is None else f_anes
+        f_ayu = f_hon if f_ayu is None else f_ayu
+        f_mat = f_sala  # art. 85 par. 5: los mismos porcentajes que la sala en las múltiples
+        t_anes = " (75 %, art. 67 par. 1)" if via == "distinta" and f_anes == 0.75 else ""
+        t_ayu = " (50 %, art. 67 par. 2)" if via == "distinta" and f_ayu == 0.5 else ""
+        cita_h = "art. 59" + (", art. 134 a" if region else "")
+        poner(f"Cirujano {u:g} UVR x {tb['cirujano']:g}{nota}", u * tb["cirujano"] * reg * f_hon, cita_h,
+              "cirujano", "art. 64")
         if it.get("anestesia", True):
-            comp.append((f"Anestesiólogo {u:g} UVR x {tb['anestesiologo']:g}", u * tb["anestesiologo"] * reg * f_bil * f_hon, cita_h + ", art. 61"))
-        if it.get("ayudante"):
-            if u >= 50:
-                comp.append((f"Ayudante {u:g} UVR x {tb['ayudante']:g}", u * tb["ayudante"] * reg * f_bil * f_hon, cita_h + ", art. 63"))
+            poner(f"Anestesiólogo {u:g} UVR x {tb['anestesiologo']:g}{t_anes}", u * tb["anestesiologo"] * reg * f_anes,
+                  cita_h + ", art. 61", "anestesiólogo", "art. 64")
+        if it.get("ayudante") or it.get("ayudante_especialista"):
+            esp = bool(it.get("ayudante_especialista"))
+            if esp and not (u >= 450 or cod == "815101"):
+                avisos.append(f"{cod}: ayudante de igual especialidad, pero la cirugía tiene menos de 450 UVR: "
+                              f"se paga a ${tb['ayudante']:g} por UVR (art. 63 par.)")
+                esp = False
+            if esp:
+                poner(f"Ayudante de igual especialidad {u:g} UVR x {tb['ayudante_especialista']:g}{t_ayu}",
+                      u * tb["ayudante_especialista"] * reg * f_ayu, cita_h + ", art. 63 par.", "ayudante", "art. 64")
+            elif u >= 50:
+                poner(f"Ayudante {u:g} UVR x {tb['ayudante']:g}{t_ayu}", u * tb["ayudante"] * reg * f_ayu,
+                      cita_h + ", art. 63", "ayudante", "art. 64")
             else:
                 avisos.append(f"{cod}: ayudante declarado, pero la cirugía tiene menos de 50 UVR: no se paga (art. 63)")
         art = SALA_ART.get(sala, 77)
@@ -231,9 +288,9 @@ def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None):
             if v_sala is None:
                 avisos.append(f"{cod}: sin tarifa de derechos de sala para {u:g} UVR")
             elif f_sala:
-                comp.append((txt + (" +75% bilateral" if bil else "") + txt_dto, v_sala * reg * f_bil * f_sala * dto,
-                             "art. 77" + (" par. 5" if bil else "") + (" par. 6" if f_sala == 0.5 else "")
-                             + (" par. 4" if dto != 1 else "")))
+                poner(txt + (" al 50 %" if f_sala == 0.5 else "") + txt_dto, v_sala * reg * f_sala * dto,
+                      "art. 77" + (" par. 6" if f_sala == 0.5 else "") + (" par. 4" if dto != 1 else ""),
+                      "derechos de sala", "art. 77 par. 5")
             if it.get("recuperacion"):
                 v_rec = tb.get("recuperacion", {}).get(it["recuperacion"])
                 if v_rec and not sala_otra_pagada & {"recuperacion"}:
@@ -242,19 +299,33 @@ def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None):
                     sala_otra_pagada.add("recuperacion")  # una sola vez por acto
                 elif not v_rec:
                     avisos.append(f"{cod}: complejidad de recuperación no válida ({' | '.join(RECUPERACION)})")
-            if multiple:
-                if n == 0:
-                    avisos.append("Cirugías múltiples: los materiales de sutura y curación se pagan según consumo "
-                                  "(art. 85 par. 1); no se suman")
-            elif u > 170:
-                avisos.append(f"{cod}: más de 170 UVR: materiales según consumo (art. 85 par. 1); no se suman")
+            hoja = float(it.get("materiales_consumo") or 0)
+            if u > 170 or (multiple and max_q > 170):
+                if hoja and cod not in mat_consumo:
+                    comp.append(("Materiales según hoja de gasto", hoja, "art. 85 par. 1"))
+                    mat_consumo.add(cod)
+                elif multiple and n == 0 and not hay_hoja:
+                    avisos.append("Cirugías múltiples con alguna de más de 170 UVR: los materiales de sutura y "
+                                  "curación de todas se pagan según consumo (art. 85 par. 1); no se suman: digite "
+                                  "el valor de la hoja de gasto")
+                elif not multiple and not hoja:
+                    avisos.append(f"{cod}: más de 170 UVR: materiales según consumo (art. 85 par. 1); no se suman: "
+                                  "digite el valor de la hoja de gasto")
             else:
+                if hoja and cod not in mat_consumo:
+                    avisos.append(f"{cod}: hasta 170 UVR los materiales tienen tarifa fija (art. 85): no se usa la "
+                                  "hoja de gasto")
+                    mat_consumo.add(cod)
                 m = por_rango(u, tb["rangos"].get("materiales", []))
-                if m:
-                    comp.append((f"Materiales {m[1]}" + (" +75% bilateral" if bil else ""), m[0] * f_bil,
-                                 "art. 85" + (" par. 5" if bil else "")))
+                if m and f_mat:
+                    poner(f"Materiales {m[1]}" + (" al 50 %" if f_mat == 0.5 else ""), m[0] * f_mat,
+                          "art. 85" + (" par. 5" if f_mat == 0.5 else ""), "materiales", "art. 85 par. 5")
         else:
             # salas 79-81: una sola tarifa por acto (la del procedimiento de más UVR), sin recargo bilateral
+            if it.get("materiales_consumo") and cod not in mat_consumo:
+                avisos.append(f"{cod}: en {SALAS[art][1]} los materiales tienen tarifa fija (art. 85 par. "
+                              f"{3 if art == 81 else 2}): no se usa la hoja de gasto")
+                mat_consumo.add(cod)
             if art in sala_otra_pagada:
                 comp.append((f"Derechos de {SALAS[art][1]}: incluidos en el de más UVR", 0.0, f"art. {art} par. 1"))
             else:

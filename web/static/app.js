@@ -515,6 +515,7 @@ async function pintarFuentes() {
 // Mismo cálculo que cotizar.py (POST /api/cotizar). La cotización se guarda en este navegador.
 const OPC_ETIQUETA = {
   "sin-anestesia": "Anestesia local (sin anestesiólogo)", ayudante: "Con ayudante",
+  "ayudante-especialista": "Ayudante de igual especialidad ($960/UVR)",
   "anestesia-diag": "Con anestesia general (+50 %, num. 47.1.3)",
   "solo-muestra": "Solo toma de muestra", "biopsia-multiple": "Biopsia múltiple",
   "portatil-eco": "Ecografía portátil", bilateral: "Bilateral", "portatil-rx": "Radiología portátil",
@@ -524,7 +525,7 @@ const pesos = (v) => (v < 0 ? "−" : "") + "$" + new Intl.NumberFormat("es-CO",
 const normCod = (c) => { c = c.toUpperCase(); return /^\d+$/.test(c) ? c.padStart(6, "0") : c; };
 const partesItem = (s) => { const m = s.match(RE_ITEM); return m ? { cod: normCod(m[1]), cant: +(m[2] || 1), ref: m[3] || "" } : null; };
 const armarItem = (p) => p.cod + (p.cant > 1 ? "x" + p.cant : "") + (p.ref ? "@" + p.ref : "");
-const cotVacia = () => ({ items: [], opc: {}, rx: {}, sala: {}, recup: {}, descuentoSala: "", tecnecio: false, mismoActo: "", depto: "", muni: "" });
+const cotVacia = () => ({ items: [], opc: {}, rx: {}, sala: {}, recup: {}, mat: {}, descuentoSala: "", tecnecio: false, mismoActo: "", depto: "", muni: "", contrato: "", sum: [], esp: {} });
 const RECUP_UVR = { "": "no (o menos de 6 h)", baja: "complejidad baja", mediana: "complejidad mediana", alta: "complejidad alta" };
 const SALAS_UVR = { quirofano: "quirófano", especial: "sala especial", endoscopia: "endoscopia", basica: "sala básica" };
 let COT_CFG = null;
@@ -544,10 +545,15 @@ function pedidoCot(s = cot) {
     portatil_rx: Object.fromEntries(Object.entries(s.rx).filter(([, v]) => v)),
     uvr_sala: Object.fromEntries(Object.entries(s.sala || {}).filter(([, v]) => v)),
     recuperacion: Object.fromEntries(Object.entries(s.recup || {}).filter(([, v]) => v)),
+    materiales: Object.fromEntries(Object.entries(s.mat || {}).filter(([, v]) => v > 0)),
     descuento_sala: s.descuentoSala || null,
-    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"), anestesia_diag: lista("anestesia-diag"),
+    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"), ayudante_especialista: lista("ayudante-especialista"), anestesia_diag: lista("anestesia-diag"),
     tecnecio: s.tecnecio, mismo_acto: s.mismoActo || null,
+    politrauma: !!s.politrauma && ["igual", "diferente"].includes(s.mismoActo),
     region: s.depto ? `${s.depto}:${s.muni || "OTRO"}` : null,
+    contrato_pct: +s.contrato || 0,
+    especialista: Object.fromEntries(Object.entries(s.esp || {}).filter(([, v]) => v)),
+    suministros: (s.sum || []).map((x) => ({ descripcion: x.d, precio: x.p, cantidad: x.c || 1, prestamo: !!x.t, tipo: x.k || "suministro" })),
   };
 }
 
@@ -558,6 +564,8 @@ function podarCot() {
   for (const k of Object.keys(cot.rx)) if (!vivos.has(k)) delete cot.rx[k];
   for (const k of Object.keys(cot.sala || {})) if (!vivos.has(k)) delete cot.sala[k];
   for (const k of Object.keys(cot.recup || {})) if (!vivos.has(k)) delete cot.recup[k];
+  for (const k of Object.keys(cot.mat || {})) if (!vivos.has(k)) delete cot.mat[k];
+  for (const k of Object.keys(cot.esp || {})) if (!vivos.has(k)) delete cot.esp[k];
 }
 
 async function postJSON(url, cuerpo) {
@@ -623,6 +631,27 @@ async function pintarCotizar() {
     <div class="cot-rejilla">
       <div class="cot-principal">
         <section class="panel" id="cotItems"></section>
+        <section class="panel" id="cotSum">
+          <h2 class="subtitulo">${icono("caja")}Suministros y medicamentos (arts. 87 y 88, págs. <a class="pagina" href="/fuentes/pdf#page=160" target="_blank" rel="noopener">160</a>-<a class="pagina" href="/fuentes/pdf#page=161" target="_blank" rel="noopener">161</a>)</h2>
+          <p class="nota-campo">Prótesis, órtesis, placas, tornillos, clavos, mallas, stents, catéteres, cemento óseo y demás
+            elementos que se pagan según consumo: hasta el <b>precio de compra + 12 %</b>. Los tutores (fijación externa) en
+            préstamo se pagan al 25 % de ese valor, una vez por paciente, sin los tornillos de fijación (par. 2). No aplica a los
+            elementos que ya hacen parte de la tarifa de un examen o procedimiento del Capítulo II (par. 1).
+            <b>Medicamentos y soluciones</b> (art. 87): precio de compra + 12 % si el prestador es externo o + 5 % si es interno;
+            las jeringas, agujas y equipos de administración se pagan aparte del medicamento (par. 1).</p>
+          <form class="cot-sum-form" id="cotSumForm" autocomplete="off">
+            <select id="cotSumTipo" aria-label="Tipo">
+              <option value="suministro">Suministro (art. 88, +12 %)</option>
+              <option value="med_externo">Medicamento, prestador externo (art. 87 a, +12 %)</option>
+              <option value="med_interno">Medicamento, prestador interno (art. 87 b, +5 %)</option></select>
+            <input id="cotSumDesc" maxlength="200" placeholder="Descripción (ej. placa bloqueada 3.5)" aria-label="Descripción">
+            <input id="cotSumPrecio" type="number" min="1" step="1" placeholder="Precio de compra $" aria-label="Precio de compra" required>
+            <input id="cotSumCant" type="number" min="1" step="1" value="1" aria-label="Cantidad" title="Cantidad">
+            <label class="opcion" title="Art. 88 par. 2: 25 % de (compra + 12 %) por paciente"><input type="checkbox" id="cotSumTutor">Tutor en préstamo</label>
+            <button class="boton boton--verde" type="submit">${icono("mas")}Agregar</button>
+          </form>
+          <div id="cotSumLista"></div>
+        </section>
         <section class="panel" id="cotNotas"></section>
       </div>
       <aside class="cot-lateral">
@@ -634,6 +663,29 @@ async function pintarCotizar() {
     ev.preventDefault();
     agregarItems($("#cotCodigo").value);
     $("#cotCodigo").value = "";
+  });
+  $("#cotSumForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const p = parseFloat($("#cotSumPrecio").value), c = parseFloat($("#cotSumCant").value) || 1;
+    if (!(p > 0)) return;
+    const k = $("#cotSumTipo").value;
+    (cot.sum ||= []).push({ d: $("#cotSumDesc").value.trim(), p, c: Math.max(1, c), k, t: k === "suministro" && $("#cotSumTutor").checked });
+    $("#cotSumDesc").value = $("#cotSumPrecio").value = "";
+    $("#cotSumCant").value = 1;
+    $("#cotSumTutor").checked = false;
+    $("#cotSumDesc").focus();
+    recalcular();
+  });
+  $("#cotSumTipo").addEventListener("change", (ev) => {
+    const sum = ev.target.value === "suministro";
+    $("#cotSumTutor").disabled = !sum;
+    if (!sum) $("#cotSumTutor").checked = false;
+  });
+  $("#cotSumLista").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-quitar-sum]");
+    if (!b) return;
+    cot.sum.splice(+b.dataset.quitarSum, 1);
+    recalcular();
   });
   enlazarCotizar();
   if (cotRes) pintarCotResultado();
@@ -659,11 +711,17 @@ function enlazarCotizar() {
     recalcular();
   });
   enlazarCondiciones($("#cotCondiciones"), () => cot, recalcular);
+  $("#cotTotal").addEventListener("change", (ev) => {
+    if (ev.target.id !== "cotContrato") return;
+    const v = parseFloat(String(ev.target.value).replace(",", "."));
+    cot.contrato = Number.isFinite(v) && v > -100 && v <= 500 ? v : "";
+    recalcular();
+  });
   $("#cotTotal").addEventListener("click", async (ev) => {
     const b = ev.target.closest("button");
     if (!b) return;
     if (b.id === "cotLimpiar") {
-      if (cot.items.length && !confirm("¿Borrar la cotización?")) return;
+      if ((cot.items.length || cot.sum?.length) && !confirm("¿Borrar la cotización?")) return;
       cot = cotVacia();
       recalcular();
     } else if (b.id === "cotExcel") exportarCot(b);
@@ -674,6 +732,8 @@ function enlazarCotizar() {
 function cambiarOpcion(t, s) {
   if (t.dataset.sala !== undefined) (s.sala ||= {})[t.dataset.sala] = t.value;
   else if (t.dataset.recup !== undefined) (s.recup ||= {})[t.dataset.recup] = t.value;
+  else if (t.dataset.esp !== undefined) (s.esp ||= {})[t.dataset.esp] = t.value;
+  else if (t.dataset.mat !== undefined) (s.mat ||= {})[t.dataset.mat] = Math.max(0, parseFloat(t.value) || 0);
   else if (t.dataset.rx !== undefined) s.rx[t.dataset.rx] = t.value;
   else if (t.dataset.op !== undefined) (s.opc[t.dataset.cod] ||= {})[t.dataset.op] = t.checked;
   else return false;
@@ -688,6 +748,7 @@ function enlazarCondiciones(el, estadoDe, recalc) {
     else if (t.id === "cotMuni") s.muni = t.value;
     else if (t.name === "mismoActo") s.mismoActo = t.value;
     else if (t.id === "cotTecnecio") s.tecnecio = t.checked;
+    else if (t.id === "cotPolitrauma") s.politrauma = t.checked;
     else if (t.id === "cotDescuentoSala") s.descuentoSala = t.value;
     else return;
     recalc();
@@ -707,6 +768,16 @@ function htmlOpciones(f, s = cot) {
       const v = s.recup?.[f.codigo] || "";
       return `<label class="opcion${v ? " activa" : ""}" title="Sala de recuperación después de las primeras 6 horas (art. 84)">Recuperación &gt; 6 h
         <select data-recup="${esc(f.codigo)}">${Object.entries(RECUP_UVR).map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
+    }
+    if (op === "especialista") {
+      const v = s.esp?.[f.codigo] || "1";
+      return `<label class="opcion activa" title="Art. 67: cada especialista cobra 100 % de su cirugía mayor y 60 % de las demás; sala y materiales 100 % + 50 % por especialista">Especialista
+        <select data-esp="${esc(f.codigo)}">${["1", "2", "3", "4"].map((k) => `<option value="${k}"${k === v ? " selected" : ""}>${k}</option>`).join("")}</select></label>`;
+    }
+    if (op === "materiales") {
+      const v = s.mat?.[f.codigo] || "";
+      return `<label class="opcion${v ? " activa" : ""}" title="Más de 170 UVR o cirugías múltiples: los materiales de sutura y curación se pagan según consumo (art. 85 par. 1). Digite el total en pesos de la hoja de gasto">Materiales (hoja de gasto) $
+        <input class="opcion__valor" type="number" min="0" step="1" inputmode="numeric" placeholder="0" value="${v}" data-mat="${esc(f.codigo)}"></label>`;
     }
     if (op === "portatil-rx") {
       const v = s.rx[f.codigo] || "";
@@ -765,6 +836,15 @@ function pintarCotResultado() {
     <ul>${d.avisos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "";
   const parr = d.parrafos.length ? `<details class="cot-detalles"><summary>${icono("documento")}Parágrafos que pueden modificar el valor (${d.parrafos.length})</summary>
     <ul>${d.parrafos.map((p) => `<li><span class="chip ${p.opcion ? "" : "chip--gris"}">art. ${p.articulo}${p.opcion === "pendiente" ? " · pendiente" : p.opcion ? " · se puede marcar" : ""}</span> ${esc(p.texto)}</li>`).join("")}</ul></details>` : "";
+  const sumi = d.suministros || [];
+  $("#cotSumLista").innerHTML = sumi.length ? `<div class="tabla-marco cot-tabla"><table>
+    <thead><tr><th>Descripción</th><th class="num">Precio de compra</th><th class="num">Cant.</th><th class="num">Margen</th>
+      <th>Regla</th><th class="num">Valor</th><th></th></tr></thead>
+    <tbody>${sumi.map((x, i) => `<tr><td>${esc(x.descripcion)}</td><td class="num">${pesos(x.precio)}</td>
+      <td class="num">${fmt.format(x.cantidad)}</td><td class="num">${pesos(x.margen)}<small class="sutil"> (+${x.pct} %)</small></td>
+      <td><small>${esc(x.texto)} · ${enlacesCita(x.cita)}</small></td><td class="num"><b>${pesos(x.monto)}</b></td>
+      <td><button class="boton-icono" type="button" data-quitar-sum="${i}" title="Quitar">${icono("x")}</button></td></tr>`).join("")}</tbody>
+    </table></div>` : "";
   $("#cotNotas").innerHTML = ajustes + avisos + parr;
   $("#cotNotas").hidden = !(ajustes || avisos || parr);
 
@@ -773,11 +853,16 @@ function pintarCotResultado() {
   $("#cotTotal").innerHTML = `
     <div class="cot-linea"><span>Tarifas</span><b>${pesos(d.base)}</b></div>
     <div class="cot-linea"><span>Recargos y descuentos</span><b class="monto ${sumaAj < 0 ? "neg" : "pos"}">${sumaAj < 0 ? "" : "+"}${pesos(sumaAj)}</b></div>
+    ${sumi.length ? `<div class="cot-linea"><span>Suministros y medicamentos</span><b>${pesos(d.total_suministros)}</b></div>` : ""}
+    <label class="campo-form cot-contrato"><span>Ajuste del contrato (%) sobre el total: 0 = valores del Manual; ej. 4 para «ISS + 4 %» o -5</span>
+      <input id="cotContrato" type="number" step="0.01" min="-99.99" max="500" placeholder="0" value="${esc(cot.contrato ?? "")}"></label>
+    ${d.contrato_pct && d.total != null ? `<div class="cot-linea"><span>Según el Manual</span><b>${pesos(d.total_manual)}</b></div>
+      <div class="cot-linea"><span>Contrato ${d.contrato_pct > 0 ? "+" : ""}${fmt.format(d.contrato_pct)} %</span><b class="monto ${d.ajuste_contrato < 0 ? "neg" : "pos"}">${d.ajuste_contrato < 0 ? "" : "+"}${pesos(d.ajuste_contrato)}</b></div>` : ""}
     <div class="cot-gran-total"><span>Total</span><strong>${d.total == null ? "—" : pesos(d.total)}</strong></div>
     ${d.errores.length ? `<div class="cot-errores">${icono("alerta")}<div><b>No se calcula el total mientras haya errores:</b>
       <ul>${d.errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div></div>` : ""}
     <div class="cot-acciones">
-      <button class="boton boton--verde" id="cotExcel" type="button"${d.total == null || !cot.items.length ? " disabled" : ""}>${icono("excel")}Excel</button>
+      <button class="boton boton--verde" id="cotExcel" type="button"${d.total == null || !(cot.items.length || sumi.length) ? " disabled" : ""}>${icono("excel")}Excel</button>
       <button class="boton boton--borde" id="cotLimpiar" type="button">${icono("papelera")}Limpiar</button>
     </div>`;
 }
@@ -810,7 +895,10 @@ function pintarCondiciones(s = cot, el = $("#cotCondiciones"), g = cotRes.global
     <h2 class="subtitulo">${icono("bisturi")}Varias cirugías en un mismo acto</h2>
     ${g.conjuntos || (g.uvr || 0) >= 2 ? `${radio("", "No (actos distintos)")}
       ${radio("igual", "Mismo especialista, igual vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 25 % del siguiente (art. 95 par. 7). UVR: 100 % + 60 % honorarios y 50 % sala (arts. 65, 77)" : "100 % de la mayor + 60 % honorarios y 50 % sala de la siguiente (arts. 65 y 77 par. 6)")}
-      ${radio("diferente", "Diferente vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 70 % (art. 95 par. 7). UVR: 100 % + 75 % honorarios (art. 66)" : "100 % de la mayor + 75 % de honorarios de las demás (art. 66)")}`
+      ${radio("diferente", "Diferente vía de acceso", g.conjuntos ? "Conjuntos: 100 % + 70 % (art. 95 par. 7). UVR: 100 % + 75 % honorarios (art. 66)" : "100 % de la mayor + 75 % de honorarios de las demás (art. 66)")}
+      ${el.id === "cotCondiciones" && (g.uvr || 0) >= 2 && ["igual", "diferente"].includes(s.mismoActo) ? `<label class="radio"><input type="checkbox" id="cotPolitrauma"${s.politrauma ? " checked" : ""}>
+        <span>Politrauma (abdominal, torácico, craneofacial o fracturas múltiples)<small>Cirugías en UVR. Igual vía: desde la tercera también se paga el 60 % de honorarios (art. 65 par.) y el 50 % de sala y materiales. Diferente vía: sala y materiales al 50 % hasta la tercera adicional (arts. 77 par. 6 y 85 par. 5)</small></span></label>` : ""}
+      ${el.id === "cotCondiciones" && (g.uvr || 0) >= 2 ? radio("distinta", "Especialistas de distinta especialidad", "Art. 67: cada uno 100 % de su mayor + 60 % de las demás; anestesiólogo 100 % + 75 %; ayudante 100 % + 50 %; sala y materiales 100 % + 50 % por especialista (arts. 77 par. 6 y 85 par. 5). Indique el especialista en cada cirugía" + (g.conjuntos ? ". Conjuntos: 100 % + 70 % (art. 95 par. 7)" : "")) : ""}`
       : `<p class="nota-campo">Aplica con conjuntos del art. 95 (códigos C…) o con dos o más cirugías en UVR.</p>`}
     ${(g.uvr || 0) > 0 ? `<h2 class="subtitulo">${icono("porcentaje")}Derechos de sala de cirugía</h2>
       <label class="campo-form"><span>La EPS aporta (art. 77 par. 4): se descuenta de la sala de cirugía</span>

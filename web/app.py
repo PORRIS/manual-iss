@@ -312,7 +312,12 @@ async def exigir_clave(request: Request, call_next):
             request.headers.get("Authorization", "")):
         return Response("Se requiere usuario y clave", status_code=401,
                         headers={"WWW-Authenticate": 'Basic realm="Manual ISS 2001", charset="UTF-8"'})
-    return await call_next(request)
+    resp = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        # que el navegador pregunte siempre (con ETag: si no cambió, responde 304 sin reenviar):
+        # así cada cambio de app.js o styles.css se ve sin borrar la caché a mano
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 @app.get("/salud")
@@ -644,6 +649,15 @@ def datos_cotizador():
     return _DATOS_COT["d"]
 
 
+class Suministro(BaseModel):
+    """Art. 88: suministro a precio de compra (se le suma el 12 %); prestamo = tutor en préstamo (par. 2)."""
+    descripcion: str = Field("", max_length=200)
+    precio: float = Field(gt=0, le=10_000_000_000)
+    cantidad: float = Field(1, gt=0, le=9999)
+    prestamo: bool = False
+    tipo: str = Field("suministro", pattern="^(suministro|med_externo|med_interno)$")  # art. 88 | art. 87 a | 87 b
+
+
 class Cotizacion(BaseModel):
     items: list[str] = Field(default_factory=list, max_length=200)
     solo_muestra: list[str] = Field(default_factory=list)
@@ -657,9 +671,15 @@ class Cotizacion(BaseModel):
     uvr_sala: dict[str, str] = Field(default_factory=dict)   # cirugías en UVR: código -> sala
     sin_anestesia: list[str] = Field(default_factory=list)
     ayudante: list[str] = Field(default_factory=list)
+    ayudante_especialista: list[str] = Field(default_factory=list)  # UVR: igual especialidad (art. 63 par.)
+    especialista: dict[str, str] = Field(default_factory=dict)  # UVR, distinta especialidad: código -> 1, 2, 3
     anestesia_diag: list[str] = Field(default_factory=list)  # SOAT num. 47.1.3 (auditoría)
     recuperacion: dict[str, str] = Field(default_factory=dict)  # UVR: código -> baja|mediana|alta
+    materiales: dict[str, float] = Field(default_factory=dict)  # UVR: código -> $ de la hoja de gasto (art. 85 par. 1)
     descuento_sala: str | None = Field(None, pattern="^(instrumentacion|enfermeria|ambos)?$")
+    politrauma: bool = False  # UVR: arts. 65 par., 77 par. 6 y 85 par. 5
+    suministros: list[Suministro] = Field(default_factory=list, max_length=200)  # art. 88
+    contrato_pct: float = Field(0.0, gt=-100, le=500)  # ajuste del contrato sobre el total; 0 = Manual tal cual
 
 
 def sin_nan(x):
@@ -678,7 +698,11 @@ def opciones(c: Cotizacion):
           "mismo-acto": c.mismo_acto or None, "region-134": c.region or None,
           "uvr-sala": {cz.normcod(k): v for k, v in c.uvr_sala.items() if v and v != "quirofano"},
           "sin-anestesia": c.sin_anestesia, "ayudante": c.ayudante,
+          "ayudante-especialista": c.ayudante_especialista,
+          "especialista": {cz.normcod(k): v for k, v in c.especialista.items() if v},
+          "politrauma": c.politrauma,
           "recuperacion": {cz.normcod(k): v for k, v in c.recuperacion.items() if v},
+          "materiales": {cz.normcod(k): v for k, v in c.materiales.items() if v},
           "descuento-sala": c.descuento_sala or None}
 
 
@@ -689,20 +713,36 @@ def calcular(c: Cotizacion):
     filas, ajustes, errores, avisos = cz.cotizar(items, op, d)
     R = d["reglas"]
     R = R[R.estado == "aprobada"]
+    # materiales según consumo (art. 85 par. 1): más de 170 UVR, o múltiples con alguna de más de 170
+    uvr_q = [f for f in filas if f["unidad"] == "UVR"
+             and op["uvr-sala"].get(f["codigo"], "quirofano") == "quirofano"]
+    multiple = op["mismo-acto"] in ("igual", "diferente", "distinta") and sum(
+        f["cantidad"] for f in filas if f["unidad"] == "UVR") > 1
+    mayor_170 = multiple and any(f["valor"] > 170 for f in uvr_q)
     for f in filas:
         if f["unidad"] == "UVR":  # opciones de la cirugía en UVR (uvr.py)
-            f["aplicables"] = (["uvr-sala", "sin-anestesia"] + (["ayudante"] if f["valor"] >= 50 else [])
-                               + ["bilateral", "recuperacion"])
+            consumo = (f["valor"] > 170 or mayor_170) and op["uvr-sala"].get(f["codigo"], "quirofano") == "quirofano"
+            f["aplicables"] = ((["especialista"] if multiple and op["mismo-acto"] == "distinta" else [])
+                               + ["uvr-sala", "sin-anestesia"] + (["ayudante"] if f["valor"] >= 50 else [])
+                               + (["ayudante-especialista"] if f["valor"] >= 450 or f["codigo"] == "815101" else [])
+                               + ["bilateral", "recuperacion"] + (["materiales"] if consumo else []))
             continue
         f["aplicables"] = sorted({r.opcion for r in R[R.opcion.isin(OPC_ITEM)].itertuples()
                                   if f["base"] is not None and cz.en_alcance(f, r.alcance)})
     conj = [f for f in filas if f["base"] is not None and f["unidad"] != "UVR" and cz.en_alcance(f, "art:95")]
     tec = R[R.opcion == "tecnecio"]
     base = sum(f["base"] for f in filas if f["base"] is not None)
+    sumi, err_s = cz.liquidar_suministros([s.model_dump() for s in c.suministros])
+    errores = errores + err_s
+    total_sumi = sum(s["monto"] for s in sumi)
+    total_manual = None if errores else base + sum(a["monto"] for a in ajustes) + total_sumi
+    aj_contrato = cz.ajuste_contrato(total_manual, c.contrato_pct) if total_manual is not None else 0
     return sin_nan(dict(
         filas=filas, ajustes=ajustes, errores=errores, avisos=avisos,
         parrafos=cz.parrafos(filas, d), base=base,
-        total=None if errores else base + sum(a["monto"] for a in ajustes),
+        suministros=sumi, total_suministros=total_sumi,
+        contrato_pct=c.contrato_pct, total_manual=total_manual, ajuste_contrato=aj_contrato,
+        total=None if total_manual is None else total_manual + aj_contrato,
         globales=dict(
             tecnecio=any(cz.en_alcance(f, tec.alcance.iloc[0]) for f in filas
                          if f["base"] is not None) if len(tec) else False,
@@ -752,13 +792,26 @@ def api_cotizar_excel(c: Cotizacion):
     for a in r["ajustes"]:
         ws.append(["Recargo" if a["monto"] >= 0 else "Descuento", a["codigo"] or "por paciente",
                    a["texto"], a["articulo"], "pesos", None, None, a["monto"], a["cita"]])
+    for s in r["suministros"]:
+        ws.append(["Medicamento" if s["tipo"] != "suministro" else "Suministro", "",
+                   f"{s['descripcion']} ({s['texto']})", 88 if s["tipo"] == "suministro" else 87, "pesos", s["precio"],
+                   s["cantidad"], s["monto"], s["cita"]])
     ws.append([])
     ws.append(["Tarifas (pesos)", None, None, None, None, None, None, r["base"]])
+    n_tot = 2
+    if r["suministros"]:
+        ws.append(["Suministros y medicamentos (arts. 87-88)", None, None, None, None, None, None, r["total_suministros"]])
+        n_tot += 1
+    if r["contrato_pct"]:
+        ws.append(["Según el Manual", None, None, None, None, None, None, r["total_manual"]])
+        ws.append([f"Contrato {r['contrato_pct']:+g} %", None, "Ajuste del contrato sobre el valor total",
+                   None, None, None, None, r["ajuste_contrato"]])
+        n_tot += 2
     ws.append(["TOTAL", None, None, None, None, None, None, r["total"]])
     for celda in ws[1]:
         celda.fill = PatternFill("solid", fgColor="1DBB99")
         celda.font = Font(bold=True, color="FFFFFF")
-    for fila in ws.iter_rows(min_row=ws.max_row - 1):
+    for fila in ws.iter_rows(min_row=ws.max_row - n_tot + 1):
         fila[0].font = fila[7].font = Font(bold=True)
     for (v,) in ws.iter_rows(min_row=2, min_col=6, max_col=6):
         v.number_format = "#,##0"

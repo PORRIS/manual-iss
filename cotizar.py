@@ -287,6 +287,8 @@ def mismo_acto(op, pesos_, R, regla, ajuste, errores):
     Cada unidad (CODIGOx2 = dos conjuntos) cuenta por separado; el de mayor tarifa es el
     principal. Los casos que el texto no resuelve con claridad no se calculan."""
     via = op["mismo-acto"]
+    if via == "distinta":  # par. 7 literal b: distinta especialidad = la regla de diferente vía (70 %)
+        via = "diferente"
     rr = R[(R.opcion == "mismo-acto") & (R.variante == via) & (R.estado == "aprobada")]
     if via not in ("igual", "diferente") or rr.empty:
         errores.append(f"--mismo-acto {via}: vía no válida (igual | diferente)")
@@ -348,12 +350,14 @@ def liquidar_uvr(filas, op, d):
     cir = [f for f in filas if f["unidad"] == "UVR"]
     errores, avisos = [], []
     if not cir:
-        for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "recuperacion", "descuento-sala"):
+        for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "ayudante-especialista", "recuperacion", "materiales",
+                       "especialista", "politrauma", "descuento-sala"):
             if op.get(opcion):
                 errores.append(f"--{opcion}: la cotización no tiene cirugías en UVR")
         return errores, avisos
     codigos = {f["codigo"] for f in cir}
-    for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "recuperacion"):
+    for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "ayudante-especialista", "recuperacion", "materiales",
+                   "especialista"):
         for c in (op.get(opcion) or []):
             if normcod(c) not in codigos:
                 errores.append(f"--{opcion} {c}: no es una cirugía en UVR de la cotización")
@@ -365,28 +369,101 @@ def liquidar_uvr(filas, op, d):
     for c, v in recup.items():
         if v not in uvr.RECUPERACION:
             errores.append(f"--recuperacion {c}:{v}: complejidad no válida ({' | '.join(uvr.RECUPERACION)})")
+    mat = {}
+    for c, v in (op.get("materiales") or {}).items():
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            v = -1
+        if v < 0:
+            errores.append(f"--materiales {c}: el valor de la hoja de gasto debe ser un número en pesos")
+        elif v:
+            mat[normcod(c)] = v
     dto = op.get("descuento-sala") or None
     if dto and dto not in uvr.DESCUENTO_SALA:
         errores.append(f"--descuento-sala {dto}: no válido ({' | '.join(uvr.DESCUENTO_SALA)})")
         dto = None
     sin_anest = {normcod(c) for c in op.get("sin-anestesia") or []}
     ayud = {normcod(c) for c in op.get("ayudante") or []}
+    ayud_esp = {normcod(c) for c in op.get("ayudante-especialista") or []}
     bil = {normcod(c) for c in op.get("bilateral") or []}
-    via = op.get("mismo-acto") if op.get("mismo-acto") in ("igual", "diferente") else None
+    via = op.get("mismo-acto") if op.get("mismo-acto") in ("igual", "diferente", "distinta") else None
+    espec = {normcod(k): str(v) for k, v in (op.get("especialista") or {}).items() if v}
     items = [dict(codigo=f["codigo"], uvr=f["valor"], descripcion=f["descripcion"], cantidad=f["cantidad"],
                   sala=sala.get(f["codigo"], "quirofano"), anestesia=f["codigo"] not in sin_anest,
-                  ayudante=f["codigo"] in ayud, bilateral=f["codigo"] in bil,
-                  recuperacion=recup.get(f["codigo"])) for f in cir]
+                  ayudante=f["codigo"] in ayud,
+                  ayudante_especialista=f["codigo"] in ayud_esp, bilateral=f["codigo"] in bil,
+                  recuperacion=recup.get(f["codigo"]), materiales_consumo=mat.get(f["codigo"]),
+                  especialista=espec.get(f["codigo"], "1")) for f in cir]
     if via is None and sum(f["cantidad"] for f in cir) > 1:
         avisos.append("Varias cirugías en UVR sin --mismo-acto: se liquidan como actos distintos (cada una "
                       "al 100%). Si fueron en el mismo acto, declare igual o diferente vía (arts. 65-66)")
-    res, av = uvr.liquidar_acto(items, d["uvr"], via, region_valida(op), dto)
+    politrauma = bool(op.get("politrauma"))
+    if politrauma and via not in ("igual", "diferente"):
+        errores.append("--politrauma: aplica a varias cirugías del mismo especialista en un mismo acto; "
+                       "use --mismo-acto igual o diferente (arts. 65 par. y 77 par. 6)")
+        politrauma = False
+    res, av = uvr.liquidar_acto(items, d["uvr"], via, region_valida(op), dto, politrauma)
     avisos += av
     for f in cir:
         r = res[f["codigo"]]
         f["base"] = r["total"]
         f["uvr_detalle"] = [dict(concepto=c, monto=m, cita=ci) for c, m, ci in r["componentes"]]
     return errores, avisos
+
+
+SUMINISTRO_PCT = 12   # art. 88: precio de adquisición + 12 % (pág. 161)
+TUTOR_PCT = 25        # art. 88 par. 2: tutores en préstamo, 25 % por paciente
+# tipo -> (porcentaje sobre el precio de adquisición, texto, cita)
+TIPOS_SUMINISTRO = {
+    "suministro": (SUMINISTRO_PCT, "Suministro", "art. 88 (pág. 161)"),
+    "med_externo": (12, "Medicamento, prestador externo", "art. 87 literal a (pág. 160)"),
+    "med_interno": (5, "Medicamento, prestador interno", "art. 87 literal b (pág. 160)"),
+}
+
+
+def liquidar_suministros(lista):
+    """Suministros del art. 88 (prótesis, órtesis, placas, tornillos, clavos, mallas, stents, catéteres,
+    cemento óseo...): se pagan según consumo, hasta por el precio de adquisición + 12 %. Los tutores
+    (fijación externa) en préstamo: 25 % de ese valor por paciente, cualquiera sea el número y el
+    periodo de uso, sin los tornillos de fijación (par. 2).
+    Medicamentos y soluciones (art. 87): precio de adquisición + 12 % si el prestador es externo
+    (literal a) o + 5 % si es interno (literal b).
+    lista: [dict(descripcion, precio, cantidad=1, prestamo=False, tipo="suministro")]. Devuelve (lineas, errores)."""
+    lineas, errores = [], []
+    for k, s in enumerate(lista, 1):
+        desc = (s.get("descripcion") or "").strip() or f"Suministro {k}"
+        try:
+            precio, cant = float(s.get("precio")), float(s.get("cantidad") or 1)
+        except (TypeError, ValueError):
+            precio, cant = -1, 1
+        if precio <= 0 or cant <= 0:
+            errores.append(f"Suministro «{desc}»: el precio de compra y la cantidad deben ser mayores que 0")
+            continue
+        tipo = s.get("tipo") or "suministro"
+        if tipo not in TIPOS_SUMINISTRO:
+            errores.append(f"Suministro «{desc}»: tipo no válido ({' | '.join(TIPOS_SUMINISTRO)})")
+            continue
+        pct, nombre, cita = TIPOS_SUMINISTRO[tipo]
+        prestamo = bool(s.get("prestamo"))
+        if prestamo and tipo != "suministro":
+            errores.append(f"«{desc}»: el préstamo (25 %) es solo para tutores de fijación externa (art. 88 par. 2)")
+            continue
+        compra = precio * cant
+        margen = compra * pct / 100
+        monto = (compra + margen) * (TUTOR_PCT / 100 if prestamo else 1)
+        lineas.append(dict(
+            descripcion=desc, precio=precio, cantidad=cant, prestamo=prestamo, tipo=tipo, pct=pct,
+            compra=compra, margen=margen, monto=monto,
+            texto=(f"Tutor en préstamo: {TUTOR_PCT} % de (compra + {pct} %)" if prestamo
+                   else f"{nombre}: precio de compra + {pct} %"),
+            cita="art. 88 par. 2 (pág. 161)" if prestamo else cita))
+    return lineas, errores
+
+
+def ajuste_contrato(total, pct):
+    """Ajuste del contrato (ej. «ISS + 4 %» o «ISS - 5 %») sobre el valor total ya liquidado, al peso."""
+    return round(total * pct / 100) if pct else 0
 
 
 def cotizar(items, op, d):
@@ -418,10 +495,18 @@ def main():
     ap.add_argument("--portatil-eco", nargs="+", metavar="COD", help="ecografía portátil (art. 27 par. 12)")
     ap.add_argument("--tecnecio", action="store_true", help="medicina nuclear con tecnecio 99 (art. 27 par. 16)")
     ap.add_argument("--bilateral", nargs="+", metavar="COD", help="conjunto bilateral: +55%% (art. 95 par. 6)")
-    ap.add_argument("--mismo-acto", choices=["igual", "diferente"],
+    ap.add_argument("--mismo-acto", choices=["igual", "diferente", "distinta"],
                     help="varios conjuntos en un mismo acto (art. 95 par. 7): igual = mismo "
-                         "especialista e igual vía (100%% + 25%%); diferente = otra vía o "
-                         "especialidad (100%% + 70%% de cada uno de los demás)")
+                         "especialista e igual vía (100%% + 25%%); diferente o distinta = otra vía o "
+                         "especialidad (100%% + 70%% de cada uno de los demás). Cirugías en UVR: igual "
+                         "(art. 65), diferente (art. 66), distinta = especialistas de distinta especialidad "
+                         "(art. 67; indique cada uno con --especialista)")
+    ap.add_argument("--politrauma", action="store_true",
+                    help="cirugías en UVR en politrauma abdominal, torácico, craneofacial o fracturas múltiples: "
+                         "igual vía, 60%% desde la tercera (art. 65 par.); diferente vía, sala y materiales 50%% "
+                         "hasta la tercera adicional (art. 77 par. 6, art. 85 par. 5)")
+    ap.add_argument("--especialista", nargs="+", metavar="COD:N",
+                    help="con --mismo-acto distinta: qué especialista hizo cada cirugía en UVR (1, 2, 3...)")
     ap.add_argument("--region-134", metavar="DEPTO:MUNICIPIO",
                     help="atención en los departamentos/región del art. 134, con recursos del "
                          "prestador en el área: +15%% Capítulo II, +14%% conjuntos")
@@ -431,10 +516,27 @@ def main():
                     help="cirugía en UVR con anestesia local: sin honorario de anestesiólogo (art. 61)")
     ap.add_argument("--ayudante", nargs="+", metavar="COD",
                     help="cirugía en UVR con ayudante quirúrgico (desde 50 UVR, art. 63)")
+    ap.add_argument("--ayudante-especialista", nargs="+", metavar="COD",
+                    help="cirugía en UVR con ayudante de igual especialidad que el cirujano: $960 por UVR "
+                         "con 450 UVR o más, o en el 815101 (art. 63 par.)")
     ap.add_argument("--recuperacion", nargs="+", metavar="COD:NIVEL",
                     help="cirugía en UVR con más de 6 horas en recuperación: baja | mediana | alta (art. 84)")
+    ap.add_argument("--materiales", nargs="+", metavar="COD:VALOR",
+                    help="cirugía en UVR con materiales según consumo (más de 170 UVR o múltiples, art. 85 "
+                         "par. 1): valor en pesos de la hoja de gasto")
     ap.add_argument("--descuento-sala", choices=["instrumentacion", "enfermeria", "ambos"],
                     help="la EPS aporta instrumentación (-20%%), enfermería (-25%%) o ambas (-45%%) (art. 77 par. 4)")
+    ap.add_argument("--suministro", nargs="+", metavar="PRECIO[xCANT]:DESCRIPCION",
+                    help="suministro del art. 88 a precio de compra (se le suma el 12%%), "
+                         "ej. 850000x2:\"Placa bloqueada\"")
+    ap.add_argument("--medicamento", nargs="+", metavar="PRECIO[xCANT]:DESCRIPCION",
+                    help="medicamento o solución a precio de compra: +12%% prestador externo (art. 87 a)")
+    ap.add_argument("--medicamento-interno", nargs="+", metavar="PRECIO[xCANT]:DESCRIPCION",
+                    help="medicamento o solución a precio de compra: +5%% prestador interno (art. 87 b)")
+    ap.add_argument("--tutor", nargs="+", metavar="PRECIO[xCANT]:DESCRIPCION",
+                    help="tutor (fijación externa) en préstamo: 25%% de (compra + 12%%) por paciente (art. 88 par. 2)")
+    ap.add_argument("--contrato", type=float, default=0.0, metavar="PCT",
+                    help="ajuste del contrato en %% sobre el valor total (ej. 4 o -5; 0 = valores del Manual)")
     ap.add_argument("--csv", help="guarda el detalle en este CSV")
     a = ap.parse_args()
 
@@ -448,11 +550,26 @@ def main():
           "region-134": a.region_134,
           "uvr-sala": dict(x.split(":", 1) for x in a.uvr_sala or [] if ":" in x),
           "sin-anestesia": a.sin_anestesia or [], "ayudante": a.ayudante or [],
+          "ayudante-especialista": a.ayudante_especialista or [],
+          "especialista": dict(x.split(":", 1) for x in a.especialista or [] if ":" in x),
+          "politrauma": a.politrauma,
           "recuperacion": dict(x.split(":", 1) for x in a.recuperacion or [] if ":" in x),
+          "materiales": dict(x.split(":", 1) for x in a.materiales or [] if ":" in x),
           "descuento-sala": a.descuento_sala}
+
+    def sumin(x, prestamo=False, tipo="suministro"):
+        precio, _, desc = x.partition(":")
+        precio, _, cant = precio.lower().partition("x")
+        return dict(descripcion=desc, precio=precio.replace(".", "").replace(",", "."), cantidad=cant or 1,
+                    prestamo=prestamo, tipo=tipo)
+    sumi, err_s = liquidar_suministros([sumin(x) for x in a.suministro or []]
+                                       + [sumin(x, True) for x in a.tutor or []]
+                                       + [sumin(x, tipo="med_externo") for x in a.medicamento or []]
+                                       + [sumin(x, tipo="med_interno") for x in a.medicamento_interno or []])
 
     d = cargar()
     filas, ajustes, errores, avisos = cotizar(a.items, op, d)
+    errores += err_s
     if errores:
         for e in errores:
             print("ERROR:", e)
@@ -474,6 +591,17 @@ def main():
         for x in ajustes:
             print(f" {pesos(x['monto']):>13}  {x['codigo'] or 'por paciente':12} {x['cita']}: {x['texto']}")
     total = base + sum(x["monto"] for x in ajustes)
+    if sumi:
+        print("\nSuministros y medicamentos (arts. 87 y 88: precio de compra + 12 % o + 5 %):")
+        for x in sumi:
+            print(f" {pesos(x['monto']):>13}  {x['descripcion'][:50]:50} compra {pesos(x['compra'])}  "
+                  f"{x['texto']}, {x['cita']}")
+        total += sum(x["monto"] for x in sumi)
+    if a.contrato:
+        aj = ajuste_contrato(total, a.contrato)
+        print(f"\n{'Según el Manual':>83} {pesos(total):>13}")
+        print(f"{f'Contrato {a.contrato:+g} %':>83} {pesos(aj):>13}")
+        total += aj
     print(f"\n{'TOTAL':>83} {pesos(total):>13}")
 
     if a.csv:
