@@ -160,7 +160,9 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
             otras[art] = (s[0] * reg, s[1])
     sin_tildes = unicodedata.normalize("NFKD", descripcion or "").encode("ascii", "ignore").decode().upper()
     uni_bi = re.search(r"UNI\s*(?:O|/|Y/O)?\s*BILATERAL", sin_tildes)  # «UNI Ó BILATERAL» (art. 64)
-    excepcion = codigo in EXCEPCION_65
+    tipo_via = via_endoscopica(codigo, descripcion, tb)
+    # art. 65: sin porcentaje adicional en los 5 códigos y en los endoscópicos (no artroscópicos)
+    excepcion = codigo in EXCEPCION_65 or tipo_via == "endoscopico"
     p = lambda v: f"${v:,.0f}".replace(",", ".")  # noqa: E731
     det = lambda pares: " + ".join(f"{n} {p(v)}" for n, v in pares if v)  # noqa: E731
     mat = mat_q or 0.0
@@ -180,9 +182,21 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
         esc.append(("Mayor de otro especialista en el mismo acto (art. 67, nota del art. 77)",
                     cir + 0.75 * anes + 0.5 * ayu + sala_q,
                     "cirujano 100% (su mayor), anestesiólogo 75% (par. 1), ayudante 50% (par. 2), sala 100%"))
+        if mat:
+            esc.append(("Mayor de otro especialista con materiales (art. 67, 85 par. 5)",
+                        cir + 0.75 * anes + 0.5 * ayu + sala_q + mat,
+                        "cirujano 100%, anestesiólogo 75%, ayudante 50%, sala y materiales 100%"))
         esc.append(("Adicional de un especialista de otra especialidad (art. 67, nota del art. 77)",
                     0.6 * cir + 0.75 * anes + 0.5 * ayu + 0.5 * sala_q,
                     "cirujano 60%, anestesiólogo 75%, ayudante 50%, sala 50%"))
+        if mat:
+            esc.append(("Adicional de otra especialidad con materiales (art. 67, 85 par. 5)",
+                        0.6 * cir + 0.75 * anes + 0.5 * ayu + 0.5 * sala_q + 0.5 * mat,
+                        "cirujano 60%, anestesiólogo 75%, ayudante 50%, sala y materiales 50%"))
+        # politrauma, diferente vía: sala y materiales 50 % hasta la tercera adicional (art. 77 par. 6, 85 par. 5)
+        esc.append(("Adicional, diferente vía, politrauma (art. 66, 77 par. 6, 85 par. 5)",
+                    0.75 * hon + 0.5 * sala_q + 0.5 * mat,
+                    "75% de honorarios + 50% de sala" + (" + 50% de materiales" if mat else "")))
         if ayu_esp:
             esc.append(("Cirugía completa con ayudante especialista (art. 63 par.)", cir + anes + ayu_esp + sala_q + mat,
                         det([("cirujano", cir), ("anestesiólogo", anes), ("ayudante especialista", ayu_esp),
@@ -193,6 +207,9 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
         if not excepcion:
             esc.append(("Adicional, mismo especialista e igual vía (art. 65, 77 par. 6)", 0.6 * hon + 0.5 * sala_q,
                         "60% de honorarios + 50% de sala"))
+            if mat:
+                esc.append(("Adicional, igual vía, con materiales (art. 65, 77 par. 6, 85 par. 5)",
+                            0.6 * hon + 0.5 * sala_q + 0.5 * mat, "60% de honorarios + 50% de sala y materiales"))
     if not excepcion:
         esc.append(("Adicional, igual vía, solo honorarios (art. 65)", 0.6 * hon, "60% de honorarios"))
     esc.append(("Adicional, diferente vía, honorarios (art. 66)", 0.75 * hon, "75% de honorarios"))
@@ -216,8 +233,13 @@ def escenarios(codigo, uvr, descripcion, tb, factor=1.0, region=False, factor_te
         if v:
             esc.append((nombre, v, f"{nombre.lower()} {p(v)}"))
     if excepcion:
-        avisos.append(f"{codigo}: excepción del art. 65, sin porcentaje adicional cuando es parte de "
-                      "cirugías múltiples por igual vía")
+        avisos.append(f"{codigo}: excepción del art. 65" + (" (por vía endoscópica)" if tipo_via == "endoscopico" else "")
+                      + ": sin porcentaje adicional cuando es parte de cirugías múltiples por igual vía")
+    if tipo_via == "artroscopico":
+        g = tb.get("grupo_artro", {}).get(codigo)
+        avisos.append(f"{codigo}: artroscopia" + (f" del grupo de complejidad {GRUPO_ARTRO_NOMBRE[g]} ({g})" if g else
+                                                  ", no está en el anexo de los conjuntos C40464-C40467")
+                      + ": como adicional por igual vía solo se paga el 60 % si la mayor es de otro grupo (art. 65)")
     if region:
         avisos.append("Art. 134 literal a: +30% en honorarios y derechos de sala (Capítulo I)")
     texto = f"ISS 2001, {uvr:g} UVR"
@@ -336,8 +358,11 @@ def liquidar_acto(items, tb, via=None, region=False, descuento_sala=None, politr
         f_anes = f_hon if f_anes is None else f_anes
         f_ayu = f_hon if f_ayu is None else f_ayu
         f_mat = f_sala  # art. 85 par. 5: los mismos porcentajes que la sala en las múltiples
-        t_anes = " (75 %, art. 67 par. 1)" if via == "distinta" and f_anes == 0.75 else ""
-        t_ayu = " (50 %, art. 67 par. 2)" if via == "distinta" and f_ayu == 0.5 else ""
+        art_pct = {"igual": "art. 65", "diferente": "art. 66"}.get(via, "")
+        t_anes = (f" ({f_anes * 100:g} %, " + ("art. 67 par. 1" if via == "distinta" else art_pct) + ")"
+                  if 0 < f_anes < 1 else "")
+        t_ayu = (f" ({f_ayu * 100:g} %, " + ("art. 67 par. 2" if via == "distinta" else art_pct) + ")"
+                 if 0 < f_ayu < 1 else "")
         cita_h = "art. 59" + (", art. 134 a" if region else "")
         poner(f"Cirujano {u:g} UVR x {tb['cirujano']:g}{nota}", u * tb["cirujano"] * reg * f_hon, cita_h,
               "cirujano", "art. 64")

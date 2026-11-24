@@ -678,6 +678,7 @@ class Cotizacion(BaseModel):
     recuperacion: dict[str, str] = Field(default_factory=dict)  # UVR: código -> baja|mediana|alta
     materiales: dict[str, float] = Field(default_factory=dict)  # UVR: código -> $ de la hoja de gasto (art. 85 par. 1)
     descuento_sala: str | None = Field(None, pattern="^(instrumentacion|enfermeria|ambos)?$")
+    anestesia_cap2: list[str] = Field(default_factory=list)  # Cap. II con anestesia: arts. 62 y 78
     politrauma: bool = False  # UVR: arts. 65 par., 77 par. 6 y 85 par. 5
     suministros: list[Suministro] = Field(default_factory=list, max_length=200)  # art. 88
     contrato_pct: float = Field(0.0, gt=-100, le=500)  # ajuste del contrato sobre el total; 0 = Manual tal cual
@@ -702,6 +703,7 @@ def opciones(c: Cotizacion):
           "ayudante-especialista": c.ayudante_especialista,
           "especialista": {cz.normcod(k): v for k, v in c.especialista.items() if v},
           "politrauma": c.politrauma,
+          "anestesia-cap2": c.anestesia_cap2,
           "accesorios": {cz.normcod(k): v for k, v in c.accesorios.items() if v},
           "recuperacion": {cz.normcod(k): v for k, v in c.recuperacion.items() if v},
           "materiales": {cz.normcod(k): v for k, v in c.materiales.items() if v},
@@ -733,6 +735,8 @@ def calcular(c: Cotizacion):
             continue
         f["aplicables"] = sorted({r.opcion for r in R[R.opcion.isin(OPC_ITEM)].itertuples()
                                   if f["base"] is not None and cz.en_alcance(f, r.alcance)})
+        if f["base"] is not None and 19 <= f["articulo"] <= 41 and not f["codigo"].startswith("S4123"):
+            f["aplicables"].append("anestesia-cap2")  # arts. 62 y 78
     conj = [f for f in filas if f["base"] is not None and f["unidad"] != "UVR" and cz.en_alcance(f, "art:95")]
     tec = R[R.opcion == "tecnecio"]
     base = sum(f["base"] for f in filas if f["base"] is not None)

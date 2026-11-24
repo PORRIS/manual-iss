@@ -516,6 +516,7 @@ async function pintarFuentes() {
 const OPC_ETIQUETA = {
   "sin-anestesia": "Anestesia local (sin anestesiólogo)", ayudante: "Con ayudante",
   "ayudante-especialista": "Ayudante de igual especialidad ($960/UVR)",
+  "anestesia-cap2": "Con anestesia general o regional (arts. 62 y 78)",
   "acc-cuchilla": "Cuchilla de artroscopio ($41.395)", "acc-trocar": "Trocar de primera punción ($303.995)",
   "acc-asa": "Asa o electrodo urológico ($40.000)",
   "acc-papilotomo": "Papilótomo, esfinterótomo, catéter y canastilla ($121.075)",
@@ -555,7 +556,8 @@ function pedidoCot(s = cot) {
     recuperacion: Object.fromEntries(Object.entries(s.recup || {}).filter(([, v]) => v)),
     materiales: Object.fromEntries(Object.entries(s.mat || {}).filter(([, v]) => v > 0)),
     descuento_sala: s.descuentoSala || null,
-    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"), ayudante_especialista: lista("ayudante-especialista"), anestesia_diag: lista("anestesia-diag"),
+    sin_anestesia: lista("sin-anestesia"), ayudante: lista("ayudante"), ayudante_especialista: lista("ayudante-especialista"),
+    anestesia_cap2: lista("anestesia-cap2"), anestesia_diag: lista("anestesia-diag"),
     tecnecio: s.tecnecio, mismo_acto: s.mismoActo || null,
     politrauma: !!s.politrauma && ["igual", "diferente"].includes(s.mismoActo),
     region: s.depto ? `${s.depto}:${s.muni || "OTRO"}` : null,
@@ -770,6 +772,7 @@ function enlazarCondiciones(el, estadoDe, recalc) {
 function htmlOpciones(f, s = cot) {
   const regla = (op, variante = "") => COT_CFG.reglas.find((r) => r.opcion === op && (!variante || r.variante === variante));
   const titulo = (r) => (r ? `${r.texto} — ${r.cita}` : "");
+  const TIT_CAP2 = "Anestesiólogo: 50 % de la tarifa (art. 62; resonancia S41233, radiología y TAC S41232; en los múltiples, el de tarifa superior). Quirófano: 80 % de la tarifa (art. 78; 60 % en los intervencionistas del art. 27 par. 8), si no es complementario de una cirugía";
   const TIT_ACC80 = "Art. 80 par. 2 (págs. 157-158): en la sala de endoscopia, adicional a los derechos de sala, una vez por paciente";
   const TIT_ACC = "Art. 77 par. 7 (pág. 156): accesorio que sí se paga aparte, por cada procedimiento efectuado en quirófano. El balón de contrapulsación también, pero sin valor fijo: agréguelo como suministro (art. 88)";
   return f.aplicables.map((op) => {
@@ -801,7 +804,7 @@ function htmlOpciones(f, s = cot) {
           <option value="fluoroscopia"${v === "fluoroscopia" ? " selected" : ""}>con fluoroscopia</option></select></label>`;
     }
     const marcado = s.opc[f.codigo]?.[op];
-    return `<label class="opcion${marcado ? " activa" : ""}" title="${esc(op === "acc-papilotomo" || op === "acc-litotripsia" ? TIT_ACC80 : op.startsWith("acc-") ? TIT_ACC : titulo(regla(op)))}">
+    return `<label class="opcion${marcado ? " activa" : ""}" title="${esc(op === "anestesia-cap2" ? TIT_CAP2 : op === "acc-papilotomo" || op === "acc-litotripsia" ? TIT_ACC80 : op.startsWith("acc-") ? TIT_ACC : titulo(regla(op)))}">
       <input type="checkbox" data-op="${op}" data-cod="${esc(f.codigo)}"${marcado ? " checked" : ""}>${OPC_ETIQUETA[op] || op}</label>`;
   }).join("");
 }

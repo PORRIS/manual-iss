@@ -206,6 +206,34 @@ salvo politrauma) y `diferente` el art. 66 (75 % de honorarios). En la web, cada
 muestra esas opciones y el desglose por componente. Si hay un error (código inexistente, opción fuera de alcance,
 regla pendiente), no se calcula el total.
 
+```bash
+uv run cotizar.py 849501 --ayudante-especialista 849501 --materiales 849501:500000 --contrato 4
+uv run cotizar.py 386100 797501 --mismo-acto distinta --especialista 386100:1 797501:2
+uv run cotizar.py 386100 797501x2 --mismo-acto igual --politrauma
+uv run cotizar.py 512104 --accesorio 512104:trocar
+uv run cotizar.py 559210 --anestesia-cap2 559210
+uv run cotizar.py 849501 --suministro "850000x2:Placa bloqueada" --tutor "2000000:Tutor" --medicamento "100000x3:Cefazolina"
+```
+
+| Opción | Norma | Efecto |
+|---|---|---|
+| `--ayudante-especialista COD…` | Art. 63 par. (pág. 151) | Ayudante de igual especialidad: $960 por UVR desde 450 UVR o en el 815101 |
+| `--bilateral COD…` (UVR) | Arts. 64, 77 par. 5, 85 par. 5 | Cada componente al 100 % y su 75 % adicional en línea aparte (no en las «uni o bilateral») |
+| `--materiales COD:VALOR` | Art. 85 par. 1 (pág. 159) | Materiales según la hoja de gasto: más de 170 UVR o múltiples con alguna de más de 170. Si todas tienen 170 o menos, van por tabla: 100 % la mayor y 50 % las demás (par. 5) |
+| `--mismo-acto distinta` + `--especialista COD:N` | Art. 67 (pág. 152), 77 par. 6, 85 par. 5 | Distinta especialidad: cada especialista 100 % de su mayor y 60 % de las demás; anestesiólogo 100 % + 75 %; ayudante 100 % + 50 %; sala y materiales 100 % + 50 % por especialista. Conjuntos: 100 % + 70 % |
+| `--politrauma` | Arts. 65 par., 77 par. 6, 85 par. 5 | Igual vía: la tercera en adelante al 60 % / 50 %. Diferente vía: sala y materiales 50 % hasta la tercera adicional |
+| (automático) | Art. 65 (pág. 151) | Adicionales por igual vía sin porcentaje: 468601, 591100, 652901, 667601, 669901 y las de vía endoscópica (también laparoscopia y toracoscopia). Artroscopias: 60 % solo si son de grupos de complejidad distintos (anexo C40464-C40467) |
+| `--accesorio COD:CLAVE` | Art. 77 par. 7 (pág. 156), art. 80 par. 2 (págs. 157-158) | Quirófano, por procedimiento: `cuchilla` $41.395 (artroscopia terapéutica), `trocar` $303.995 (laparoscopia), `asa` $40.000 (urología endoscópica). Sala de endoscopia, una vez por paciente: `papilotomo` $121.075, `litotripsia` $200.075 (biliar) |
+| `--recuperacion COD:NIVEL` | Art. 84 (págs. 158-159) | `baja`, `mediana`, `alta` (más de 6 horas); `uci-*` o `intermedio-*` (adulto, pediátrica/o, neonatal): menos de 24 h, 50 % de la estancia de la unidad |
+| `--anestesia-cap2 COD…` | Arts. 62 (pág. 150) y 78 (pág. 156) | Capítulo II con anestesia general o regional: anestesiólogo 50 % de la tarifa (resonancia S41233, radiología y TAC S41232) y quirófano 80 %, una vez sobre la tarifa superior. En intervencionismo y hemodinamia el anestesiólogo solo se avisa («valor operativo», art. 62 par.) |
+| (automático) | Art. 27 par. 8 (pág. 122) | 380110, 385120, 395010, 382301, 380210, 385220, 385401, 395200: quirófano o sala especial al 60 % de la tarifa, una vez |
+| (automático) | Art. 85 par. 3 y 4 (pág. 159) | S55115 con S41230, S41231, S41234, S41235; S55116 con 380110, 385120, 380210, 382301, 385220, 386301, 395010, 395200, 874133, S41232, S41233, S41236 |
+| `--suministro`, `--tutor` `PRECIO[xCANT]:DESC` | Art. 88 (pág. 161) | Precio de compra + 12 %; tutor en préstamo: 25 % de ese valor por paciente (par. 2) |
+| `--medicamento`, `--medicamento-interno` | Art. 87 (pág. 160) | Precio de compra + 12 % (prestador externo) o + 5 % (interno) |
+| `--contrato PCT` | Contrato | Ajuste en % sobre el valor total (también hoja de gasto, suministros y medicamentos); 0 = valores del Manual |
+
+El +15 % del art. 134 no se aplica al anestesiólogo, al quirófano ni a los materiales del Capítulo II.
+
 Los recargos y descuentos **nunca se deducen**: se aplican solo con una opción explícita, porque
 el código no dice si un estudio fue portátil o un conjunto bilateral. Cifras y alcance en
 `reglas_tarifas.csv`:

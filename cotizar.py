@@ -475,6 +475,132 @@ def ajuste_contrato(total, pct):
     return round(total * pct / 100) if pct else 0
 
 
+# ---------------------------------------------------------------- Capítulo II con anestesia
+NEURO_27P8 = {"380110", "385120", "395010", "382301", "380210", "385220", "385401", "395200"}  # art. 27 par. 6-9
+MAT_85P3 = {"S41230", "S41231", "S41234", "S41235"}                    # art. 85 par. 3: S55115
+MAT_85P4 = {"380110", "385120", "380210", "382301", "385220", "386301", "395010", "395200", "874133",
+            "S41232", "S41233", "S41236"}                                # art. 85 par. 4: S55116
+RE_HEMODINAMIA = re.compile(r"CATETERISMO|HEMODINAM|ELECTROFISIOL|ABLACION|CORONARIOGRAF", re.I)
+
+
+def valor_codigo(d, codigo):
+    v = d["t"][(d["t"].codigo == codigo) & (d["t"].tipo == "con_valor")].valor
+    return float(v.iloc[0]) if len(v) else None
+
+
+def capitulo2_anestesia(pesos_, op, d, cod_uvr):
+    """Exámenes y procedimientos del Capítulo II (arts. 19-41) que necesitan anestesia general o
+    regional (opción «anestesia-cap2» por código), y materiales con valor fijo del art. 85 par. 3 y 4.
+    - Anestesiólogo (art. 62, pág. 150): 50 % de la tarifa del procedimiento (en los múltiples, de la
+      superior), salvo los de valor fijo: radiología convencional y TAC S41232, resonancia S41233. En
+      intervencionismo y hemodinamia es un porcentaje del «valor operativo» (par.), que el Manual no
+      separa de la tarifa: se avisa y no se suma.
+    - Quirófano (art. 78, pág. 156): 80 % de la tarifa (de la superior si son varios), si no es
+      complementario de una cirugía del Capítulo I. Los 8 intervencionistas del art. 27 par. 8 pagan
+      siempre quirófano o sala especial al 60 %, una vez (en los múltiples, sobre la tarifa superior).
+    - Materiales: S55115 con S41230, S41231, S41234, S41235 (art. 85 par. 3); S55116 con los códigos
+      del art. 85 par. 4 y con S41232, S41233, S41236 (también cuando se liquidan por esta opción).
+    Devuelve (ajustes, errores, avisos); no reciben el incremento regional del art. 134."""
+    ajustes, errores, avisos = [], [], []
+    cods = {f["codigo"] for f in pesos_}
+    hay_uvr = bool(cod_uvr)
+
+    def aj(regla, f, monto, texto, cita, articulo):
+        ajustes.append(dict(regla=regla, codigo=f["codigo"] if f else "", articulo=articulo,
+                            cita=cita, texto=texto, monto=monto,
+                            **({"linea": f["linea"]} if f and "linea" in f else {})))
+
+    pedidos = {normcod(c) for c in op.get("anestesia-cap2") or []}
+    for c in sorted(pedidos - cods):
+        errores.append(f"--anestesia-cap2 {c}: " + ("es una cirugía en UVR, no un examen o procedimiento del "
+                                                     "Capítulo II (arts. 19-41)" if c in cod_uvr
+                                                     else "el código no está en la cotización"))
+    marc = [f for f in pesos_ if f["codigo"] in pedidos]
+    for f in marc:
+        if not 19 <= f["articulo"] <= 41:
+            errores.append(f"--anestesia-cap2 {f['codigo']}: no es un examen o procedimiento del Capítulo II "
+                           f"(arts. 19-41; es del art. {f['articulo']})")
+    marc = [f for f in marc if 19 <= f["articulo"] <= 41]
+    if marc and cods & {"S41230", "S41231", "S41232", "S41233", "S41234", "S41235", "S41236"}:
+        errores.append("--anestesia-cap2: la cotización ya trae un código S4123x del anestesiólogo (art. 62); "
+                       "use una sola forma")
+        marc = []
+    mat_auto = []  # (código que lo causa, S55115 | S55116)
+    if marc:
+        # anestesiólogo: el procedimiento de tarifa superior (art. 62: «o de aquella superior»)
+        candidatos = []
+        for f in marc:
+            ruta = norm(f.get("agrupador_ruta") or "")
+            if f["codigo"] in NEURO_27P8 or "INTERVENCIONISTA" in ruta or RE_HEMODINAMIA.search(f["descripcion"]):
+                pct = ("25 % (literal b)" if f["codigo"] in NEURO_27P8 else "30 % (literal a)"
+                       if "INTERVENCIONISTA" in ruta else "30 % (literal c)")
+                avisos.append(f"{f['codigo']}: anestesiólogo en intervencionismo o hemodinamia: {pct} sobre el «valor "
+                              "operativo» del estudio (art. 62 par., pág. 151); el Manual no separa ese valor de la "
+                              "tarifa: no se suma")
+                continue
+            if "RESONANCIA MAGNETICA" in ruta:
+                candidatos.append((valor_codigo(d, "S41233") or 60225.0, f, "S41233", "resonancia magnética"))
+            elif norm(f.get("titulo") or "") == "RADIOLOGIA" or "TOMOGRAFIA" in ruta:
+                candidatos.append((valor_codigo(d, "S41232") or 29100.0, f, "S41232",
+                                   "estudios radiológicos convencionales y de TAC"))
+            else:
+                candidatos.append((f["valor"] * 0.5, f, "", ""))
+        if candidatos:
+            monto, f, cod_fijo, nombre = max(candidatos, key=lambda x: (x[1]["valor"], x[0]))
+            if cod_fijo:
+                aj("R62", f, monto, f"Anestesiólogo: {cod_fijo} {nombre}, valor fijo", "art. 62 (pág. 150)", 62)
+                if cod_fijo in MAT_85P4:
+                    mat_auto.append((f, "S55116"))
+            else:
+                aj("R62", f, monto, "Anestesiólogo: 50 % de la tarifa del procedimiento"
+                   + (" (el de tarifa superior)" if len(marc) > 1 or f["cantidad"] > 1 else ""),
+                   "art. 62 (pág. 150)", 62)
+            if len(candidatos) > 1 or f["cantidad"] > 1:
+                avisos.append("Anestesia en varios procedimientos del Capítulo II: el anestesiólogo y el quirófano "
+                              "se pagan una vez, sobre el de tarifa superior (arts. 62 y 78)")
+        # quirófano: art. 27 par. 8 para los 8 intervencionistas; art. 78 para los demás
+        if hay_uvr and op.get("mismo-acto"):
+            avisos.append("Capítulo II con anestesia en el mismo acto de una cirugía: si es complementario de ella no "
+                          "hay derechos de quirófano aparte (art. 78); no se suman")
+        else:
+            otros = [f for f in marc if f["codigo"] not in NEURO_27P8]  # los 8 del par. 8 van abajo
+            if otros:
+                f = max(otros, key=lambda x: x["valor"])
+                aj("R78", f, f["valor"] * 0.8, "Derechos de quirófano: 80 % de la tarifa del procedimiento"
+                   + (" (el de tarifa superior)" if len(otros) > 1 or f["cantidad"] > 1 else ""),
+                   "art. 78 (pág. 156)", 78)
+            if hay_uvr:
+                avisos.append("Capítulo II con anestesia y cirugías en UVR en la cotización: si el procedimiento fue "
+                              "complementario de la cirugía, no hay quirófano aparte (art. 78)")
+    # art. 27 par. 8: los 8 intervencionistas pagan siempre el uso del quirófano o de la sala especial
+    # (60 % de la tarifa, una vez; en los múltiples, sobre la superior), con o sin anestesia
+    neuro = [f for f in pesos_ if f["codigo"] in NEURO_27P8]
+    if neuro:
+        f = max(neuro, key=lambda x: x["valor"])
+        aj("R27P8", f, f["valor"] * 0.6, "Uso del quirófano o sala especial: 60 % de la tarifa (una vez; en los "
+           "bilaterales o múltiples, sobre la superior)", "art. 27 par. 8 (pág. 122)", 27)
+    # materiales con valor fijo (art. 85 par. 3 y 4), por cada procedimiento
+    for f in pesos_:
+        if f["codigo"] in MAT_85P3:
+            mat_auto.append((f, "S55115"))
+        elif f["codigo"] in MAT_85P4:
+            mat_auto.append((f, "S55116"))
+    vistos = set()
+    for f, mcod in mat_auto:
+        if (f["codigo"], mcod) in vistos:
+            continue
+        vistos.add((f["codigo"], mcod))
+        if mcod in cods:
+            avisos.append(f"{f['codigo']}: los materiales {mcod} ya están en la cotización (art. 85)")
+            continue
+        v = valor_codigo(d, mcod)
+        n = f["cantidad"] if f["codigo"] in MAT_85P3 | MAT_85P4 else 1
+        aj("R85P" + ("3" if mcod == "S55115" else "4"), f, (v or 0) * n,
+           f"Materiales de sutura y curación, agentes y gases anestésicos {mcod}" + (f" x {n}" if n > 1 else ""),
+           f"art. 85 par. {3 if mcod == 'S55115' else 4} (pág. 159)", 85)
+    return ajustes, errores, avisos
+
+
 def cotizar(items, op, d):
     filas, errores, avisos = resolver(items, d)
     op = dict(op)
@@ -485,6 +611,8 @@ def cotizar(items, op, d):
     op["_hay_uvr"] = bool(cod_uvr)
     pesos_ = [f for f in filas if f["base"] is not None and f["unidad"] != "UVR"]
     ajustes, err2, av2 = aplicar(pesos_, op, d) if pesos_ else ([], [], [])
+    aj3, err3, av3 = capitulo2_anestesia(pesos_, op, d, cod_uvr)
+    ajustes, err2, av2 = ajustes + aj3, err2 + err3, av2 + av3
     if not pesos_ and op.get("mismo-acto") and not cod_uvr:
         err2.append("--mismo-acto: la cotización no tiene conjuntos del art. 95 ni cirugías en UVR")
     return filas, ajustes, errores + err_u + err2, avisos + av_u + av2
@@ -516,6 +644,10 @@ def main():
                          "asa (urológica endoscópica, $40.000); en sala de endoscopia, una vez por paciente "
                          "(art. 80 par. 2): papilotomo (extracción de cálculos, $121.075) | litotripsia "
                          "(mecánica biliar, $200.075)")
+    ap.add_argument("--anestesia-cap2", nargs="+", metavar="COD",
+                    help="examen o procedimiento del Capítulo II con anestesia general o regional: anestesiólogo "
+                         "50%% de la tarifa (art. 62; RM S41233, radiología y TAC S41232) y quirófano 80%% "
+                         "(art. 78; 60%% en los intervencionistas del art. 27 par. 8)")
     ap.add_argument("--politrauma", action="store_true",
                     help="cirugías en UVR en politrauma abdominal, torácico, craneofacial o fracturas múltiples: "
                          "igual vía, 60%% desde la tercera (art. 65 par.); diferente vía, sala y materiales 50%% "
@@ -575,6 +707,7 @@ def main():
           "ayudante-especialista": a.ayudante_especialista or [],
           "especialista": dict(x.split(":", 1) for x in a.especialista or [] if ":" in x),
           "politrauma": a.politrauma,
+          "anestesia-cap2": a.anestesia_cap2 or [],
           "accesorios": acc_cli,
           "recuperacion": dict(x.split(":", 1) for x in a.recuperacion or [] if ":" in x),
           "materiales": dict(x.split(":", 1) for x in a.materiales or [] if ":" in x),

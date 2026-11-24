@@ -130,6 +130,25 @@
     sala ni materiales; bilateral antes del porcentaje de adicional; +25 % del art. 86 a solo a
     honorarios, consultas y valoraciones; conjunto con cirugías sueltas = mayor. Pendiente: Render
     (el PDF SOAT no está en el repositorio y el build no genera esta base).
+32. Cotizador ISS 2001, reglas de cirugía y suministros (2026-11-24, commits 16ef35d y 5289279 y el
+    siguiente). Cirugías en UVR: materiales según hoja de gasto (art. 85 par. 1: >170 UVR o múltiples con
+    alguna >170) y por tabla 100 % + 50 % en múltiples <= 170 (par. 5); ayudante de igual especialidad
+    $960/UVR desde 450 UVR (art. 63 par.); bilateral con el 75 % adicional en línea aparte; distinta
+    especialidad (art. 67) con especialista por cirugía; politrauma (arts. 65 par., 77 par. 6, 85 par. 5);
+    endoscópicos adicionales por igual vía sin porcentaje (art. 65; laparoscopia y toracoscopia también,
+    aprobado por el usuario) y artroscopias al 60 % solo con grupos distintos del anexo C40464-C40467;
+    accesorios del art. 77 par. 7 y del art. 80 par. 2; recuperación en UCI o intermedios < 24 h al 50 %
+    de la estancia (art. 84 par.). Capítulo II con anestesia: anestesiólogo 50 % (art. 62; RM S41233,
+    radiología y TAC S41232; intervencionismo y hemodinamia solo aviso: % del «valor operativo»),
+    quirófano 80 % (art. 78), 60 % automático en los 8 intervencionistas del art. 27 par. 8, materiales
+    S55115/S55116 (art. 85 par. 3 y 4). Suministros (art. 88: compra + 12 %, tutor en préstamo 25 %) y
+    medicamentos (art. 87: + 12 % externo, + 5 % interno). Ajuste del contrato en % sobre el total.
+    Decisiones: el % del contrato también se aplica a hoja de gasto, suministros y medicamentos; el +15 %
+    del art. 134 no se aplica a anestesiólogo, quirófano ni materiales del Capítulo II. Web: Cache-Control
+    no-cache en / y /static. Auditar (uvr.escenarios): escenarios nuevos de adicional igual vía con
+    materiales 50 %, diferente vía en politrauma y otra especialidad con materiales; endoscópicos sin
+    escenario de adicional por igual vía; aviso del grupo de las artroscopias. Pruebas cotizador 87,
+    auditoría 42.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.
@@ -169,9 +188,9 @@
 - Tarifas propias y versiones SOAT subidas: por decisión del usuario se guardan en SQLite
   (datos/tarifas_propias.db). En Render gratuito ese archivo se borra en cada despliegue o reinicio:
   lo subido allí se pierde (la SOAT 2026 por defecto no, porque viene en el repositorio). Para conservarlos: base PostgreSQL (Neon o Supabase) en la variable TARIFAS_DB_URL.
-- ISS UVR, no modelado: materiales de cirugías de más de 170 UVR y de cirugías múltiples (según
-  consumo, art. 85 par. 1), politrauma (sala 50 % de las adicionales por otra vía hasta 3; art. 65
-  par.), accesorios del art. 77 par. 7, anestesia en procedimientos del Capítulo II (art. 62).
+- ISS, Auditar: los accesorios (arts. 77 par. 7 y 80 par. 2), la recuperación en UCI, la anestesia del
+  Capítulo II (arts. 62 y 78) y los suministros/medicamentos llegan como líneas aparte; hoy se revisan con
+  su código o como no tarifados (arts. 87-88), sin escenario propio.
 - Opcional: exportar el manual completo a Excel (ya disponible desde la web).
 
 ## Orden para regenerar

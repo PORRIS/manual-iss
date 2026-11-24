@@ -130,6 +130,9 @@ u_region = uvr_linea("386100", 1.3 * 142450 + 1.3 * 81175 + 57410, **{"region-13
 u_contrato = auditar([dict(codigo="386100", cantidad=1, valor_unitario=1.2 * (142450 + 81175 + 57410))],
                      OP0, D, 20)["lineas"][0]
 u_caro = uvr_linea("386100", 2_000_000)
+u_adic_mat = uvr_linea("797501", 85520)       # 35 UVR, igual vía: 60% x 78.050 + 50% x 44.270 + 50% x 33.110
+u_politrauma = uvr_linea("797501", 97227.5)   # diferente vía, politrauma: 75% x 78.050 + 50% sala + 50% materiales
+u_endo = uvr_linea("573201", 0.6 * 75 * (1270 + 960 + 360))  # cistoscopia: sin 60 % adicional (art. 65)
 
 # SOAT: perfusionista (47.2), incruenta (51, 54.3), otra especialidad (72, 48.2), anestesia de
 # diagnóstico (47.1.3); ISS UVR: descuento de sala (77 par. 4), recuperación (84), art. 67
@@ -222,6 +225,11 @@ CASOS = [
      any("Bilateral" in a["texto"] for a in u_unibi["alertas"] if a["tipo"] == "Varias opciones"), False),
     ("ISS UVR: región art. 134 a (+30% honorarios y sala) y contrato ISS + 20%",
      (u_region["estado"], u_contrato["estado"]), ("Conforme", "Conforme")),
+    ("ISS UVR: adicional igual vía con materiales 50 % y diferente vía en politrauma (art. 85 par. 5, 77 par. 6)",
+     [(x["estado"], round(x["esperado"], 1)) for x in (u_adic_mat, u_politrauma)],
+     [("Conforme", 85520), ("Conforme", 97227.5)]),
+    ("ISS UVR: endoscópico (cistoscopia) sin escenario de adicional por igual vía (art. 65)",
+     (u_endo["estado"] == "Conforme", any("vía endoscópica" in a["texto"] for a in u_endo["alertas"])), (False, True)),
     ("ISS UVR: por encima de todos los escenarios -> Glosa sobre el mayor (bilateral)",
      (u_caro["estado"], round(u_caro["glosa"])), ("Glosa", round(2_000_000 - 1.75 * (142450 + 81175 + 57410)))),
     ("SOAT: completa con perfusionista (g20), incruenta (g07) y cirugía de otra especialidad (g07) Conforme",
