@@ -516,17 +516,25 @@ async function pintarFuentes() {
 const OPC_ETIQUETA = {
   "sin-anestesia": "Anestesia local (sin anestesiólogo)", ayudante: "Con ayudante",
   "ayudante-especialista": "Ayudante de igual especialidad ($960/UVR)",
+  "acc-cuchilla": "Cuchilla de artroscopio ($41.395)", "acc-trocar": "Trocar de primera punción ($303.995)",
+  "acc-asa": "Asa o electrodo urológico ($40.000)",
+  "acc-papilotomo": "Papilótomo, esfinterótomo, catéter y canastilla ($121.075)",
+  "acc-litotripsia": "Litotripsia mecánica biliar ($200.075)",
   "anestesia-diag": "Con anestesia general (+50 %, num. 47.1.3)",
   "solo-muestra": "Solo toma de muestra", "biopsia-multiple": "Biopsia múltiple",
   "portatil-eco": "Ecografía portátil", bilateral: "Bilateral", "portatil-rx": "Radiología portátil",
 };
+const ACC_SALA = { cuchilla: "quirofano", trocar: "quirofano", asa: "quirofano", papilotomo: "endoscopia", litotripsia: "endoscopia" };
 const RE_ITEM = /^([A-Za-z]?\d{4,6})(?:x(\d+))?(?:@(\w+))?$/i;
 const pesos = (v) => (v < 0 ? "−" : "") + "$" + new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(Math.abs(v));
 const normCod = (c) => { c = c.toUpperCase(); return /^\d+$/.test(c) ? c.padStart(6, "0") : c; };
 const partesItem = (s) => { const m = s.match(RE_ITEM); return m ? { cod: normCod(m[1]), cant: +(m[2] || 1), ref: m[3] || "" } : null; };
 const armarItem = (p) => p.cod + (p.cant > 1 ? "x" + p.cant : "") + (p.ref ? "@" + p.ref : "");
 const cotVacia = () => ({ items: [], opc: {}, rx: {}, sala: {}, recup: {}, mat: {}, descuentoSala: "", tecnecio: false, mismoActo: "", depto: "", muni: "", contrato: "", sum: [], esp: {} });
-const RECUP_UVR = { "": "no (o menos de 6 h)", baja: "complejidad baja", mediana: "complejidad mediana", alta: "complejidad alta" };
+const RECUP_UVR = { "": "no (o menos de 6 h)", baja: "complejidad baja", mediana: "complejidad mediana", alta: "complejidad alta",
+  "uci-adulto": "en UCI adulto < 24 h (50 %)", "uci-pediatrica": "en UCI pediátrica < 24 h (50 %)", "uci-neonatal": "en UCI neonatal < 24 h (50 %)",
+  "intermedio-adulto": "en intermedios adulto < 24 h (50 %)", "intermedio-pediatrico": "en intermedios pediátrico < 24 h (50 %)",
+  "intermedio-neonatal": "en intermedios neonatal < 24 h (50 %)" };
 const SALAS_UVR = { quirofano: "quirófano", especial: "sala especial", endoscopia: "endoscopia", basica: "sala básica" };
 let COT_CFG = null;
 let cotRes = null;
@@ -553,6 +561,9 @@ function pedidoCot(s = cot) {
     region: s.depto ? `${s.depto}:${s.muni || "OTRO"}` : null,
     contrato_pct: +s.contrato || 0,
     especialista: Object.fromEntries(Object.entries(s.esp || {}).filter(([, v]) => v)),
+    accesorios: Object.fromEntries(Object.entries(s.opc).map(([c, o]) =>
+      [c, Object.keys(ACC_SALA).filter((k) => o["acc-" + k] && ACC_SALA[k] === (s.sala?.[c] || "quirofano"))])
+      .filter(([, ks]) => ks.length)),
     suministros: (s.sum || []).map((x) => ({ descripcion: x.d, precio: x.p, cantidad: x.c || 1, prestamo: !!x.t, tipo: x.k || "suministro" })),
   };
 }
@@ -638,7 +649,8 @@ async function pintarCotizar() {
             préstamo se pagan al 25 % de ese valor, una vez por paciente, sin los tornillos de fijación (par. 2). No aplica a los
             elementos que ya hacen parte de la tarifa de un examen o procedimiento del Capítulo II (par. 1).
             <b>Medicamentos y soluciones</b> (art. 87): precio de compra + 12 % si el prestador es externo o + 5 % si es interno;
-            las jeringas, agujas y equipos de administración se pagan aparte del medicamento (par. 1).</p>
+            las jeringas, agujas y equipos de administración se pagan aparte del medicamento (par. 1).
+            El balón de contrapulsación (art. 77 par. 7) también va aquí, como suministro.</p>
           <form class="cot-sum-form" id="cotSumForm" autocomplete="off">
             <select id="cotSumTipo" aria-label="Tipo">
               <option value="suministro">Suministro (art. 88, +12 %)</option>
@@ -758,6 +770,8 @@ function enlazarCondiciones(el, estadoDe, recalc) {
 function htmlOpciones(f, s = cot) {
   const regla = (op, variante = "") => COT_CFG.reglas.find((r) => r.opcion === op && (!variante || r.variante === variante));
   const titulo = (r) => (r ? `${r.texto} — ${r.cita}` : "");
+  const TIT_ACC80 = "Art. 80 par. 2 (págs. 157-158): en la sala de endoscopia, adicional a los derechos de sala, una vez por paciente";
+  const TIT_ACC = "Art. 77 par. 7 (pág. 156): accesorio que sí se paga aparte, por cada procedimiento efectuado en quirófano. El balón de contrapulsación también, pero sin valor fijo: agréguelo como suministro (art. 88)";
   return f.aplicables.map((op) => {
     if (op === "uvr-sala") {
       const v = s.sala?.[f.codigo] || "quirofano";
@@ -766,7 +780,7 @@ function htmlOpciones(f, s = cot) {
     }
     if (op === "recuperacion") {
       const v = s.recup?.[f.codigo] || "";
-      return `<label class="opcion${v ? " activa" : ""}" title="Sala de recuperación después de las primeras 6 horas (art. 84)">Recuperación &gt; 6 h
+      return `<label class="opcion${v ? " activa" : ""}" title="Sala de recuperación después de las primeras 6 horas, por complejidad (art. 84); o recuperación en cuidado intensivo o intermedio por menos de 24 horas: 50 % de la estancia de esa unidad, adicional a la estancia hospitalaria (art. 84 par., pág. 159)">Recuperación
         <select data-recup="${esc(f.codigo)}">${Object.entries(RECUP_UVR).map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
     }
     if (op === "especialista") {
@@ -787,7 +801,7 @@ function htmlOpciones(f, s = cot) {
           <option value="fluoroscopia"${v === "fluoroscopia" ? " selected" : ""}>con fluoroscopia</option></select></label>`;
     }
     const marcado = s.opc[f.codigo]?.[op];
-    return `<label class="opcion${marcado ? " activa" : ""}" title="${esc(titulo(regla(op)))}">
+    return `<label class="opcion${marcado ? " activa" : ""}" title="${esc(op === "acc-papilotomo" || op === "acc-litotripsia" ? TIT_ACC80 : op.startsWith("acc-") ? TIT_ACC : titulo(regla(op)))}">
       <input type="checkbox" data-op="${op}" data-cod="${esc(f.codigo)}"${marcado ? " checked" : ""}>${OPC_ETIQUETA[op] || op}</label>`;
   }).join("");
 }

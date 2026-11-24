@@ -673,6 +673,7 @@ class Cotizacion(BaseModel):
     ayudante: list[str] = Field(default_factory=list)
     ayudante_especialista: list[str] = Field(default_factory=list)  # UVR: igual especialidad (art. 63 par.)
     especialista: dict[str, str] = Field(default_factory=dict)  # UVR, distinta especialidad: código -> 1, 2, 3
+    accesorios: dict[str, list[str]] = Field(default_factory=dict)  # UVR: cuchilla|trocar|asa (77 par. 7), papilotomo|litotripsia (80 par. 2)
     anestesia_diag: list[str] = Field(default_factory=list)  # SOAT num. 47.1.3 (auditoría)
     recuperacion: dict[str, str] = Field(default_factory=dict)  # UVR: código -> baja|mediana|alta
     materiales: dict[str, float] = Field(default_factory=dict)  # UVR: código -> $ de la hoja de gasto (art. 85 par. 1)
@@ -701,6 +702,7 @@ def opciones(c: Cotizacion):
           "ayudante-especialista": c.ayudante_especialista,
           "especialista": {cz.normcod(k): v for k, v in c.especialista.items() if v},
           "politrauma": c.politrauma,
+          "accesorios": {cz.normcod(k): v for k, v in c.accesorios.items() if v},
           "recuperacion": {cz.normcod(k): v for k, v in c.recuperacion.items() if v},
           "materiales": {cz.normcod(k): v for k, v in c.materiales.items() if v},
           "descuento-sala": c.descuento_sala or None}
@@ -725,7 +727,9 @@ def calcular(c: Cotizacion):
             f["aplicables"] = ((["especialista"] if multiple and op["mismo-acto"] == "distinta" else [])
                                + ["uvr-sala", "sin-anestesia"] + (["ayudante"] if f["valor"] >= 50 else [])
                                + (["ayudante-especialista"] if f["valor"] >= 450 or f["codigo"] == "815101" else [])
-                               + ["bilateral", "recuperacion"] + (["materiales"] if consumo else []))
+                               + ["bilateral", "recuperacion"] + (["materiales"] if consumo else [])
+                               + [f"acc-{k}" for k in cz.uvr.accesorios_posibles(
+                                   f["descripcion"], op["uvr-sala"].get(f["codigo"], "quirofano"))])
             continue
         f["aplicables"] = sorted({r.opcion for r in R[R.opcion.isin(OPC_ITEM)].itertuples()
                                   if f["base"] is not None and cz.en_alcance(f, r.alcance)})

@@ -351,13 +351,13 @@ def liquidar_uvr(filas, op, d):
     errores, avisos = [], []
     if not cir:
         for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "ayudante-especialista", "recuperacion", "materiales",
-                       "especialista", "politrauma", "descuento-sala"):
+                       "especialista", "accesorios", "politrauma", "descuento-sala"):
             if op.get(opcion):
                 errores.append(f"--{opcion}: la cotización no tiene cirugías en UVR")
         return errores, avisos
     codigos = {f["codigo"] for f in cir}
     for opcion in ("uvr-sala", "sin-anestesia", "ayudante", "ayudante-especialista", "recuperacion", "materiales",
-                   "especialista"):
+                   "especialista", "accesorios"):
         for c in (op.get(opcion) or []):
             if normcod(c) not in codigos:
                 errores.append(f"--{opcion} {c}: no es una cirugía en UVR de la cotización")
@@ -367,8 +367,9 @@ def liquidar_uvr(filas, op, d):
             errores.append(f"--uvr-sala {c}:{v}: sala no válida ({' | '.join(uvr.SALA_ART)})")
     recup = {normcod(k): v for k, v in (op.get("recuperacion") or {}).items() if v}
     for c, v in recup.items():
-        if v not in uvr.RECUPERACION:
-            errores.append(f"--recuperacion {c}:{v}: complejidad no válida ({' | '.join(uvr.RECUPERACION)})")
+        if v not in uvr.RECUPERACION and v not in uvr.RECUP_UCI:
+            errores.append(f"--recuperacion {c}:{v}: complejidad no válida "
+                           f"({' | '.join([*uvr.RECUPERACION, *uvr.RECUP_UCI])})")
     mat = {}
     for c, v in (op.get("materiales") or {}).items():
         try:
@@ -389,12 +390,20 @@ def liquidar_uvr(filas, op, d):
     bil = {normcod(c) for c in op.get("bilateral") or []}
     via = op.get("mismo-acto") if op.get("mismo-acto") in ("igual", "diferente", "distinta") else None
     espec = {normcod(k): str(v) for k, v in (op.get("especialista") or {}).items() if v}
+    acces = {}
+    for c, ks in (op.get("accesorios") or {}).items():
+        ks = [ks] if isinstance(ks, str) else list(ks or [])
+        for k in ks:
+            if k not in uvr.ACCESORIOS:
+                errores.append(f"--accesorio {c}:{k}: no válido ({' | '.join(uvr.ACCESORIOS)})")
+            else:
+                acces.setdefault(normcod(c), []).append(k)
     items = [dict(codigo=f["codigo"], uvr=f["valor"], descripcion=f["descripcion"], cantidad=f["cantidad"],
                   sala=sala.get(f["codigo"], "quirofano"), anestesia=f["codigo"] not in sin_anest,
                   ayudante=f["codigo"] in ayud,
                   ayudante_especialista=f["codigo"] in ayud_esp, bilateral=f["codigo"] in bil,
                   recuperacion=recup.get(f["codigo"]), materiales_consumo=mat.get(f["codigo"]),
-                  especialista=espec.get(f["codigo"], "1")) for f in cir]
+                  especialista=espec.get(f["codigo"], "1"), accesorios=acces.get(f["codigo"], [])) for f in cir]
     if via is None and sum(f["cantidad"] for f in cir) > 1:
         avisos.append("Varias cirugías en UVR sin --mismo-acto: se liquidan como actos distintos (cada una "
                       "al 100%). Si fueron en el mismo acto, declare igual o diferente vía (arts. 65-66)")
@@ -501,6 +510,12 @@ def main():
                          "especialidad (100%% + 70%% de cada uno de los demás). Cirugías en UVR: igual "
                          "(art. 65), diferente (art. 66), distinta = especialistas de distinta especialidad "
                          "(art. 67; indique cada uno con --especialista)")
+    ap.add_argument("--accesorio", nargs="+", metavar="COD:CLAVE",
+                    help="accesorio del art. 77 par. 7 en una cirugía en UVR en quirófano, por procedimiento: "
+                         "cuchilla (artroscopio, terapéutica, $41.395) | trocar (laparoscópica, $303.995) | "
+                         "asa (urológica endoscópica, $40.000); en sala de endoscopia, una vez por paciente "
+                         "(art. 80 par. 2): papilotomo (extracción de cálculos, $121.075) | litotripsia "
+                         "(mecánica biliar, $200.075)")
     ap.add_argument("--politrauma", action="store_true",
                     help="cirugías en UVR en politrauma abdominal, torácico, craneofacial o fracturas múltiples: "
                          "igual vía, 60%% desde la tercera (art. 65 par.); diferente vía, sala y materiales 50%% "
@@ -520,7 +535,10 @@ def main():
                     help="cirugía en UVR con ayudante de igual especialidad que el cirujano: $960 por UVR "
                          "con 450 UVR o más, o en el 815101 (art. 63 par.)")
     ap.add_argument("--recuperacion", nargs="+", metavar="COD:NIVEL",
-                    help="cirugía en UVR con más de 6 horas en recuperación: baja | mediana | alta (art. 84)")
+                    help="cirugía en UVR con más de 6 horas en recuperación: baja | mediana | alta (art. 84); "
+                         "o recuperación en cuidado intensivo o intermedio menos de 24 h, 50 %% de la estancia "
+                         "(art. 84 par.): uci-adulto | uci-pediatrica | uci-neonatal | intermedio-adulto | "
+                         "intermedio-pediatrico | intermedio-neonatal")
     ap.add_argument("--materiales", nargs="+", metavar="COD:VALOR",
                     help="cirugía en UVR con materiales según consumo (más de 170 UVR o múltiples, art. 85 "
                          "par. 1): valor en pesos de la hoja de gasto")
@@ -544,6 +562,10 @@ def main():
     for x in a.portatil_rx or []:
         cod, _, var = x.partition(":")
         rx[normcod(cod)] = var.lower()
+    acc_cli = {}
+    for x in a.accesorio or []:
+        cod, _, k = x.partition(":")
+        acc_cli.setdefault(cod, []).append(k.lower())
     op = {"solo-muestra": a.solo_muestra, "biopsia-multiple": a.biopsia_multiple or [],
           "portatil-rx": rx, "portatil-eco": a.portatil_eco or [], "tecnecio": a.tecnecio,
           "bilateral": a.bilateral or [], "mismo-acto": a.mismo_acto,
@@ -553,6 +575,7 @@ def main():
           "ayudante-especialista": a.ayudante_especialista or [],
           "especialista": dict(x.split(":", 1) for x in a.especialista or [] if ":" in x),
           "politrauma": a.politrauma,
+          "accesorios": acc_cli,
           "recuperacion": dict(x.split(":", 1) for x in a.recuperacion or [] if ":" in x),
           "materiales": dict(x.split(":", 1) for x in a.materiales or [] if ":" in x),
           "descuento-sala": a.descuento_sala}
