@@ -37,6 +37,41 @@ PRUEBAS = [
     ("dos conjuntos, igual vía: mayor 100 % + 25 % del otro", ["502001", "503001"], {}, 2_863_500 + 552_300, None),
     ("dos conjuntos, diferente vía: mayor 100 % + 70 % del otro", ["502001:diferente_via", "503001"], {},
      2_863_500 + 1_546_500, None),
+    ("art. 64 par. 4 a: conjunto + cirugía: el conjunto es la mayor y la cirugía adicional igual vía (50 % "
+     "honorarios, sin sala ni materiales): 2.209.300 + 291.200 + 166.600 + 79.600",
+     ["502001", "1101"], {}, 2_746_700, lambda r: [x["mayor"] for x in r["items"]] == [True, False]),
+    ("art. 64 par. 4 a: conjunto + cirugía de otra especialidad: 2.209.300 + 582.400 + 75 % 333.100 + "
+     "50 % 159.200 + 50 % 963.400", ["502001", "1101:otra_especialidad"], {},
+     2_209_300 + 582_400 + 249_800 + 79_600 + 481_700, None),
+    ("parto: ginecoobstetra grupo 07 410.700 + anestesiólogo 39116 226.500 (art. 48 a.2) + ayudante 108.300 + "
+     "sala de parto 39220 774.000 (art. 50), sin materiales (art. 55 par. 3)",
+     ["12101"], {}, 1_519_500, lambda r: not any(ln["concepto"] == "materiales" for ln in r["lineas"])),
+    ("art. 55 par. 3: legrado obstétrico sin materiales: 196.800 + 141.600 + 347.200", ["12111"], {}, 685_600,
+     lambda r: not any(ln["concepto"] == "materiales" for ln in r["lineas"])),
+    ("cesárea 12110: sala y materiales de su grupo 08 (par. del art. 50): 476.800 + 281.600 + 124.900 + "
+     "845.300 + 452.800", ["12110"], {}, 2_181_400, None),
+    ("art. 73: dos cirugías del mismo especialista de otra especialidad: la segunda con cirujano al 50 %",
+     ["1110", "1101:otra_especialidad:esp2", "1103:otra_especialidad:esp2"], {}, 6_774_000,
+     lambda r: any("segunda cirugía del especialista 2" in ln["regla"] for ln in r["lineas"])),
+    ("art. 73 sin especialista: cada cirugía de otra especialidad es de un especialista distinto (cirujano 100 %)",
+     ["1110", "1101:otra_especialidad", "1103:otra_especialidad"], {}, 6_774_000 + 238_400, None),
+    ("art. 52 y 55 par. 2: incruenta en un procedimiento del capítulo IV: 80.200 + 45 % (36.100) + 39305 105.600",
+     ["37201:incruenta"], {}, 221_900, None),
+    ("art. 70 par. 1: el bilateral avisa los órganos en que procede", ["1101:bilateral"], {}, 4_118_200,
+     lambda r: any("art. 70 par. 1" in a for a in r["avisos"])),
+    ("art. 55 par. 1: grupo 20 con materiales a precio de catálogo (exacto, sin centena): 3.744.600 + 850.000",
+     ["1102"], dict(campos={"1102": dict(catalogo=850000)}), 4_594_600, None),
+    ("art. 51: recuperación de más de 6 horas, 50 % de la estancia 38123 (325.800): 2.490.900 + 162.900",
+     ["1101"], dict(campos={"1101": dict(recuperacion="media:38123")}), 2_653_800, None),
+    ("art. 51: cirugía ambulatoria nivel 2, estancia de tres camas 38123: 2.490.900 + 325.800",
+     ["1101"], dict(campos={"1101": dict(recuperacion="ambulatoria:2")}), 2_816_700, None),
+    ("art. 51: grupo especial en UCI menos de 24 h, 50 % de 38525 (2.269.200): 3.744.600 + 1.134.600",
+     ["1102"], dict(campos={"1102": dict(recuperacion="uci")}), 4_879_200, None),
+    ("art. 51: UCI en un grupo 09 no procede (se ignora y avisa)", ["1101"],
+     dict(campos={"1101": dict(recuperacion="uci")}), 2_490_900, lambda r: any("grupos especiales" in a for a in r["avisos"])),
+    ("arts. 56 y 57: suministros y medicamentos a precio de catálogo: 2.490.900 + 2 x 850.000 + 3 x 30.000",
+     ["1101"], dict(suministros=[dict(tipo="suministro", precio=850000, cantidad=2, descripcion="Placa"),
+                                 dict(tipo="medicamento", precio=30000, cantidad=3)]), 4_280_900, None),
     ("art. 86 b: capítulo IV +15 % (71.800 -> 82.570 -> 82.600)", ["19001"], dict(region="META"), 82_600, None),
     ("art. 86 a: consulta especializada +25 % (79.100 -> 98.875 -> 98.900)", ["39143"], dict(region="META"), 98_900, None),
     ("art. 86: la estancia no se incrementa", ["38111"], dict(region="META"), 297_700, None),
@@ -70,6 +105,10 @@ def main():
     fallas = 0
     for desc, textos, op, esperado, extra in PRUEBAS:
         items, err = cz.leer_items(textos)
+        op = dict(op)
+        for it in items:
+            it.update((op.get("campos") or {}).get(it["codigo"], {}))
+        op.pop("campos", None)
         r = cz.cotizar(items, D, **op) if not err else dict(total=None, errores=err)
         ok = r["total"] == esperado and (extra is None or bool(extra(r)))
         fallas += not ok

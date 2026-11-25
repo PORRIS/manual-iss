@@ -106,7 +106,7 @@ uv run soat2026/cotizar.py 19001 21101x2                       # procedimientos 
 uv run soat2026/cotizar.py 1102 1101:diferente_via --region META
 uv run soat2026/cotizar.py 13350:incruenta 1101:bilateral:sin_ayudante --valor 11552
 uv run soat2026/cotizar.py 1101 19001 --unidad smldv
-uv run soat2026/pruebas_cotizar.py                              # 30 pruebas calculadas a mano
+uv run soat2026/pruebas_cotizar.py                              # 45 pruebas calculadas a mano
 ```
 
 Una cotización es un paciente y un acto. Se elige la unidad (`--unidad uvb|uvt|smldv`, en la web
@@ -122,12 +122,23 @@ más. Los códigos 23106 (las tres unidades), 25123 y 25128 (UVT) no traen facto
 | Cirugía (grupo) | Cirujano + anestesiólogo + ayudante (desde el grupo 06) + sala (art. 49) + materiales (art. 55; grupos 20-23 a precio de catálogo, no se cotizan). Opciones: `bilateral` (honorarios +75 %, sala +50 %, materiales +75 %), `sin_anestesiologo`, `sin_ayudante`, `perfusionista` (39129, grupos 20-23), `incruenta` (art. 52: sala 45 %, materiales 39305) |
 | Varias cirugías | La mayor (mayor honorario de cirujano) al 100 %. Adicional `igual_via` (art. 71): honorarios 50 %; `diferente_via` (art. 72): honorarios 75 %, sala 50 %, materiales 75 %; `otra_especialidad` (art. 73): cirujano 100 %, anestesiólogo 75 %, ayudante 50 % solo de la adicional de mayor grupo, sala 50 % |
 | Varios conjuntos (art. 64 par. 4 b) | El mayor al 100 %; cada otro 25 % (igual vía) o 70 % (diferente vía u otra especialidad) |
+| Conjunto y cirugías (art. 64 par. 4 a) | El conjunto es la intervención mayor (100 %); **todas** las cirugías se pagan como adicionales según su relación con él (igual vía, diferente vía u otra especialidad) |
+| Otra especialidad, mismo especialista (art. 73) | Con `:esp2`, `:esp3`… (en la web, «Especialista») las cirugías de un mismo cirujano de otra especialidad: la de mayor honorario al 100 % y las demás con cirujano al 50 %. Sin especialista, cada cirugía de otra especialidad es de un cirujano distinto (100 %) |
+| Precio de catálogo, grupos 20-23 (art. 55 par. 1) | `--catalogo COD:VALOR` (web: «Precio de catálogo»): materiales de sutura y curación y elementos de anestesia; en cardiovascular (22-23) también los medicamentos del acto. Valor exacto, sin centena |
+| Recuperación (art. 51) | `--recuperacion COD:media-CAMA` (50 % de la estancia de la cama del art. 47), `COD:ambulatoria-N` (estancia de habitación de tres camas del nivel N) o `COD:uci` (grupos 20-23, 50 % de 38525). Una vez por acto |
+| Incruenta en el capítulo IV (arts. 52 y 55 par. 2) | `CODIGO:incruenta` en un procedimiento con valor del capítulo IV: sala 45 % de su tarifa + materiales 39305 |
+| Suministros, medicamentos, oxígeno (arts. 56, 57, 59, 64 par. 2) | `--suministro TIPO:PRECIO[xCANT]:DESC` (`suministro`, `medicamento`, `oxigeno`, `insumo_conjunto`): hasta el precio comercial de catálogo, sin porcentaje |
+| Bilateral (art. 70 par. 1) | Aviso con los órganos y casos en que procede |
+| Parto y legrado | Parto 12101 y 12102: ginecoobstetra con el cirujano del grupo 07 (39005), anestesiólogo con su código propio 39116 (art. 48 a.2, pág. 91) y sala de parto 39220 (art. 50), que incluye materiales, medicamentos, oxígeno y gases. Parto y legrado 11430 y 12111: sin materiales, incluidos en la sala (art. 55 par. 3). La cesárea (12110) va con la sala y los materiales de su grupo (par. del art. 50) |
 | Ajuste del contrato | Opcional, **0 % por defecto** (con 0 % los valores son los del PDF tal cual). Un porcentaje (+4 = «SOAT + 4 %», −5) que se aplica al final sobre cada valor ya liquidado, a la centena; se muestra aparte (según el PDF, ajuste, total). `--contrato 4` en consola |
 | Región (art. 86) | +25 % honorarios de cirugía, consultas, valoraciones y cuidado intrahospitalario (literal a); +15 % capítulo IV (literal b). No en Arauca, Florencia, Riohacha, Sincelejo, Villavicencio ni Yopal |
 
 **Interpretaciones aprobadas por el usuario (2026-11-20):** incruenta = 45 % de la sala del grupo (como en la auditoría
-SOAT); en igual vía y en otra especialidad no se suman sala ni materiales de la adicional (los arts.
-49 y 55 solo nombran «distinta región» y «diferente región»); el bilateral se aplica antes del
+SOAT); en igual vía no se suman sala ni materiales de la adicional (los arts. 49 y 55 solo nombran
+«distinta región» y «diferente región»); en otra especialidad la sala de la adicional va al 50 %
+(art. 49 par. 1: «cirujano de diferente especialidad en la misma u otra región», confirmado por el
+usuario el 2026-11-24 siguiendo el PDF) y los materiales no se suman (el art. 55 solo nombra
+«diferente región operatoria»); el bilateral se aplica antes del
 porcentaje de adicional; el +25 % del art. 86 a no se aplica a sala, materiales, perfusionista,
 junta médica (39144) ni sutura (39146); un conjunto con cirugías sueltas va como mayor y las
 cirugías como adicionales (art. 64 par. 4 a) según la relación que se elija.

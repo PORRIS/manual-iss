@@ -1896,18 +1896,20 @@ const OPC_S26 = {
   sin_anestesiologo: ["Anestesia local", "No se cobra anestesiólogo"],
   sin_ayudante: ["Sin ayudante", "La ayudantía se paga solo cuando se requiere el recurso (art. 48 a.3)"],
   perfusionista: ["Perfusionista", "39129, solo grupos especiales 20 a 23 (art. 48 b)"],
-  incruenta: ["Incruenta en sala", "Art. 52: sala = 45 % de la del grupo; materiales 39305 (art. 55 par. 2)"],
+  incruenta: ["Incruenta en sala", "Art. 52: sala = 45 % de la del grupo (cirugía) o de la tarifa del procedimiento (capítulo IV); materiales 39305 (art. 55 par. 2)"],
   anestesia: ["Anestesia general", "+50 % de la tarifa del procedimiento (art. 48 a.2)"],
 };
 const CONCEPTO_S26 = { tarifa: "Tarifa", cirujano: "Cirujano", anestesiologo: "Anestesiólogo", ayudante: "Ayudante",
-  sala: "Derechos de sala", materiales: "Materiales", anestesia: "Anestesia general", perfusionista: "Perfusionista" };
-const s26Vacia = () => ({ items: [], unidad: "uvb", valor: "", region: "", exceptuado: false, contrato: "" });
+  sala: "Derechos de sala", materiales: "Materiales", anestesia: "Anestesia general", perfusionista: "Perfusionista",
+  catalogo: "Precio de catálogo", recuperacion: "Recuperación" };
+const s26Vacia = () => ({ items: [], unidad: "uvb", valor: "", region: "", exceptuado: false, contrato: "", sum: [] });
 let s26 = (() => { try { return Object.assign(s26Vacia(), JSON.parse(localStorage.getItem("cotizacion_s26")) || {}); } catch { return s26Vacia(); } })();
 let S26_CFG = null, s26Res = null;
 const guardarS26 = () => { try { localStorage.setItem("cotizacion_s26", JSON.stringify(s26)); } catch { /* sin almacenamiento */ } };
 if (s26.uvb && !s26.valor) { s26.valor = s26.uvb; delete s26.uvb; }   // cotizaciones guardadas antes de elegir unidad
 const pedidoS26 = () => ({ items: s26.items, unidad: s26.unidad || "uvb", valor_unidad: +s26.valor || null,
-  region: s26.region, exceptuado: s26.exceptuado, contrato_pct: +s26.contrato || 0 });
+  region: s26.region, exceptuado: s26.exceptuado, contrato_pct: +s26.contrato || 0,
+  suministros: (s26.sum || []).map((x) => ({ tipo: x.tipo, descripcion: x.d, precio: x.p, cantidad: x.c || 1 })) });
 const unidadS26 = () => S26_CFG.unidades.find((u) => u.id === (s26.unidad || "uvb")) || S26_CFG.unidades[0];
 
 async function pintarS26Cotizar() {
@@ -1940,6 +1942,22 @@ async function pintarS26Cotizar() {
     <div class="cot-rejilla">
       <div class="cot-principal">
         <section class="panel" id="s26Items"></section>
+        <section class="panel" id="s26Sum">
+          <h2 class="subtitulo">${icono("caja")}Suministros, medicamentos y oxígeno a precio de catálogo (arts. 56, 57, 59 y 64 par. 2)</h2>
+          <p class="nota-campo">Prótesis, órtesis, placas, tornillos, mallas, catéteres y demás suministros (art. 57), drogas y medicamentos
+            fuera del quirófano (art. 56), oxígeno (art. 59) y los insumos que se cobran aparte de un conjunto (art. 64 par. 2): se reconocen
+            <b>hasta el precio comercial de catálogo</b>, sin porcentaje. No van si el elemento hace parte de un examen o procedimiento del
+            capítulo IV (art. 81).</p>
+          <form class="cot-sum-form" id="s26SumForm" autocomplete="off">
+            <select id="s26SumTipo" aria-label="Tipo">${S26_CFG.tipos_catalogo.map((t) => `<option value="${t.id}">${esc(t.texto)}</option>`).join("")}</select>
+            <input id="s26SumDesc" maxlength="200" placeholder="Descripción" aria-label="Descripción">
+            <input id="s26SumPrecio" type="number" min="1" step="1" placeholder="Precio de catálogo $" aria-label="Precio de catálogo" required>
+            <input id="s26SumCant" type="number" min="1" step="1" value="1" aria-label="Cantidad" title="Cantidad">
+            <span></span>
+            <button class="boton boton--verde" type="submit">${icono("mas")}Agregar</button>
+          </form>
+          <div id="s26SumLista"></div>
+        </section>
         <section class="panel" id="s26Lineas"></section>
       </div>
       <aside class="cot-lateral">
@@ -1960,6 +1978,20 @@ async function pintarS26Cotizar() {
     const v = entrada.value.trim();
     if (v.length >= 3 && !/^[\d\s,x;]+$/i.test(v)) buscarS26(v); else $("#s26Sug").hidden = true;
   }, 300));
+  $("#s26SumForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const p = parseFloat($("#s26SumPrecio").value), c = parseFloat($("#s26SumCant").value) || 1;
+    if (!(p > 0)) return;
+    (s26.sum ||= []).push({ tipo: $("#s26SumTipo").value, d: $("#s26SumDesc").value.trim(), p, c: Math.max(1, c) });
+    $("#s26SumDesc").value = $("#s26SumPrecio").value = ""; $("#s26SumCant").value = 1;
+    recalcularS26();
+  });
+  $("#s26SumLista").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-s26-quitar-sum]");
+    if (!b) return;
+    s26.sum.splice(+b.dataset.s26QuitarSum, 1);
+    recalcularS26();
+  });
   pintarS26Cond();
   if (s26Res) pintarS26Resultado();
   recalcularS26();
@@ -2027,13 +2059,24 @@ function pintarS26Resultado() {
     const x = info.find((y) => y.item === i);
     if (!x || x.error) return `<tr class="cot-error"><td class="cod">${esc(it.codigo)}</td><td colspan="4">No está en el Manual SOAT 2026</td><td>${quitar(i)}</td></tr>`;
     const tipo = x.tipo === "cirugia" ? `Cirugía · grupo ${String(x.grupo).padStart(2, "0")}` : x.tipo === "conjunto" ? "Conjunto integral (art. 64)" : `Art. ${x.articulo}`;
-    const rel = (x.tipo === "cirugia" || x.tipo === "conjunto") && (varias(x.tipo) || it.cantidad > 1)
+    // art. 64 par. 4 a: con un conjunto en el acto, el conjunto es la mayor y las cirugías son adicionales
+    const mixto = info.some((y) => y.tipo === "conjunto") && info.some((y) => y.tipo === "cirugia");
+    const rel = (x.tipo === "cirugia" || x.tipo === "conjunto") && (varias(x.tipo) || it.cantidad > 1 || mixto)
       ? (x.mayor ? `<span class="chip">Intervención mayor (100 %)</span>`
         : `<label class="opcion activa" title="Relación con la intervención mayor (arts. 71-73; conjuntos art. 64 par. 4)">Adicional:
             <select data-s26-rel="${i}">${S26_CFG.relaciones.map((o) => `<option value="${o.id}"${(it.relacion || "igual_via") === o.id ? " selected" : ""}>${esc(o.texto)}</option>`).join("")}</select></label>`)
       : "";
     const opcs = x.opciones.filter((o) => !(o === "perfusionista" && x.grupo < 20)).map((o) => `<label class="opcion" title="${esc(OPC_S26[o][1])}">
-        <input type="checkbox" data-s26-op="${o}" data-i="${i}"${it.opciones.includes(o) ? " checked" : ""}>${OPC_S26[o][0]}</label>`).join("");
+        <input type="checkbox" data-s26-op="${o}" data-i="${i}"${it.opciones.includes(o) ? " checked" : ""}>${OPC_S26[o][0]}</label>`).join("")
+      + (x.tipo === "cirugia" && !x.mayor && it.relacion === "otra_especialidad" ? `<label class="opcion${it.especialista ? " activa" : ""}" title="Art. 73: cada cirujano de otra especialidad cobra 100 % de su cirugía mayor y 50 % de sus adicionales. Deje «distinto» si cada cirugía es de un especialista diferente">Especialista
+          <select data-s26-esp="${i}"><option value="">distinto</option>${["2", "3", "4"].map((k) => `<option value="${k}"${it.especialista === k ? " selected" : ""}>${k}</option>`).join("")}</select></label>` : "")
+      + (x.tipo === "cirugia" && x.grupo >= 20 ? `<label class="opcion${it.catalogo ? " activa" : ""}" title="Art. 55 par. 1: en los grupos 20-23 los materiales de sutura y curación y los elementos de anestesia (y en cardiovascular 22-23 los medicamentos del acto) van a precio de catálogo">Precio de catálogo $
+          <input class="opcion__valor" type="number" min="0" step="1" placeholder="0" value="${it.catalogo || ""}" data-s26-cat="${i}"></label>` : "")
+      + (x.tipo === "cirugia" ? `<label class="opcion${it.recuperacion ? " activa" : ""}" title="Art. 51: más de 6 horas en recuperación: 50 % de la estancia de la cama; cirugía ambulatoria: estancia de habitación de tres camas; grupos especiales en UCI menos de 24 h: 50 % de la UCI">Recuperación
+          <select data-s26-rec="${i}"><option value="">no (o menos de 6 h)</option>
+            ${S26_CFG.camas.map((k) => `<option value="media:${k.codigo}"${it.recuperacion === "media:" + k.codigo ? " selected" : ""}>50 % estancia nivel ${k.nivel}, ${esc(k.texto.toLowerCase())}</option>`).join("")}
+            ${["1", "2", "3"].map((n) => `<option value="ambulatoria:${n}"${it.recuperacion === "ambulatoria:" + n ? " selected" : ""}>ambulatoria nivel ${n} (estancia 3 camas)</option>`).join("")}
+            ${x.grupo >= 20 ? `<option value="uci"${it.recuperacion === "uci" ? " selected" : ""}>UCI menos de 24 h (50 %)</option>` : ""}</select></label>` : "");
     return `<tr>
       <td class="cod">${esc(x.codigo)}</td>
       <td><div class="recorte">${esc(x.descripcion)}</div><small class="sutil">${esc(tipo)} · <a class="pagina" href="/fuentes/soat2026#page=${x.pagina}" target="_blank" rel="noopener">pág. ${x.pagina}</a></small></td>
@@ -2046,6 +2089,12 @@ function pintarS26Resultado() {
     ${s26.items.length ? `<div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Descripción</th><th class="num">Cant.</th>
       <th>Opciones</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>`
       : `<div class="estado">${icono("calculadora")}<div>Agregue códigos para empezar.</div></div>`}`;
+  const sumi = s26.sum || [];
+  $("#s26SumLista").innerHTML = sumi.length ? `<div class="tabla-marco cot-tabla"><table><thead><tr><th>Tipo</th><th>Descripción</th>
+    <th class="num">Precio de catálogo</th><th class="num">Cant.</th><th class="num">Valor</th><th></th></tr></thead><tbody>
+    ${sumi.map((x, k) => `<tr><td>${esc((S26_CFG.tipos_catalogo.find((t) => t.id === x.tipo) || {}).texto || x.tipo)}</td><td>${esc(x.d)}</td>
+      <td class="num">${pesos(x.p)}</td><td class="num">${fmt.format(x.c || 1)}</td><td class="num"><b>${pesos(x.p * (x.c || 1))}</b></td>
+      <td><button class="boton-icono" type="button" data-s26-quitar-sum="${k}" title="Quitar">${icono("x")}</button></td></tr>`).join("")}</tbody></table></div>` : "";
   $("#s26Lineas").hidden = !r.lineas.length && !r.avisos.length;
   $("#s26Lineas").innerHTML = (r.lineas.length ? `<h2 class="subtitulo">${icono("porcentaje")}Liquidación por componente</h2>
     <div class="tabla-marco cot-tabla"><table><thead><tr><th>Código</th><th>Concepto</th><th>Descripción</th><th class="num">Base</th>
@@ -2081,6 +2130,12 @@ function enlazarS26() {
     recalcularS26(); }));
   document.querySelectorAll("[data-s26-rel]").forEach((sel) => sel.addEventListener("change", () => {
     s26.items[+sel.dataset.s26Rel].relacion = sel.value; recalcularS26(); }));
+  document.querySelectorAll("[data-s26-esp]").forEach((sel) => sel.addEventListener("change", () => {
+    s26.items[+sel.dataset.s26Esp].especialista = sel.value; recalcularS26(); }));
+  document.querySelectorAll("[data-s26-cat]").forEach((n) => n.addEventListener("change", () => {
+    s26.items[+n.dataset.s26Cat].catalogo = Math.max(0, parseFloat(n.value) || 0) || null; recalcularS26(); }));
+  document.querySelectorAll("[data-s26-rec]").forEach((sel) => sel.addEventListener("change", () => {
+    s26.items[+sel.dataset.s26Rec].recuperacion = sel.value; recalcularS26(); }));
   $("#s26Limpiar").addEventListener("click", () => { s26 = s26Vacia(); pintarS26Cond(); recalcularS26(); });
   $("#s26Excel").addEventListener("click", async (ev) => {
     const b = ev.currentTarget, original = b.innerHTML;

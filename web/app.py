@@ -1258,6 +1258,17 @@ class ItemS26(BaseModel):
     cantidad: int = Field(1, ge=1, le=99)
     opciones: list[str] = Field(default_factory=list, max_length=10)
     relacion: str = Field("", max_length=30)
+    especialista: str = Field("", max_length=5)           # art. 73: «2», «3»... con otra_especialidad
+    catalogo: float | None = Field(None, ge=0, le=10_000_000_000)  # art. 55 par. 1, grupos 20-23
+    recuperacion: str = Field("", max_length=30)          # art. 51: media:CAMA | ambulatoria:N | uci
+
+
+class SuministroS26(BaseModel):
+    """Arts. 56, 57, 59 y 64 par. 2: a precio comercial de catálogo."""
+    tipo: str = Field("suministro", pattern="^(suministro|medicamento|oxigeno|insumo_conjunto)$")
+    descripcion: str = Field("", max_length=200)
+    precio: float = Field(gt=0, le=10_000_000_000)
+    cantidad: float = Field(1, gt=0, le=9999)
 
 
 class CotizacionS26(BaseModel):
@@ -1267,11 +1278,13 @@ class CotizacionS26(BaseModel):
     region: str = Field("", max_length=60)
     exceptuado: bool = False
     contrato_pct: float = Field(0.0, gt=-100, le=500)   # 0 = valores del PDF tal cual
+    suministros: list[SuministroS26] = Field(default_factory=list, max_length=200)
 
 
 def calcular_s26(c: CotizacionS26):
     return soat26_cot.cotizar([i.model_dump() for i in c.items], datos_s26(), c.valor_unidad, c.region,
-                              c.exceptuado, c.unidad, c.contrato_pct)
+                              c.exceptuado, c.unidad, c.contrato_pct,
+                              [x.model_dump() for x in c.suministros])
 
 
 @app.get("/api/soat2026/cotizador")
@@ -1281,7 +1294,11 @@ def api_s26_cotizador():
              "smldv": "Salario mínimo legal diario vigente (base del decreto original)"}
     return dict(uvb=d["uvb"], unidades=[dict(id=u, nombre=n, valor=d["valores"][u], descripcion=descr[u])
                                         for u, n in soat26_cot.UNIDADES.items()], regiones=list(soat26_cot.REGIONES_86), exceptuados=list(soat26_cot.EXCEPTUADOS_86),
-                relaciones=[dict(id=k, texto=v) for k, v in soat26_cot.RELACION_TXT.items()])
+                relaciones=[dict(id=k, texto=v) for k, v in soat26_cot.RELACION_TXT.items()],
+                # art. 51: camas de estancia del art. 47 (nivel = 4.º dígito del código) y tipos a precio de catálogo
+                camas=[dict(codigo=k, nivel=k[3], texto=d["procs"][k]["descripcion"]) for k in soat26_cot.CAMAS_47
+                       if k in d["procs"]],
+                tipos_catalogo=[dict(id=k, texto=f"{v[0]} ({v[1]})") for k, v in soat26_cot.TIPOS_CATALOGO.items()])
 
 
 @app.get("/api/soat2026/buscar")
@@ -1317,7 +1334,8 @@ def api_s26_cotizar_excel(c: CotizacionS26):
     cab += ["Valor según PDF", f"Contrato {r['contrato_pct']:+g} %", "Valor"] if con_contrato else ["Valor"]
     cab.append("Regla aplicada")
     ws.append(cab)
-    nombres = dict(soat26_cot.CONCEPTOS, tarifa="Tarifa", anestesia="Anestesia general", perfusionista="Perfusionista")
+    nombres = dict(soat26_cot.CONCEPTOS, tarifa="Tarifa", anestesia="Anestesia general", perfusionista="Perfusionista",
+                   catalogo="Precio de catálogo", recuperacion="Recuperación")
     for ln in r["lineas"]:
         fila = [ln["codigo"], ln["descripcion"], nombres.get(ln["concepto"], ln["concepto"]), ln["base"],
                 ln["porcentaje"] / 100 * (1 + ln["region86"] / 100)]
