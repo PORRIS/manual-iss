@@ -10,6 +10,14 @@ Una cotización es un paciente y un acto. Cada ítem es un código del Manual co
     bilateral       +75 % (art. 70 par. 2; conjuntos: art. 64 par. 3)
     anestesia       anestesia general en un examen o procedimiento: +50 % de su tarifa (art. 48 a.2);
                     los códigos 39150-39155 tienen valor propio y se cotizan aparte
+    incruenta       capítulo IV en sala: sala 45 % de la tarifa + materiales 39305 (arts. 52 y 55 par. 2)
+    sin_lectura     radiología sin lectura del radiólogo: -25 % (art. 23 par. 1)
+    especialista    exámenes especiales e intervencionistas (art. 23 ítems 4 y 5): + una suma igual (par. 3)
+    pelicula        hemodinamia con registros en película: +9,09 SMLDV por estudio (art. 27 par. 2)
+    doppler         vasculares no invasivos con doppler color: +30 % (art. 33)
+    rm_adicional    resonancia adicional con medio de contraste: 25 % del inicial (art. 33)
+    acelerador      radioterapia con acelerador lineal: +30 % (art. 35 par. 3)
+    simulacion      radioterapia con equipo de simulación: +8,84 SMLDV (art. 35 par. 3)
 - Cirugía (código con grupo quirúrgico, cap. III): se liquida por componentes del grupo
     cirujano y anestesiólogo (art. 48 a.1 y a.2), ayudante desde el grupo 06 (art. 48 a.3),
     derechos de sala (art. 49) y materiales (art. 55; grupos 20-23 a precio de catálogo, par. 1).
@@ -57,7 +65,22 @@ BASE = Path(__file__).resolve().parent
 DB = BASE / "salida" / "manual_soat_2026.db"
 
 OPCIONES_CIRUGIA = ("bilateral", "sin_anestesiologo", "sin_ayudante", "perfusionista", "incruenta")
-OPCIONES_VALOR = ("bilateral", "anestesia", "incruenta")
+OPCIONES_VALOR = ("bilateral", "anestesia", "incruenta", "sin_lectura", "especialista", "pelicula", "doppler",
+                  "rm_adicional", "acelerador", "simulacion")
+# Capítulo IV: (artículo, numerales del agrupador raíz o None = todo el artículo) donde aplica cada opción
+OPCION_CAP4 = {
+    "sin_lectura": (23, None),          # art. 23 par. 1: sin lectura del radiólogo, -25 %
+    "especialista": (23, {"4", "5"}),   # art. 23 par. 3: especialista igual a la tarifa del estudio
+    "pelicula": (27, None),             # art. 27 par. 2: registros en película, +9,09 SMLDV por estudio
+    "doppler": (33, {"2"}),             # art. 33 (vasculares no invasivos): doppler color +30 %
+    "rm_adicional": (33, {"3"}),        # art. 33 (resonancia): adicional con contraste = 25 % del inicial
+    "acelerador": (35, {"1", "2", "3", "4", "5"}),  # art. 35 par. 3: acelerador lineal +30 %
+    "simulacion": (35, {"1", "2", "3", "4", "5"}),  # art. 35 par. 3: equipo de simulación +8,84 SMLDV
+}
+# art. 23 par. 3: estos tienen su propio código de especialista (02501, 09104, 09105, 25120, 25122, 25123,
+# 25125, 25127, 25128, 25139), no el 100 % adicional
+ESPECIALISTA_EXCEPTO_23 = {"21433", "21434", "21436", "21441", "21442", "21443", "21444", "21445", "21452",
+                           "21504", "21512"}
 RELACIONES = ("igual_via", "diferente_via", "otra_especialidad")
 RELACION_TXT = {"igual_via": "mismo cirujano, igual vía", "diferente_via": "mismo cirujano, diferente vía",
                 "otra_especialidad": "cirujano de otra especialidad"}
@@ -112,22 +135,50 @@ def cargar(db=DB):
         raise FileNotFoundError(f"No existe {db}: genérela con soat2026/actualizar.sh")
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     procs = {}
-    for cod, desc, art, grupo, fsm, fut, fuvb, pag, cap in con.execute(
+    agr = {i: (padre, num) for i, padre, num in con.execute("SELECT id, padre_id, numeral FROM agrupadores")}
+
+    def raiz(i):
+        """Numeral del agrupador de primer nivel (ítem del artículo: «1», «2»...)."""
+        while i in agr and agr[i][0] in agr:
+            i = agr[i][0]
+        return agr[i][1] if i in agr else None
+
+    for cod, desc, art, grupo, fsm, fut, fuvb, pag, cap, agr_id in con.execute(
             "SELECT p.codigo, p.descripcion, p.articulo, p.grupo_quirurgico, p.factor_smldv, p.factor_uvt, "
-            "p.factor_uvb, p.pagina, c.numero "
+            "p.factor_uvb, p.pagina, c.numero, p.agrupador_id "
             "FROM procedimientos p JOIN articulos a ON a.numero = p.articulo "
             "JOIN capitulos c ON c.id = a.capitulo_id"):
         procs[cod] = dict(codigo=cod, descripcion=desc, articulo=art, grupo=grupo, factor_uvb=fuvb,
                           factor_uvt=fut, factor_smldv=fsm,
-                          pagina=pag, capitulo=cap)
+                          pagina=pag, capitulo=cap, item=raiz(agr_id))
+    # proporción de factores entre unidades (para los valores fijos en SMLDV de los arts. 27 y 35)
+    prop = {"smldv": 1.0}
+    for u in ("uvb", "uvt"):
+        rs = sorted(f / s for s, f in con.execute(
+            f"SELECT factor_smldv, factor_{u} FROM procedimientos WHERE factor_smldv > 1 AND factor_{u} > 0"))
+        prop[u] = rs[len(rs) // 2]
     grupos = {}
     for grupo, concepto, cod in con.execute(
             "SELECT g.grupo, g.concepto, p.codigo FROM tarifas_grupo g JOIN procedimientos p ON p.id = g.procedimiento_id"):
         grupos[(grupo, concepto)] = cod
     param = dict(con.execute("SELECT concepto, valor FROM parametros"))
     con.close()
-    return dict(procs=procs, grupos=grupos, uvb=param["UVB"],
+    return dict(procs=procs, grupos=grupos, uvb=param["UVB"], prop=prop,
                 valores={u: param[n] for u, n in UNIDADES.items()})
+
+
+def opciones_valor(p):
+    """Opciones de un procedimiento con valor según su artículo e ítem (capítulo IV)."""
+    out = ["bilateral", "anestesia"] + (["incruenta"] if p["capitulo"] == "IV" else [])
+    for o, (art, items) in OPCION_CAP4.items():
+        if p["articulo"] == art and (items is None or p.get("item") in items):
+            out.append(o)
+    return out
+
+
+def smldv_en_unidad(d, n_smldv, u):
+    """Valor fijo dado en SMLDV, en la unidad elegida (con la proporción de factores del PDF), a la centena."""
+    return centena(n_smldv * d["prop"][u["unidad"]] * u["valor"])
 
 
 def factor(d, cod, u):
@@ -225,7 +276,7 @@ def cotizar(items, d, valor_unidad=None, region="", exceptuado=False, unidad="uv
         info.append(dict(item=i, codigo=p["codigo"], descripcion=p["descripcion"], tipo=tipo, grupo=p["grupo"],
                          articulo=p["articulo"], pagina=p["pagina"], mayor=False,
                          opciones=list(OPCIONES_CIRUGIA) if tipo == "cirugia" else
-                         [o for o in OPCIONES_VALOR if o != "incruenta" or (tipo == "valor" and p["capitulo"] == "IV")]))
+                         opciones_valor(p) if tipo == "valor" else ["bilateral"]))
         it = dict(it, **{k: p[k] for k in ("descripcion", "articulo", "grupo", "capitulo", "pagina")})
         it["opciones"] = list(dict.fromkeys(it.get("opciones") or []))
         it["cantidad"] = max(1, int(it.get("cantidad") or 1))
@@ -309,6 +360,8 @@ def incremento_86(ln, d):
         return 25
     if ln["concepto"] == "anestesia":
         return 25
+    if ln["concepto"] in ("especialista", "adicional") and p and p["capitulo"] == "IV":
+        return 15      # parte del examen o procedimiento del capítulo IV (literal b)
     if ln["concepto"] != "tarifa" or not p:
         return 0
     if ln["codigo"] in LITERAL_A:
@@ -326,7 +379,43 @@ def valorado(it, d, uvb, linea, avisos):
         regla += f" x {it['cantidad']}"
     if "bilateral" in it["opciones"]:
         pct, regla = 175, regla + "; bilateral +75 % (art. 70 par. 2)"
-    linea(it["i"], it, "tarifa", v, pct, regla)
+    p = d["procs"][it["codigo"]]
+    validas = set(opciones_valor(p))
+    for o in it["opciones"]:
+        if o in OPCION_CAP4 and o not in validas:
+            avisos.append(f"{it['codigo']}: la opción {o} no aplica a este procedimiento (art. {OPCION_CAP4[o][0]}); se ignora")
+    o = set(it["opciones"]) & validas
+    if "rm_adicional" in o:
+        pct *= 0.25
+        regla += "; estudio adicional con medio de contraste: 25 % del inicial (art. 33)"
+    if "doppler" in o:
+        pct *= 1.30
+        regla += "; doppler color +30 % (art. 33)"
+    if "acelerador" in o:
+        pct *= 1.30
+        regla += "; con acelerador lineal +30 % (art. 35 par. 3)"
+    if "sin_lectura" in o:
+        pct *= 0.75
+        regla += "; sin lectura del radiólogo: -25 % (art. 23 par. 1)"
+    linea(it["i"], it, "tarifa", v, round(pct, 4), regla)
+    if "especialista" in o:
+        if it["codigo"] in ESPECIALISTA_EXCEPTO_23:
+            avisos.append(f"{it['codigo']}: el especialista que practica este examen tiene su propio código (art. 23 "
+                          "par. 3: 02501, 09104, 09105, 25120, 25122, 25123, 25125, 25127, 25128 o 25139); agréguelo aparte")
+        else:
+            linea(it["i"], it, "especialista", v, 100, "especialista que practica el examen especial o intervencionista: "
+                  "una suma igual a la tarifa del estudio (art. 23 par. 3)",
+                  descripcion=f"Especialista — {it['descripcion']}")
+    if "pelicula" in o:
+        vp = smldv_en_unidad(d, 9.09, uvb)
+        linea(it["i"], it, "adicional", vp * it["cantidad"], 100,
+              f"registros en película: 9,09 SMLDV por estudio = {pesos(vp)} en {uvb['nombre']} (art. 27 par. 2)"
+              + (f" x {it['cantidad']}" if it["cantidad"] > 1 else ""), descripcion=f"Registro en película — {it['descripcion']}")
+    if "simulacion" in o:
+        vs = smldv_en_unidad(d, 8.84, uvb)
+        linea(it["i"], it, "adicional", vs * it["cantidad"], 100,
+              f"equipo de simulación: +8,84 SMLDV = {pesos(vs)} en {uvb['nombre']} (art. 35 par. 3)"
+              + (f" x {it['cantidad']}" if it["cantidad"] > 1 else ""), descripcion=f"Simulación — {it['descripcion']}")
     if "incruenta" in it["opciones"]:
         if it.get("capitulo") != "IV":
             avisos.append(f"{it['codigo']}: «incruenta» con valor propio aplica a procedimientos del capítulo IV "

@@ -149,6 +149,16 @@
     materiales 50 %, diferente vía en politrauma y otra especialidad con materiales; endoscópicos sin
     escenario de adicional por igual vía; aviso del grupo de las artroscopias. Pruebas cotizador 87,
     auditoría 42.
+33. Cotizador SOAT 2026, revisión contra el PDF (2026-11-24; independiente del ISS, solo soat2026/ y su
+    pantalla). Commit a035ad7: conjunto + cirugías con el conjunto como mayor (art. 64 par. 4 a); parto con
+    sala 39220 y anestesiólogo 39116, parto y legrado sin materiales (arts. 48 a.2, 50, 55 par. 3);
+    especialista por cirugía de otra especialidad (art. 73); precio de catálogo en grupos 20-23 (art. 55
+    par. 1); suministros, medicamentos y oxígeno a precio de catálogo sin porcentaje (arts. 56, 57, 59, 64
+    par. 2); recuperación (art. 51); incruenta del capítulo IV (arts. 52, 55 par. 2); aviso del bilateral
+    (art. 70 par. 1). Después: recargos del capítulo IV (arts. 23 par. 1 y 3, 27 par. 2, 33, 35 par. 3;
+    valores en SMLDV pasados a la unidad elegida). Confirmado por el usuario: otra especialidad con sala al
+    50 % (art. 49 par. 1). Pruebas cotizador SOAT 55. Auditar con tarifario SOAT usa otras tablas
+    (soat_* de manual_iss.db): estas reglas no están allí.
 
 ## Entorno
 - BD: `salida/manual_iss.db`; desde Windows: `\\wsl.localhost\Ubuntu\home\porris\develop\manual_iss\salida\manual_iss.db`.

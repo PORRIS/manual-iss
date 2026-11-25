@@ -1335,7 +1335,8 @@ def api_s26_cotizar_excel(c: CotizacionS26):
     cab.append("Regla aplicada")
     ws.append(cab)
     nombres = dict(soat26_cot.CONCEPTOS, tarifa="Tarifa", anestesia="Anestesia general", perfusionista="Perfusionista",
-                   catalogo="Precio de catálogo", recuperacion="Recuperación")
+                   catalogo="Precio de catálogo", recuperacion="Recuperación", especialista="Especialista",
+                   adicional="Adicional")
     for ln in r["lineas"]:
         fila = [ln["codigo"], ln["descripcion"], nombres.get(ln["concepto"], ln["concepto"]), ln["base"],
                 ln["porcentaje"] / 100 * (1 + ln["region86"] / 100)]

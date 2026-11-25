@@ -106,7 +106,7 @@ uv run soat2026/cotizar.py 19001 21101x2                       # procedimientos 
 uv run soat2026/cotizar.py 1102 1101:diferente_via --region META
 uv run soat2026/cotizar.py 13350:incruenta 1101:bilateral:sin_ayudante --valor 11552
 uv run soat2026/cotizar.py 1101 19001 --unidad smldv
-uv run soat2026/pruebas_cotizar.py                              # 45 pruebas calculadas a mano
+uv run soat2026/pruebas_cotizar.py                              # 55 pruebas calculadas a mano
 ```
 
 Una cotización es un paciente y un acto. Se elige la unidad (`--unidad uvb|uvt|smldv`, en la web
@@ -128,6 +128,7 @@ más. Los códigos 23106 (las tres unidades), 25123 y 25128 (UVT) no traen facto
 | Recuperación (art. 51) | `--recuperacion COD:media-CAMA` (50 % de la estancia de la cama del art. 47), `COD:ambulatoria-N` (estancia de habitación de tres camas del nivel N) o `COD:uci` (grupos 20-23, 50 % de 38525). Una vez por acto |
 | Incruenta en el capítulo IV (arts. 52 y 55 par. 2) | `CODIGO:incruenta` en un procedimiento con valor del capítulo IV: sala 45 % de su tarifa + materiales 39305 |
 | Suministros, medicamentos, oxígeno (arts. 56, 57, 59, 64 par. 2) | `--suministro TIPO:PRECIO[xCANT]:DESC` (`suministro`, `medicamento`, `oxigeno`, `insumo_conjunto`): hasta el precio comercial de catálogo, sin porcentaje |
+| Capítulo IV: recargos y descuentos | `CODIGO:sin_lectura` radiología sin lectura del radiólogo −25 % (art. 23 par. 1); `:especialista` exámenes especiales e intervencionistas (art. 23 ítems 4 y 5) + especialista igual a la tarifa (par. 3; 11 códigos tienen su propio código de especialista: solo aviso); `:pelicula` hemodinamia con registros en película +9,09 SMLDV por estudio (art. 27 par. 2); `:doppler` vasculares no invasivos con doppler color +30 % (art. 33); `:rm_adicional` resonancia adicional con contraste al 25 % (art. 33); `:acelerador` +30 % y `:simulacion` +8,84 SMLDV en radioterapia (art. 35 par. 3). Los valores fijos en SMLDV se pasan a la unidad elegida con la proporción de factores del PDF (1 SMLDV = 3,7695 UVB = 0,8771 UVT). El especialista y los adicionales reciben el +15 % del art. 86 b |
 | Bilateral (art. 70 par. 1) | Aviso con los órganos y casos en que procede |
 | Parto y legrado | Parto 12101 y 12102: ginecoobstetra con el cirujano del grupo 07 (39005), anestesiólogo con su código propio 39116 (art. 48 a.2, pág. 91) y sala de parto 39220 (art. 50), que incluye materiales, medicamentos, oxígeno y gases. Parto y legrado 11430 y 12111: sin materiales, incluidos en la sala (art. 55 par. 3). La cesárea (12110) va con la sala y los materiales de su grupo (par. del art. 50) |
 | Ajuste del contrato | Opcional, **0 % por defecto** (con 0 % los valores son los del PDF tal cual). Un porcentaje (+4 = «SOAT + 4 %», −5) que se aplica al final sobre cada valor ya liquidado, a la centena; se muestra aparte (según el PDF, ajuste, total). `--contrato 4` en consola |

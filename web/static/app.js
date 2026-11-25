@@ -1898,10 +1898,17 @@ const OPC_S26 = {
   perfusionista: ["Perfusionista", "39129, solo grupos especiales 20 a 23 (art. 48 b)"],
   incruenta: ["Incruenta en sala", "Art. 52: sala = 45 % de la del grupo (cirugía) o de la tarifa del procedimiento (capítulo IV); materiales 39305 (art. 55 par. 2)"],
   anestesia: ["Anestesia general", "+50 % de la tarifa del procedimiento (art. 48 a.2)"],
+  sin_lectura: ["Sin lectura del radiólogo", "Art. 23 par. 1: si el radiólogo no hace la lectura, se descuenta el 25 %"],
+  especialista: ["Especialista que lo practica", "Art. 23 par. 3: exámenes especiales e intervencionistas (ítems 4 y 5): se reconoce además al especialista una suma igual a la tarifa del estudio"],
+  pelicula: ["Registros en película", "Art. 27 par. 2: +9,09 SMLDV por estudio (en la unidad elegida)"],
+  doppler: ["Doppler color", "Art. 33: +30 % sobre la tarifa del estudio"],
+  rm_adicional: ["Adicional con contraste", "Art. 33: estudio adicional con medio de contraste en el mismo acto = 25 % del inicial"],
+  acelerador: ["Acelerador lineal", "Art. 35 par. 3: +30 % sobre la tarifa del tratamiento"],
+  simulacion: ["Equipo de simulación", "Art. 35 par. 3: +8,84 SMLDV (en la unidad elegida)"],
 };
 const CONCEPTO_S26 = { tarifa: "Tarifa", cirujano: "Cirujano", anestesiologo: "Anestesiólogo", ayudante: "Ayudante",
   sala: "Derechos de sala", materiales: "Materiales", anestesia: "Anestesia general", perfusionista: "Perfusionista",
-  catalogo: "Precio de catálogo", recuperacion: "Recuperación" };
+  catalogo: "Precio de catálogo", recuperacion: "Recuperación", especialista: "Especialista", adicional: "Adicional" };
 const s26Vacia = () => ({ items: [], unidad: "uvb", valor: "", region: "", exceptuado: false, contrato: "", sum: [] });
 let s26 = (() => { try { return Object.assign(s26Vacia(), JSON.parse(localStorage.getItem("cotizacion_s26")) || {}); } catch { return s26Vacia(); } })();
 let S26_CFG = null, s26Res = null;
@@ -1946,8 +1953,10 @@ async function pintarS26Cotizar() {
           <h2 class="subtitulo">${icono("caja")}Suministros, medicamentos y oxígeno a precio de catálogo (arts. 56, 57, 59 y 64 par. 2)</h2>
           <p class="nota-campo">Prótesis, órtesis, placas, tornillos, mallas, catéteres y demás suministros (art. 57), drogas y medicamentos
             fuera del quirófano (art. 56), oxígeno (art. 59) y los insumos que se cobran aparte de un conjunto (art. 64 par. 2): se reconocen
-            <b>hasta el precio comercial de catálogo</b>, sin porcentaje. No van si el elemento hace parte de un examen o procedimiento del
-            capítulo IV (art. 81).</p>
+            <b>hasta el precio comercial de catálogo</b>, sin porcentaje. En los exámenes y procedimientos del capítulo IV el material va
+            incluido en la tarifa (art. 81), salvo lo que el PDF manda cobrar aparte: medios de contraste, catéteres, guías e introductores
+            (arts. 23 par. 2, 25, 27 par. 1 y 33), drogas de quimioterapia (art. 35 par. 2), radioactivos (art. 24), equipos de transfusión
+            (art. 32 par. 2), materiales de periodoncia (art. 38 par. 2) y de curación en quemados (art. 45).</p>
           <form class="cot-sum-form" id="s26SumForm" autocomplete="off">
             <select id="s26SumTipo" aria-label="Tipo">${S26_CFG.tipos_catalogo.map((t) => `<option value="${t.id}">${esc(t.texto)}</option>`).join("")}</select>
             <input id="s26SumDesc" maxlength="200" placeholder="Descripción" aria-label="Descripción">
